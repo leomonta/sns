@@ -73,7 +73,7 @@ int main(const int argc, const char *argv[]) {
 		trimwhitespace(line);
 
 		// simple commands
-		if (strcmp(line, "exit") == 0) {
+		if (strcmp(line, "exit") == 0 || strcmp(line, "quit")) {
 			stop();
 			break;
 		}
@@ -106,7 +106,7 @@ void setup() {
 
 	setupContentTypes();
 
-	Res::serverSocket = tcpConn::initializeServer(Res::tcpPort);
+	Res::serverSocket = tcpConn::initializeServer(Res::tcpPort, 4);
 
 	if (Res::serverSocket == INVALID_SOCKET) {
 		exit(1);

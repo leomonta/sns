@@ -10,13 +10,16 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-Socket tcpConn::initializeServer(const short port) {
+Socket tcpConn::initializeServer(const short port, const char protocol) {
 
 	PROFILE_FUNCTION();
 
+	// switch the code on the protocol
+	auto protCode = protocol == 6 ? AF_INET6 : AF_INET;
+
 	// create the server socket descriptor, return -1 on failure
 	auto serverSocket = socket(
-	    AF_INET6,                    // IPv4
+	    protCode,                    // IPvx
 	    SOCK_STREAM | SOCK_NONBLOCK, // reliable conn, multiple communication per socket, non blocking accept
 	    IPPROTO_TCP);                // Tcp protocol
 
@@ -37,23 +40,33 @@ Socket tcpConn::initializeServer(const short port) {
 	log(LOG_DEBUG, "[TCP] Set REUSEADDR for the server socket\n");
 
 	// input socket of the server
-	sockaddr_in6 serverAddr;
-	/*
-	type of address of this socket
-	type of inbound socket
-	port
-	*/
-
-	inet_pton(AF_INET6, "::1", &serverAddr.sin6_addr);
-
-	serverAddr.sin6_family      = AF_INET6;    // again IPv4
-	// serverAddr.sin6_addr.s_addr = INADDR_ANY;  // accept any type of ipv4 address
-	serverAddr.sin6_port        = htons(port); // change to network byte order since its needed internally,
-	                                           // network byte order is Big Endian, this machine is Little Endian
 
 	// bind the socket	Reason: "activate the socket"
 	// return -1 on failure
-	auto errorCode = bind(serverSocket, reinterpret_cast<sockaddr *>(&serverAddr), sizeof(serverAddr));
+	int errorCode;
+
+	if (protocol == 6) {
+
+		// sockaddr_in serverAddr;
+		sockaddr_in6 serverAddr6;
+		inet_pton(AF_INET6, "::1", &serverAddr6.sin6_addr);
+
+		serverAddr6.sin6_family = AF_INET6;    // again IPv6
+		serverAddr6.sin6_port   = htons(port); // change to network byte order since its needed internally,
+		// network byte order is Big Endian, this machine is Little Endian
+
+		errorCode = bind(serverSocket, reinterpret_cast<sockaddr *>(&serverAddr6), sizeof(serverAddr6));
+	} else {
+		// sockaddr_in serverAddr;
+		sockaddr_in serverAddr;
+
+		serverAddr.sin_family      = AF_INET;     // again IPv4
+		serverAddr.sin_addr.s_addr = INADDR_ANY;  // accept any type of ipv4 address
+		serverAddr.sin_port        = htons(port); // change to network byte order since its needed internally,
+		// network byte order is Big Endian, this machine is Little Endian
+
+		errorCode = bind(serverSocket, reinterpret_cast<sockaddr *>(&serverAddr), sizeof(serverAddr));
+	}
 
 	if (errorCode == -1) {
 		log(LOG_FATAL, "[TCP] Bind failed.\n	Reason: %d %s\n", errno, strerror(errno));
@@ -78,9 +91,11 @@ Socket tcpConn::initializeServer(const short port) {
 	return serverSocket;
 }
 
-Socket tcpConn::initializeClient(const short port, const char *server_name) {
+Socket tcpConn::initializeClient(const short port, const char *server_name, const char protocol) {
 
-	Socket clientSock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+	auto protCode = protocol == 6 ? AF_INET6 : AF_INET;
+
+	Socket clientSock = socket(protCode, SOCK_STREAM, IPPROTO_TCP);
 
 	if (clientSock == INVALID_SOCKET) {
 		log(LOG_FATAL, "Impossible to create server Socket.\n	Reason: %d %s\n", errno, strerror(errno));
@@ -98,7 +113,7 @@ Socket tcpConn::initializeClient(const short port, const char *server_name) {
 
 	// set the entire server address struct to 0
 	bzero((char *)&serv_addr, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET6;
+	serv_addr.sin_family = static_cast<short unsigned int>(protCode);
 
 	// copy th server ip from the server hostname to the server socket internet address
 	bcopy((char *)server_hn->h_addr_list[0], (char *)&serv_addr.sin_addr.s_addr, server_hn->h_length);

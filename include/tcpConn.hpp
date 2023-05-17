@@ -14,16 +14,16 @@ typedef int Socket;
 namespace tcpConn {
 
 	/**
-	 * setup a server listening on port
+	 * setup a server listening on the given port with the requested IPv protocol
 	 * @return the server socket
 	 */
-	Socket initializeServer(const short port);
+	Socket initializeServer(const short port, const char protocol = 4);
 
 	/**
-	 * retup a client connected to server_name
+	 * setup a client connected to server_name, with the requested IPv protocol
 	 * @return the client socket
 	 */
-	Socket initializeClient(const short port, const char *server_name);
+	Socket initializeClient(const short port, const char *server_name, const char protocol = 4);
 
 	/**
 	 * shorthand to close and shutdown a socket
