@@ -1,12 +1,14 @@
 #include "server.hpp"
 
 #include "logger.hpp"
-#include "pages/notFound.hpp"
+#include "pages.hpp"
 #include "profiler.hpp"
 #include "utils.hpp"
 
+#include <chrono>
 #include <filesystem>
 #include <mutex>
+#include <regex>
 #include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -280,9 +282,12 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 /**
  * the http method, set the value of result as the header that would have been sent in a GET response
  */
-void Head(httpMessage &inbound, httpMessage &outbound) {
+int Head(httpMessage &inbound, httpMessage &outbound) {
 
 	PROFILE_FUNCTION();
+
+	// info about the file requested, to not recheck later
+	int fileInfo = FILE_FOUND;
 
 	const char *src = inbound.url.c_str();
 	char       *dst = new char[strlen(src) + 1];
@@ -297,26 +302,41 @@ void Head(httpMessage &inbound, httpMessage &outbound) {
 
 	// usually to request index.html browsers do not specify it, they usually use /, if that's the case I add index.html
 	// back access the last char of the string
-	if (file.back() == '/') {
-		file += "index.html";
-		log(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
+
+	struct stat fileStat;
+	auto        errCode = stat(file.c_str(), &fileStat);
+
+	if (errCode != 0) {
+		log(LOG_WARNING, "[SERVER] File requested (%s) not found\n", file.c_str());
+		log(LOG_WARNING, "[SYSTEM] %s\n", strerror(errno));
+
+		fileInfo = FILE_NOT_FOUND;
 	}
 
 	// check of I'm dealing with a directory
-	struct stat fileStat;
-	stat(file.c_str(), &fileStat);
+	if (S_ISDIR(fileStat.st_mode) || file.back() == '/') {
+		auto correctedFile = file + "/index.html";
+		errCode            = stat(correctedFile.c_str(), &fileStat);
 
-	if (S_ISDIR(fileStat.st_mode)) {
-		file += "/index.html";
-		log(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
+		// index exists, use that
+		if (errCode == 0) {
+			log(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
+			fileInfo = FILE_IS_DIR_FOUND;
+			file     = correctedFile;
+		} else { // file does not exists use dir view
+			log(LOG_WARNING, "[SERVER] The file requested is a directory with no index.html. Fallback to dir view\n");
+			fileInfo = FILE_IS_DIR_NOT_FOUND;
+		}
 	}
 
 	// insert in the outbound message the necessaire header options, filename is used to determine the response code
-	composeHeader(file, outbound.header);
+	composeHeader(file, outbound.header, fileInfo);
 
 	outbound.header[http::RP_Content_Length] = std::to_string(fileStat.st_size);
 	outbound.header[http::RP_Cache_Control]  = "max-age=3600";
 	outbound.url                             = file;
+
+	return fileInfo;
 }
 
 /**
@@ -327,9 +347,9 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 	PROFILE_FUNCTION();
 
 	// I just need to add the body to the head,
-	Head(inbound, outbound);
+	auto fileInfo = Head(inbound, outbound);
 
-	auto uncompressed = getFile(outbound.url);
+	auto uncompressed = getFile(outbound.url, fileInfo);
 
 	std::string compressed = "";
 	if (uncompressed != "") {
@@ -347,16 +367,13 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 /**
  * compose the header given the file requested
  */
-void composeHeader(const std::string &filename, std::map<int, std::string> &result) {
+void composeHeader(const std::string &filename, std::map<int, std::string> &result, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 
 	// I use map to easily manage key : value, the only problem is when i compile the header, the response code must be at the top
-
-	struct stat fileStat;
-	auto        errCode = stat(filename.c_str(), &fileStat);
 	// if the requested file actually exist
-	if (errCode == 0) {
+	if (fileInfo != FILE_NOT_FOUND) {
 
 		// status code OK
 		result[http::RP_Status] = "200 OK";
@@ -370,8 +387,6 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
 		result[http::RP_Content_Type] = content_type;
 
 	} else {
-		log(LOG_WARNING, "[SERVER] File requested (%s) not found\n", filename.c_str());
-		log(LOG_WARNING, "[SYSTEM] %s\n", strerror(errno));
 		result[http::RP_Status]       = "404 Not Found";
 		result[http::RP_Content_Type] = "text/html";
 	}
@@ -393,26 +408,61 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
  * get the file to a string and if its empty return the page 404.html
  * https://stackoverflow.com/questions/5840148/how-can-i-get-a-files-size-in-c maybe better
  */
-std::string getFile(const std::string &file) {
+std::string getFile(const std::string &file, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 
-	// get the required file
-	std::fstream ifs(file, std::ios::binary | std::ios::in);
+	std::string content;
 
-	// read the file in one go to a string
-	//							start iterator							end iterator
-	std::string content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+	if (fileInfo == FILE_FOUND || fileInfo == FILE_IS_DIR_FOUND) {
 
-	ifs.close();
+		// get the required file
+		std::fstream ifs(file, std::ios::binary | std::ios::in);
+
+		// read the file in one go to a string
+		//							start iterator							end iterator
+		content.assign((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+
+		ifs.close();
+	}
 
 	// if the file does not exist i load a default 404.html
 	if (content.empty()) {
-		log(LOG_WARNING, "[SERVER] File not found. Loading deafult Error 404 page\n", file.c_str());
 
 		// Load the internal 404 error page
-		content = Not_Found_Page;
+		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
+			log(LOG_WARNING, "[SERVER] File not found. Loading the dir view\n");
+			content = getDirView(file);
+		} else {
+			log(LOG_WARNING, "[SERVER] File not found. Loading deafult Error 404 page\n");
+			content = Not_Found_Page;
+		}
 	}
+
+	return content;
+}
+
+std::string getDirView(const std::string &dirname) {
+
+	std::string dirItems;
+
+	for (const auto &entry : std::filesystem::directory_iterator(dirname)) {
+		auto        filename  = static_cast<std::string>(entry.path().filename());
+		auto        url       = "./" + filename;
+		auto        cftime    = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(entry.last_write_time()));
+		std::string timestamp = std::asctime(std::localtime(&cftime));
+		// timestamp.pop_back(); // remove the trailing \n
+
+		std::string item = Dir_View_Page_Item;
+		item             = std::regex_replace(item, std::regex("URL"), url);
+		item             = std::regex_replace(item, std::regex("FILENAME"), filename);
+		item             = std::regex_replace(item, std::regex("TIMESTAMP"), timestamp);
+		dirItems.append(item);
+	}
+
+	std::string content = Dir_View_Page_Pre + dirItems + Dir_View_Page_Post;
+
+	log(LOG_FATAL, "[ASD] %s\n", content.c_str());
 
 	return content;
 }
