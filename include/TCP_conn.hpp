@@ -5,12 +5,7 @@ Thanks to -> https://www.linuxhowtos.org/C_C++/socket.htm
 */
 
 // system headers
-#include <iostream>
-#include <map>
-#include <netinet/in.h>
 #include <string>
-#include <sys/socket.h>
-#include <vector>
 
 #define INVALID_SOCKET -1
 
@@ -26,7 +21,7 @@ public:
 	// signal if the connection is valid
 	bool isConnValid = false;
 
-	TCP_conn(const std::string &port);
+	TCP_conn(const short port);
 	~TCP_conn();
 	int	   receiveRequest(Socket &clientSock, std::string &result);
 	int	   sendResponse(Socket &clientSock, std::string &buff);

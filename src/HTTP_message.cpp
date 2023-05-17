@@ -24,6 +24,7 @@ void HTTP_message::decompileHeader() {
 		temp = split(options[i], ": ");
 		// first header option "METHOD file HTTP/version"
 		if (temp.size() <= 1 && temp[0] != "") {
+			headerOptions["Method"] = options[i];
 
 			temp = split(options[i], " ");
 			parseMethod(temp[0]);
@@ -37,7 +38,7 @@ void HTTP_message::decompileHeader() {
 			HTTP_version = temp[2];
 		}
 
-		// the last header option is \n
+		// the last header option is \n making temp >= 2
 		if (temp.size() >= 2) {
 			headerOptions[temp[0]] = temp[1];
 		}

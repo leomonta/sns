@@ -1,8 +1,5 @@
-/**
- * TODO: add a cli to stop the server
- */
-#include "HTTP_message.hpp"
-#include "TCP_conn.hpp"
+#include "server.hpp"
+
 #include "utils.hpp"
 
 #include "json/include/json.hpp"
@@ -20,38 +17,27 @@ const char *server_init_file = "server_options.conf";
 // Http Server
 std::string HTTP_Basedir = "/";
 std::string HTTP_IP      = "127.0.0.1";
-std::string HTTP_Port    = "80";
+short       HTTP_Port    = 80;
 
 // for controlling debug prints
 std::mutex                         mtx;
 std::map<std::string, std::string> contents;
 
-void acceptRequests(TCP_conn *tcpConnection, bool *threadStop);
-void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadStop);
-
-void        readIni();
-void        Head(HTTP_message &inbound, HTTP_message &outbound);
-void        Get(HTTP_message &inbound, HTTP_message &outbound);
-void        composeHeader(const std::string &filename, std::map<std::string, std::string> &result);
-std::string getFile(const std::string &file);
-
-void setupContentTypes();
-
-void getContentType(const std::string &filetype, std::string &result);
-
 int main(int argc, char *argv[]) {
 
 	// readArgs();
-	readIni();
 	setupContentTypes();
 	// initialize winsock and the server options
 	TCP_conn http(HTTP_Port);
 
 	if (http.isConnValid) {
-		std::cout << "Server Listening on " << HTTP_IP << ":" << HTTP_Port << HTTP_Basedir << std::endl;
+		printf("[Info]: Server Listening on %s:%d\n	On directory %s\n", HTTP_IP.c_str(), HTTP_Port, HTTP_Basedir.c_str());
 	} else {
+		printf("[Error]: Http connection is invalid. Shutting down\n");
 		return 0;
 	}
+
+
 
 	bool threadStop = false;
 
@@ -59,15 +45,17 @@ int main(int argc, char *argv[]) {
 
 	std::string input = "";
 
+	// cli like interface
+	/*
 	while (true) {
-		std::cin >> input;
+	    std::cin >> input;
 
-		if (input.compare("exit") == 0) {
-			threadStop = true;
-			break;
-		}
+	    if (input.compare("exit") == 0) {
+	        threadStop = true;
+	        break;
+	    }
 	}
-
+	*/
 	requestAcceptor.join();
 
 	return 0;
@@ -135,24 +123,17 @@ void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadSt
 			// make the message a single formatted string
 			response.compileMessage();
 
-			std::cout << "Received request " << mex.filename
-			          << "\n  Responded with " << response.filename << std::endl;
+			printf("[Info]: Received request %s\n	Responded with %s\n", mex.headerOptions["Method"], response.filename);
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
 			bytesSent = tcpConnection->sendResponse(clientSocket, response.message);
 
-			// send failed, close socket and close program
-			if (bytesSent == 0) {
-				std::cout << " [Error]: Send failed with error: " << std::endl;
-			}
-
 			break;
 		}
 
 		// received an error
-		if (bytesReceived < 0) {
-			std::cout << "[Error]: Cannot keep on listening" << std::endl;
+		if (bytesReceived <= 0) {
 
 			break;
 		}
@@ -160,40 +141,6 @@ void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadSt
 
 	tcpConnection->shutDown(clientSocket);
 	tcpConnection->closeSocket(clientSocket);
-}
-
-/**
- * retrive initilization data from the .ini file
- */
-void readIni() {
-
-	std::string              buf;
-	std::fstream             Read(server_init_file, std::ios::in);
-	std::vector<std::string> key_val;
-
-	// read props from the ini file and sets the important variables
-	if (Read.is_open()) {
-		while (std::getline(Read, buf)) {
-			key_val = split(buf, "=");
-
-			if (key_val.size() > 1) {
-				key_val[1].erase(key_val[1].find_last_not_of(" \n\r\t") + 1);
-
-				// sectioon [HTTP]
-				if (key_val[0] == "IP") {
-					HTTP_IP = key_val[1];
-				} else if (key_val[0] == "HTTP_Port") {
-					HTTP_Port = key_val[1];
-				} else if (key_val[0] == "Base_Directory") {
-					HTTP_Basedir = key_val[1];
-				}
-			}
-		}
-
-		Read.close();
-	} else {
-		std::cout << "server_options.ini file not found!\n Proceeding with default values!" << std::endl;
-	}
 }
 
 /**
