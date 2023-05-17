@@ -4,14 +4,13 @@
 #include "profiler.hpp"
 #include "utils.hpp"
 
-#include "json/include/json.hpp"
+#include <iostream>
 #include <filesystem>
 #include <mutex>
 #include <string.h>
 #include <sys/stat.h>
 #include <thread>
 
-using json = nlohmann::json;
 
 #define Res Resources
 
@@ -135,7 +134,7 @@ void acceptRequests(bool *threadStop) {
 	PROFILE_FUNCTION();
 
 	// used for controlling
-	Socket      client = 0;
+	Socket      client = -1;
 	std::string request;
 
 	std::vector<std::thread> threads;
@@ -228,7 +227,7 @@ void Head(httpMessage &inbound, httpMessage &outbound) {
 
 	delete[] dst;
 
-	// usually to request index.html browsers does not specify it, they usually use /, if thats the case I scpecify index.html
+	// usually to request index.html browsers do not specify it, they usually use /, if that's the case I add index.html
 	// back access the last char of the string
 	if (file.back() == '/') {
 		file += "index.html";
@@ -289,12 +288,9 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
 		// status code OK
 		result[http::RP_Status] = "200 OK";
 
-		// get the file extension, i'll use it to get the content type
-		std::string temp = split(filename, ".").back(); // + ~24 alloc
-
 		// get the content type
 		std::string content_type = "";
-		getContentType(temp, content_type);
+		getContentType(filename, content_type);
 
 		// fallback if finds nothing
 		if (content_type == "") {

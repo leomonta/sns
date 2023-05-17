@@ -19,8 +19,10 @@
 	},
 
 	"debug": {
-		"compiler_args": "-g3 -std=c++2a -Wno-missing-field-initializers -Wall -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
-		"linker_args": "-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
+		"compiler_args": "-g3 -std=c++2a -Wno-missing-field-initializers -Wall",
+		"compiler_args_": "-g3 -std=c++2a -Wno-missing-field-initializers -Wall -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
+		"linker_args": "",
+		"linker_args_": "-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
 		"libraries_dirs": [
 		],
 		"libraries_names": [
@@ -32,7 +34,7 @@
 	},
 
 	"release": {
-		"compiler_args": "-O2 -std=c++2a",
+		"compiler_args": "-O3 -std=c++2a",
 		"linker_args": "-s",
 		"libraries_dirs": [
 		],
