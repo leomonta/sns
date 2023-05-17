@@ -2,17 +2,18 @@
 #include "utils.hpp"
 
 #include <iostream>
+#include <cstring>
 
-HTTP_message::HTTP_message(std::string& raw_message, unsigned int dir) {
-	message = raw_message;
+HTTP_message::HTTP_message(std::string &raw_message, unsigned int dir) {
+	message	  = raw_message;
 	direction = dir;
 
 	decompileMessage();
 }
 
 /**
-* deconstruct the raw header in a map with key (option) -> value
-*/
+ * deconstruct the raw header in a map with key (option) -> value
+ */
 void HTTP_message::decompileHeader() {
 	std::vector<std::string> options = split(rawHeader, "\r\n");
 	std::vector<std::string> temp;
@@ -27,7 +28,7 @@ void HTTP_message::decompileHeader() {
 			parseMethod(temp[0]);
 			if (temp[1].find("?") != std::string::npos) {
 				std::vector<std::string> query = split(temp[1], "?");
-				filename = query[0];
+				filename					   = query[0];
 				parseQueryParameters(query[1]);
 			} else {
 				filename = temp[1];
@@ -40,18 +41,17 @@ void HTTP_message::decompileHeader() {
 			headerOptions[temp[0]] = temp[1];
 		}
 	}
-
 }
 
 /**
-* decompile message in header and body
-*/
+ * decompile message in header and body
+ */
 void HTTP_message::decompileMessage() {
 	// body and header are divided by two newlines
 	size_t pos = message.find("\r\n\r\n");
 
 	rawHeader = message.substr(0, pos);
-	rawBody = message.substr(pos);
+	rawBody	  = message.substr(pos);
 
 	decompileHeader();
 	std::string divisor;
@@ -80,18 +80,17 @@ void HTTP_message::decompileMessage() {
 
 			parseFormData(rawBody, divisor);
 		}
-
 	}
 }
 
 /**
-* format the header from the array to a string
-*/
+ * format the header from the array to a string
+ */
 void HTTP_message::compileHeader() {
 	// Always the response code fisrt
 	rawHeader += "HTTP/1.1 " + headerOptions["HTTP/1.1"] + "\r\n";
 
-	for (auto const& [key, val] : headerOptions) {
+	for (auto const &[key, val] : headerOptions) {
 		// already wrote response code
 		if (key != "HTTP/1.1") {
 			// header option name :	header option value
@@ -101,17 +100,17 @@ void HTTP_message::compileHeader() {
 }
 
 /**
-* unite the header and the body in a single message
-*/
+ * unite the header and the body in a single message
+ */
 void HTTP_message::compileMessage() {
 	compileHeader();
 	message = rawHeader + "\r\n" + rawBody;
 }
 
 /**
-* given the string containing the request method the the property method to it's correct value
-*/
-void HTTP_message::parseMethod(std::string& requestMethod) {
+ * given the string containing the request method the the property method to it's correct value
+ */
+void HTTP_message::parseMethod(std::string &requestMethod) {
 	// Yep that's it, such logic
 	if (requestMethod == "GET") {
 		method = HTTP_GET;
@@ -135,9 +134,9 @@ void HTTP_message::parseMethod(std::string& requestMethod) {
 }
 
 /**
-* Given a string of urlencoded parameters parse and decode them, then insert them in the parameters map in the HTTP_message
-*/
-void HTTP_message::parseQueryParameters(std::string& params) {
+ * Given a string of urlencoded parameters parse and decode them, then insert them in the parameters map in the HTTP_message
+ */
+void HTTP_message::parseQueryParameters(std::string &params) {
 	std::vector<std::string> datas;
 	std::vector<std::string> temp;
 
@@ -146,8 +145,12 @@ void HTTP_message::parseQueryParameters(std::string& params) {
 
 	for (size_t i = 0; i < datas.size(); i++) {
 		// temp string to store the decoded value
-		char* dst = (char*) datas[i].c_str();
-		urlDecode(dst, datas[i].c_str());
+		const char *src = datas[i].c_str();
+		char		 *dst = new char[strlen(src)];
+		urlDecode(dst, src);
+
+		delete[] dst;
+
 		//  0 |  1
 		// key=value
 		temp = split(dst, "=");
@@ -155,14 +158,13 @@ void HTTP_message::parseQueryParameters(std::string& params) {
 		if (temp.size() >= 2 && temp[1] != "") {
 			parameters[temp[0]] = temp[1];
 		}
-
 	}
 }
 
 /**
-* Parse the data not encoded in form data and then insert them in the parameters map in the HTTP_message
-*/
-void HTTP_message::parsePlainParameters(std::string& params) {
+ * Parse the data not encoded in form data and then insert them in the parameters map in the HTTP_message
+ */
+void HTTP_message::parsePlainParameters(std::string &params) {
 	std::vector<std::string> datas;
 	std::vector<std::string> temp;
 
@@ -178,14 +180,13 @@ void HTTP_message::parsePlainParameters(std::string& params) {
 		if (temp.size() >= 2) {
 			parameters[temp[0]] = temp[1];
 		}
-
 	}
 }
 
 /**
-* Parse the data divided by special divisor in form data and then insert them in the parameters map in the HTTP_message
-*/
-void HTTP_message::parseFormData(std::string& params, std::string& divisor) {
+ * Parse the data divided by special divisor in form data and then insert them in the parameters map in the HTTP_message
+ */
+void HTTP_message::parseFormData(std::string &params, std::string &divisor) {
 
 	std::vector<std::string> datas;
 	std::vector<std::string> temp;
@@ -198,13 +199,12 @@ void HTTP_message::parseFormData(std::string& params, std::string& divisor) {
 
 	for (size_t i = 0; i < datas.size(); i++) {
 		/* 0  |                    1                        |  2   3 |  4   | 5  |
-		* \r\n|Content-Disposition: form-data; name="field1"|\r\n\r\n|value1|\r\n|
-		*/
+		 * \r\n|Content-Disposition: form-data; name="field1"|\r\n\r\n|value1|\r\n|
+		 */
 		std::vector<std::string> option_value = split(datas[i], "\r\n");
-		option_value.pop_back(); // pos 5
+		option_value.pop_back();					  // pos 5
 		option_value.erase(option_value.begin() + 2); // pos 2
-		option_value.erase(option_value.begin()); // pos 0
-
+		option_value.erase(option_value.begin());	  // pos 0
 
 		//                0              ||      1      ||         2
 		// Content-Disposition: form-data; name="field1"; filename="example.txt"
@@ -212,11 +212,10 @@ void HTTP_message::parseFormData(std::string& params, std::string& divisor) {
 
 		// jump directly to "name="
 		std::string name = options[1].substr(5);
-		// remove heading and trailing double quotes " 
+		// remove heading and trailing double quotes "
 		name.pop_back();
 		name.erase(name.begin());
 
 		parameters[name] = option_value[1];
-
 	}
 }

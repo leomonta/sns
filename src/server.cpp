@@ -32,8 +32,8 @@ void resolveRequest(Socket clientSocket, HTTP_conn *httpConnectio, bool *threadS
 void		readIni();
 void		Head(HTTP_message &inbound, HTTP_message &outbound);
 void		Get(HTTP_message &inbound, HTTP_message &outbound);
-void		composeHeader(const char *filename, std::map<std::string, std::string> &result);
-std::string getFile(const char *file);
+void		composeHeader(const std::string &filename, std::map<std::string, std::string> &result);
+std::string getFile(const std::string &file);
 
 void setupContentTypes();
 
@@ -194,11 +194,14 @@ void readIni() {
  */
 void Head(HTTP_message &inbound, HTTP_message &outbound) {
 
-	char *dst = (char *)(inbound.filename.c_str());
-	urlDecode(dst, inbound.filename.c_str());
+	const char *src = inbound.filename.c_str();
+	char		 *dst = new char[strlen(src)];
+	urlDecode(dst, src);
 
 	// re set the filename as the base directory and the decoded filename
 	std::string file = HTTP_Basedir + dst;
+
+	delete[] dst;
 
 	// usually to request index.html browsers does not specify it, they usually use /, if thats the case I scpecify index.html
 	// back access the last char of the string
@@ -216,10 +219,10 @@ void Head(HTTP_message &inbound, HTTP_message &outbound) {
 	}
 
 	// insert in the outbound message the necessaire header options, filename is used to determine the response code
-	composeHeader(file.c_str(), outbound.headerOptions);
+	composeHeader(file, outbound.headerOptions);
 
 	// i know that i'm loading an entire file, if i find a better solution i'll use it
-	std::string content						 = getFile(file.c_str());
+	std::string content						 = getFile(file);
 	outbound.headerOptions["Content-Lenght"] = std::to_string(content.length());
 	outbound.headerOptions["Cache-Control"]	 = "max-age=604800";
 	outbound.filename						 = file;
@@ -233,7 +236,7 @@ void Get(HTTP_message &inbound, HTTP_message &outbound) {
 	// I just need to add the body to the head,
 	Head(inbound, outbound);
 
-	outbound.rawBody = getFile(outbound.filename.c_str());
+	outbound.rawBody = getFile(outbound.filename);
 
 	std::string compressed;
 	compressGz(compressed, outbound.rawBody.c_str(), outbound.rawBody.length());
@@ -247,7 +250,7 @@ void Get(HTTP_message &inbound, HTTP_message &outbound) {
 /**
  * compose the header given the file requested
  */
-void composeHeader(const char *filename, std::map<std::string, std::string> &result) {
+void composeHeader(const std::string &filename, std::map<std::string, std::string> &result) {
 
 	// I use map to easily manage key : value, the only problem is when i compile the header, the response code must be at the top
 
@@ -290,7 +293,7 @@ void composeHeader(const char *filename, std::map<std::string, std::string> &res
  * get the file to a string and if its empty return the page 404.html
  * https://stackoverflow.com/questions/5840148/how-can-i-get-a-files-size-in-c maybe better
  */
-std::string getFile(const char *file) {
+std::string getFile(const std::string &file) {
 
 	// get the required file
 	std::fstream ifs(file, std::ios::binary | std::ios::in);
