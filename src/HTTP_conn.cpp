@@ -8,11 +8,8 @@
  * Setup the TCP connection on the given port and ip, fails if the port isn't on the local machine and if the port is already used
  * Setup the server listening socket, the one that accept incoming client requests
  */
-HTTP_conn::HTTP_conn(const std::string &basedir, const std::string &ip, const std::string &port) {
+HTTP_conn::HTTP_conn(const std::string &port) {
 
-	HTTP_Basedir = basedir;
-	HTTP_Port	 = port;
-	HTTP_IP		 = ip;
 
 	auto int_port = std::stoi(port);
 
@@ -29,6 +26,8 @@ HTTP_conn::HTTP_conn(const std::string &basedir, const std::string &ip, const st
 	int enable = 1;
 	setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
 
+
+	sockaddr_in serverAddr;
 	/*
 	type of address of this socket
 	type of inbound socket
@@ -54,8 +53,8 @@ HTTP_conn::HTTP_conn(const std::string &basedir, const std::string &ip, const st
 		std::cout << "[Error]: Listening failed. " << strerror(errno) << std::endl;
 	}
 
-	std::cout << "Server now listening on " << ip << ":" << port
-			  << "\nOn folder " << basedir << std::endl;
+	isConnValid = true;
+
 }
 
 

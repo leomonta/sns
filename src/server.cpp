@@ -3,6 +3,7 @@
  */
 #include <filesystem>
 #include <mutex>
+#include <sys/stat.h>
 #include <thread>
 
 #include "HTTP_conn.hpp"
@@ -43,7 +44,13 @@ int main() {
 	readIni();
 	setupContentTypes();
 	// initialize winsock and the server options
-	HTTP_conn http(HTTP_Basedir, HTTP_IP, HTTP_Port);
+	HTTP_conn http(HTTP_Port);
+
+	if (http.isConnValid) {
+		std::cout << "Server Listening on " << HTTP_IP << ":" << HTTP_Port << "/" << HTTP_Basedir << std::endl;
+	} else {
+		return 0;
+	}
 
 	bool threadStop = false;
 
@@ -194,6 +201,15 @@ void Head(HTTP_message &inbound, HTTP_message &outbound) {
 	// back access the last char of the string
 	if (file.back() == '/') {
 		file += "index.html";
+	}
+
+	// check of I'm dealing with a directory
+	struct stat fileStat;
+	stat(file.c_str(), &fileStat);
+
+	if (S_ISDIR(fileStat.st_mode)) {
+
+		file += "/index.html";
 	}
 
 	// insert in the outbound message the necessaire header options, filename is used to determine the response code
