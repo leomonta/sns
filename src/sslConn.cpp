@@ -59,7 +59,7 @@ SSL_CTX *sslConn::createContext() {
 
 	if (certUse != 1) {
 		ERR_print_errors_fp(stderr);
-		log(LOG_FATAL, "Could not load certificate file %s\n", "cert.pem");
+		log(LOG_FATAL, "Could not load certificate file %s\n", "./cert.pem");
 		return nullptr;
 	}
 
@@ -67,7 +67,7 @@ SSL_CTX *sslConn::createContext() {
 
 	if (keyUse != 1) {
 		ERR_print_errors_fp(stderr);
-		log(LOG_FATAL, "Could not load private key file %s\n", "key.pem");
+		log(LOG_FATAL, "Could not load private key file %s\n", "./key.pem");
 		return nullptr;
 	}
 
