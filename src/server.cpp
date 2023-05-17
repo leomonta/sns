@@ -4,13 +4,12 @@
 #include "profiler.hpp"
 #include "utils.hpp"
 
-#include <iostream>
 #include <filesystem>
+#include <iostream>
 #include <mutex>
 #include <string.h>
 #include <sys/stat.h>
 #include <thread>
-
 
 #define Res Resources
 
@@ -28,8 +27,9 @@ namespace Res {
 
 	std::thread requestAcceptor;
 
-	Socket serverSocket;
-	bool   threadStop = false;
+	Socket   serverSocket;
+	SSL_CTX *sslContext = nullptr;
+	bool     threadStop = false;
 } // namespace Res
 
 int main(int argc, char *argv[]) {
@@ -78,7 +78,16 @@ void setup() {
 	if (Res::serverSocket != INVALID_SOCKET) {
 		log(LOG_INFO, "Server Listening on port %d\n	On directory %s\n", Res::tcpPort, Res::baseDirectory.c_str());
 	} else {
-		log(LOG_FATAL, "TCP connection is invalid. Shutting down\n");
+		exit(1);
+	}
+
+	sslConn::initializeServer();
+
+	Res::sslContext = sslConn::createContext();
+
+	if (Res::sslContext != nullptr) {
+		log(LOG_INFO, "SSL context created\n");
+	} else {
 		exit(1);
 	}
 }
@@ -92,6 +101,10 @@ void stop() {
 	Res::threadStop = true;
 
 	Res::requestAcceptor.join();
+
+	sslConn::destroyContext(Res::sslContext);
+
+	sslConn::terminateServer();
 }
 
 void start() {
@@ -100,7 +113,8 @@ void start() {
 
 	Res::threadStop = false;
 
-	Res::requestAcceptor = std::thread(acceptRequests, &Res::threadStop);
+	// Res::requestAcceptor = std::thread(acceptRequests, &Res::threadStop);
+	Res::requestAcceptor = std::thread(acceptRequestsSecure, &Res::threadStop);
 }
 
 void restart() {
@@ -115,11 +129,11 @@ void parseArgs(int argc, char *argv[]) {
 
 	PROFILE_FUNCTION();
 	// server directory port
-	//    0       1      3
+	//    0       1      2
 
 	switch (argc) {
 	case 3:
-		Res::tcpPort = std::atoi(argv[3]);
+		Res::tcpPort = std::atoi(argv[2]);
 
 	case 2:
 		Res::baseDirectory = argv[1];
@@ -134,8 +148,7 @@ void acceptRequests(bool *threadStop) {
 	PROFILE_FUNCTION();
 
 	// used for controlling
-	Socket      client = -1;
-	std::string request;
+	Socket client = -1;
 
 	std::vector<std::thread> threads;
 
@@ -209,6 +222,89 @@ void resolveRequest(Socket clientSocket, bool *threadStop) {
 
 	tcpConn::shutdownSocket(clientSocket);
 	tcpConn::closeSocket(clientSocket);
+}
+
+void acceptRequestsSecure(bool *threadStop) {
+	Socket client = -1;
+
+	// Receive until the peer shuts down the connection
+	while (!(*threadStop)) {
+
+		client = tcpConn::acceptClientSock(Res::serverSocket);
+
+		if (client == -1) {
+			// no client tried to connect
+			continue;
+		}
+
+		auto sslConnection = sslConn::createConnection(Res::sslContext, client);
+
+		if (sslConnection == nullptr) {
+			*threadStop = true;
+			exit(1);
+		}
+
+		auto err = sslConn::acceptClientConnection(sslConnection);
+
+		if (err == 0) {
+			*threadStop = true;
+			exit(1);
+		}
+
+		std::thread(resolveRequestSecure, sslConnection, client, threadStop).detach();
+	}
+}
+
+void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadStop) {
+
+	int bytesReceived;
+
+	std::string request;
+	httpMessage response;
+
+	while (!(*threadStop)) {
+
+		// ---------------------------------------------------------------------- RECEIVE
+		bytesReceived = sslConn::receiveRecord(sslConnection, request);
+
+		// received some bytes
+		if (bytesReceived > 0) {
+
+			httpMessage mex(request);
+
+			// no really used
+			switch (mex.method) {
+			case http::HTTP_HEAD:
+				Head(mex, response);
+				break;
+
+			case http::HTTP_GET:
+				Get(mex, response);
+				break;
+			}
+
+			// make the message a single formatted string
+			auto res = http::compileMessage(response.header, response.body);
+
+			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, http::methodStr[mex.method]);
+
+			// ------------------------------------------------------------------ SEND
+			// acknowledge the segment back to the sender
+			sslConn::sendRecord(sslConnection, res);
+
+			break;
+		}
+
+		// received an error
+		if (bytesReceived <= 0) {
+
+			break;
+		}
+	}
+
+	tcpConn::shutdownSocket(clientSocket);
+	tcpConn::closeSocket(clientSocket);
+	sslConn::destroyConnection(sslConnection);
 }
 
 /**

@@ -4,7 +4,6 @@
 Thanks to -> https://www.linuxhowtos.org/C_C++/socket.htm
 */
 
-// system headers
 #include <string>
 
 #define INVALID_SOCKET -1

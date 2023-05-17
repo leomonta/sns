@@ -22,7 +22,7 @@ void log(const char logLevel, const char *mex, ...) {
 	va_list args;
 	va_start(args, mex);
 
-	const char *prefix;
+	const char *prefix = "[ UNKWN ]";
 
 	switch (logLevel) {
 	case LOG_ALL:

@@ -1,10 +1,14 @@
 #pragma once
 
 #include "httpMessage.hpp"
+#include "sslConn.hpp"
 #include "tcpConn.hpp"
 
 void acceptRequests(bool *threadStop);
 void resolveRequest(Socket clientSocket, bool *threadStop);
+
+void acceptRequestsSecure(bool *threadStop);
+void resolveRequestSecure(SSL *sslConn, Socket clientSocket, bool *threadStop);
 
 void        Head(httpMessage &inbound, httpMessage &outbound);
 void        Get(httpMessage &inbound, httpMessage &outbound);

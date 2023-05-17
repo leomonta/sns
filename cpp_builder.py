@@ -159,12 +159,12 @@ def print_stdout(mexage: tuple) -> bool:
 	res = True
 
 	for i in range(len(out)):
-		if "error" in out[i]:
+		if "error:" in out[i]:
 			print(COLS.FG_RED, out[i])
 			res = False
-		elif "warning" in out[i]:
+		elif "warning:" in out[i]:
 			print(COLS.FG_BLUE, out[i])
-		elif "note" in out[i]:
+		elif "note:" in out[i]:
 			print(COLS.FG_CYAN, out[i])
 		else:
 			print(out[i])
