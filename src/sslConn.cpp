@@ -151,6 +151,11 @@ int sslConn::receiveRecord(SSL *ssl, std::string &buff) {
 		}
 
 		auto errcode = SSL_get_error(ssl, bytesReceived);
+		if (errcode == SSL_ERROR_SSL) {
+			log(LOG_DEBUG, "[SSL] Client shut down the communication");
+			bytesReceived = 0;
+			break;
+		}
 		if (errcode != SSL_ERROR_NONE) {
 			log(LOG_DEBUG, "[SSL] Read failed with: %s\n", sslErrStr[errcode]);
 		}
@@ -163,30 +168,36 @@ int sslConn::receiveRecord(SSL *ssl, std::string &buff) {
 
 int sslConn::sendRecord(SSL *ssl, std::string &buff) {
 
-	auto bytesSent = SSL_write(ssl, buff.c_str(), static_cast<int>(buff.size()));
+	int errcode   = SSL_ERROR_NONE;
+	int bytesSent = 0;
 
-	if (bytesSent > 0) {
-		if (bytesSent != static_cast<int>(buff.size())) {
-			log(LOG_WARNING, "[SSL] Mismatch between buffer size (%ldb) and bytes sent (%ldb)\n", buff.size(), bytesSent);
+	do {
+		bytesSent = SSL_write(ssl, buff.c_str(), static_cast<int>(buff.size()));
+
+		errcode = SSL_get_error(ssl, bytesSent);
+
+		if (bytesSent < 0) {
+			ERR_print_errors_fp(stderr);
+			switch (errcode) {
+			case SSL_ERROR_ZERO_RETURN:
+				log(LOG_DEBUG, "[SSL] Client shutdown connection\n");
+				break;
+			default:
+				log(LOG_DEBUG, "[SSL] Write failed with: %s\n", sslErrStr[errcode]);
+				log(LOG_ERROR, "[SSL] Could not send Record to client\n");
+			};
+
+			return -1;
 		}
+	} while (errcode == SSL_ERROR_WANT_WRITE);
 
-		log(LOG_INFO, "[SSL] Sent %ldB of data to client\n", bytesSent);
-
-		return bytesSent;
+	if (bytesSent != static_cast<int>(buff.size())) {
+		log(LOG_WARNING, "[SSL] Mismatch between buffer size (%ldb) and bytes sent (%ldb)\n", buff.size(), bytesSent);
 	}
 
-	ERR_print_errors_fp(stderr);
-	auto errcode = SSL_get_error(ssl, bytesSent);
-	switch (errcode) {
-	case SSL_ERROR_ZERO_RETURN:
-		log(LOG_DEBUG, "[SSL] Client shutdown connection\n");
-		break;
-	default:
-		log(LOG_DEBUG, "[SSL] Write failed with: %s\n", sslErrStr[errcode]);
-		log(LOG_ERROR, "[SSL] Could not send Record to client\n");
-	};
+	log(LOG_INFO, "[SSL] Sent %ldB of data to client\n", bytesSent);
 
-	return -1;
+	return bytesSent;
 }
 
 int sslConn::acceptClientConnection(SSL *ssl) {
