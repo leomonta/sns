@@ -11,6 +11,19 @@
 #include <sys/stat.h>
 #include <thread>
 
+const char *methodStr[] = {
+    "INVALID",
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "DELETE",
+    "OPTIONS",
+    "CONNECT",
+    "TRACE",
+    "PATCH",
+};
+
 #define Res Resources
 
 const unsigned char serverVersionMajor = 3;
@@ -32,7 +45,7 @@ namespace Res {
 	bool     threadStop = false;
 } // namespace Res
 
-int main(int argc, char *argv[]) {
+int main(const int argc, const char *argv[]) {
 
 	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
 
@@ -125,7 +138,7 @@ void restart() {
 	start();
 }
 
-void parseArgs(int argc, char *argv[]) {
+void parseArgs(const int argc, const char *argv[]) {
 
 	PROFILE_FUNCTION();
 	// server directory port
@@ -133,7 +146,8 @@ void parseArgs(int argc, char *argv[]) {
 
 	switch (argc) {
 	case 3:
-		Res::tcpPort = std::atoi(argv[2]);
+		Res::tcpPort = static_cast<short>(std::atoi(argv[2]));
+		[[fallthrough]];
 
 	case 2:
 		Res::baseDirectory = argv[1];
@@ -204,7 +218,7 @@ void resolveRequest(Socket clientSocket, bool *threadStop) {
 			// make the message a single formatted string
 			auto res = http::compileMessage(response.header, response.body);
 
-			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, http::methodStr[mex.method]);
+			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, methodStr[mex.method]);
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
@@ -286,7 +300,7 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 			// make the message a single formatted string
 			auto res = http::compileMessage(response.header, response.body);
 
-			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, http::methodStr[mex.method]);
+			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, methodStr[mex.method]);
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
@@ -433,8 +447,12 @@ std::string getFile(const std::string &file) {
 	// if the file does not exist i load a default 404.html
 	if (content.empty()) {
 		log(LOG_WARNING, "File %s not found\n", file.c_str());
-		std::fstream ifs("404.html", std::ios::binary | std::ios::in);
-		std::string  content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+		std::fstream notFound("404.html", std::ios::binary | std::ios::in);
+		std::string  noContent((std::istreambuf_iterator<char>(notFound)), (std::istreambuf_iterator<char>()));
+
+		notFound.close();
+
+		return noContent;
 	}
 
 	ifs.close();

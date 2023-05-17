@@ -15,7 +15,7 @@ void        Get(httpMessage &inbound, httpMessage &outbound);
 void        composeHeader(const std::string &filename, std::map<int, std::string> &result);
 std::string getFile(const std::string &file);
 
-void parseArgs(int argc, char *argv[]);
+void parseArgs(const int argc, const char *argv[]);
 void setup();
 void stop();
 void restart();

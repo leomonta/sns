@@ -3,6 +3,23 @@
 #include <logger.hpp>
 #include <openssl/err.h>
 
+const char *sslErrStr[]{
+
+    "SSL_ERROR_NONE",
+    "SSL_ERROR_SSL",
+    "SSL_ERROR_WANT_READ",
+    "SSL_ERROR_WANT_WRITE",
+    "SSL_ERROR_WANT_X509_LOOKUP",
+    "SSL_ERROR_SYSCALL",
+    "SSL_ERROR_ZERO_RETURN",
+    "SSL_ERROR_WANT_CONNECT",
+    "SSL_ERROR_WANT_ACCEPT",
+    "SSL_ERROR_WANT_ASYNC",
+    "SSL_ERROR_WANT_ASYNC_JOB",
+    "SSL_ERROR_WANT_CLIENT_HELLO_CB",
+    "SSL_ERROR_WANT_RETRY_VERIFY",
+};
+
 void sslConn::initializeServer() {
 	// make libssl and libcrypto errors readable, before library_init
 	SSL_load_error_strings();
@@ -13,8 +30,6 @@ void sslConn::initializeServer() {
 
 	// populate all digest and cypher algos to an internal table
 	OpenSSL_add_ssl_algorithms();
-
-	OPENSSL_config(nullptr);
 }
 
 void sslConn::terminateServer() {
@@ -25,7 +40,7 @@ SSL_CTX *sslConn::createContext() {
 	// TLS is the newer version of ssl
 	// use SSLv23_server_method() for sslv2, sslv3 and tslv1 compartibility
 	// create a framework to create ssl struct for connections
-	auto res = SSL_CTX_new(TLSv1_2_server_method());
+	auto res = SSL_CTX_new(TLS_server_method());
 
 	// maybe needed
 	// SSL_CTX_set_options(res, SSL_OP_SINGLE_DH_USE);
@@ -127,14 +142,30 @@ int sslConn::receiveRecord(SSL *ssl, std::string &buff) {
 
 int sslConn::sendRecord(SSL *ssl, std::string &buff) {
 
-	auto bytesSent = SSL_write(ssl, buff.c_str(), buff.size());
+	auto bytesSent = SSL_write(ssl, buff.c_str(), static_cast<int>(buff.size()));
 
-	if (bytesSent < 0) {
-		ERR_print_errors_fp(stderr);
-		auto errcode = SSL_get_error(ssl, bytesSent);
+	if (bytesSent > 0) {
+		if (bytesSent != static_cast<int>(buff.size())) {
+			log(LOG_WARNING, "Mismatch between buffer size (%ldb) and bytes sent (%ldb)\n", buff.size(), bytesSent);
+		}
+
+		log(LOG_INFO, "Sent %ldB to client\n", bytesSent);
+
+		return bytesSent;
 	}
 
-	return bytesSent;
+	ERR_print_errors_fp(stderr);
+	auto errcode = SSL_get_error(ssl, bytesSent);
+	switch (errcode) {
+	case SSL_ERROR_ZERO_RETURN:
+		log(LOG_DEBUG, "Client shutdown connection\n");
+		break;
+	default:
+		log(LOG_DEBUG, "Write failed with: %s\n", sslErrStr[errcode]);
+		log(LOG_ERROR, "Could not send Record to client\n");
+	};
+
+	return -1;
 }
 
 int sslConn::acceptClientConnection(SSL *ssl) {

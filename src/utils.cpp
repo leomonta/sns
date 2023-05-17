@@ -79,7 +79,7 @@ void urlDecode(char *dst, const char *src) {
 				b -= ('A' - 10);
 			else
 				b -= '0';
-			*dst++ = 16 * a + b;
+			*dst++ = static_cast<char>(16 * a) + b;
 			src += 3;
 		} else if (*src == '+') {
 			*dst++ = ' ';

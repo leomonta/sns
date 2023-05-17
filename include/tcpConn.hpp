@@ -8,7 +8,7 @@ Thanks to -> https://www.linuxhowtos.org/C_C++/socket.htm
 
 #define INVALID_SOCKET -1
 
-#define DEFAULT_BUFLEN 8000
+#define DEFAULT_BUFLEN 8192
 typedef int Socket;
 
 namespace tcpConn {
@@ -23,7 +23,7 @@ namespace tcpConn {
 	 * retup a client connected to server_name
 	 * @return the client socket
 	 */
-	Socket initializeClient(const int port, const char *server_name);
+	Socket initializeClient(const short port, const char *server_name);
 
 	/**
 	 * shorthand to close and shutdown a socket
@@ -50,7 +50,7 @@ namespace tcpConn {
 	 * send a segment through specified socket
 	 * @return the amount of bytes received
 	 */
-	int sendSegment(const Socket sck, std::string &buff);
+	long sendSegment(const Socket sck, std::string &buff);
 
 	/**
 	 * @return a client that wants to connect to this server

@@ -3,12 +3,12 @@
 		{
 			"name": "gcc64",
 			"includePath": [
-				"include",
-				"ext/"
+				"include"
 			],
 			"compilerArgs": [
 				"-Wconversion",
 				"-Wshadow",
+				"-Wall",
 				"-Wextra"
 			],
 			"defines": [

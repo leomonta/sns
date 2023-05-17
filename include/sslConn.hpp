@@ -9,8 +9,6 @@ und to -> https://gist.github.com/vedantroy/d2b99d774484cf4ea5165b200888e414
 
 #include <openssl/ssl.h>
 
-#define DEFAULT_BUFLEN 8192
-
 namespace sslConn {
 
 	void initializeServer();

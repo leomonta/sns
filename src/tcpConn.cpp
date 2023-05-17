@@ -63,7 +63,7 @@ Socket tcpConn::initializeServer(const short port) {
 	return serverSocket;
 }
 
-Socket tcpConn::initializeClient(const int port, const char *server_name) {
+Socket tcpConn::initializeClient(const short port, const char *server_name) {
 
 	Socket clientSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -134,11 +134,11 @@ int tcpConn::receiveSegment(const Socket sck, std::string &result) {
 
 	char recvbuf[DEFAULT_BUFLEN];
 	// result is the amount of bytes received
-	ssize_t bytesReceived    = DEFAULT_BUFLEN;
-	int     totBytesReceived = 0;
+	int bytesReceived    = DEFAULT_BUFLEN;
+	int totBytesReceived = 0;
 
 	while (bytesReceived == DEFAULT_BUFLEN) {
-		bytesReceived = recv(sck, recvbuf, DEFAULT_BUFLEN, 0);
+		bytesReceived = static_cast<char>(recv(sck, recvbuf, DEFAULT_BUFLEN, 0));
 		totBytesReceived += bytesReceived;
 		result.append(recvbuf, totBytesReceived);
 	}
@@ -158,7 +158,7 @@ int tcpConn::receiveSegment(const Socket sck, std::string &result) {
 	return totBytesReceived;
 }
 
-int tcpConn::sendSegment(const Socket sck, std::string &buff) {
+long tcpConn::sendSegment(const Socket sck, std::string &buff) {
 
 	PROFILE_FUNCTION();
 
@@ -171,7 +171,7 @@ int tcpConn::sendSegment(const Socket sck, std::string &buff) {
 		log(LOG_WARNING, "Mismatch between buffer size (%ldb) and bytes sent (%ldb)\n", buff.size(), bytesSent);
 	}
 
-	log(LOG_INFO, "[Socket %d] Sent %dB to client\n", sck, bytesSent);
+	log(LOG_INFO, "[Socket %d] Sent %ldB to client\n", sck, bytesSent);
 
 	return bytesSent;
 }
