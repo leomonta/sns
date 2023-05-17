@@ -12,8 +12,6 @@
 
 using json = nlohmann::json;
 
-const char *server_init_file = "server_options.conf";
-
 // Http Server
 std::string HTTP_Basedir = "/";
 std::string HTTP_IP      = "127.0.0.1";
@@ -25,7 +23,7 @@ std::map<std::string, std::string> contents;
 
 int main(int argc, char *argv[]) {
 
-	// readArgs();
+	parseArgs(argc, argv);
 	setupContentTypes();
 	// initialize winsock and the server options
 	TCP_conn http(HTTP_Port);
@@ -36,8 +34,6 @@ int main(int argc, char *argv[]) {
 		printf("[Error]: Http connection is invalid. Shutting down\n");
 		return 0;
 	}
-
-
 
 	bool threadStop = false;
 
@@ -59,6 +55,22 @@ int main(int argc, char *argv[]) {
 	requestAcceptor.join();
 
 	return 0;
+}
+
+void parseArgs(int argc, char *argv[]) {
+	// server directory ip port
+	//    0       1      2   3
+
+	switch (argc) {
+	case 4:
+		HTTP_Port = std::atoi(argv[3]);
+
+	case 3:
+		HTTP_IP = argv[2];
+
+	case 2:
+		HTTP_Basedir = argv[1];
+	}
 }
 
 /**
@@ -123,7 +135,7 @@ void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadSt
 			// make the message a single formatted string
 			response.compileMessage();
 
-			printf("[Info]: Received request %s\n	Responded with %s\n", mex.headerOptions["Method"], response.filename);
+			printf("[Info]: [Socket %d] Received request	%s \n", clientSocket, mex.headerOptions["Method"].c_str());
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
@@ -258,6 +270,7 @@ std::string getFile(const std::string &file) {
 
 	// if the file does not exist i load a default 404.html
 	if (content.empty()) {
+		printf("[Warning]: File %s not found\n", file.c_str());
 		std::fstream ifs("404.html", std::ios::binary | std::ios::in);
 		std::string  content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
 	}

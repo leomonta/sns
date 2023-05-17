@@ -92,7 +92,7 @@ Socket TCP_conn::acceptClientSock() {
 	sockaddr_in *temp = reinterpret_cast<sockaddr_in *>(&clientAddr);
 
 	// everything fine, communicate on stdout
-	printf("[Info]: Accepted client IP %s : %u with socket n. %d\n", inet_ntoa(temp->sin_addr), ntohs(temp->sin_port), client);
+	printf("[Info]: [Socket %d] Accepted client IP %s:%u\n", client, inet_ntoa(temp->sin_addr), ntohs(temp->sin_port));
 
 	return client;
 }
@@ -100,24 +100,24 @@ Socket TCP_conn::acceptClientSock() {
 /**
  * Destroy the socket
  */
-void TCP_conn::closeSocket(Socket &clientSock) {
+void TCP_conn::closeSocket(const Socket clientSock) {
 
 	auto res = close(clientSock);
 
 	if (res < 0) {
-		printf("[Socket %d][Error]: Could not close socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
+		printf("[Error]: [Socket %d] Could not close socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
 	}
 }
 
 /**
  * close the communication from the server to the client and viceversa
  */
-void TCP_conn::shutDown(Socket &clientSock) {
+void TCP_conn::shutDown(const Socket clientSock) {
 	// shutdown for both ReaD and WRite
 	auto res = shutdown(clientSock, SHUT_RDWR);
 
 	if (res < 0) {
-		printf("[Socket %d][Error]: Could not shutdown socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
+		printf("[Error]: [Socket %d] Could not shutdown socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
 	}
 }
 
@@ -126,7 +126,7 @@ void TCP_conn::shutDown(Socket &clientSock) {
  *
  * if the bytes received are bigger than the buffer length, the remaining bytes
  */
-int TCP_conn::receiveRequest(Socket &clientSock, std::string &result) {
+int TCP_conn::receiveRequest(const Socket clientSock, std::string &result) {
 	char recvbuf[DEFAULT_BUFLEN];
 	// result is the amount of bytes received
 
@@ -134,16 +134,16 @@ int TCP_conn::receiveRequest(Socket &clientSock, std::string &result) {
 
 	if (bytesReceived > 0) {
 		result = std::string(recvbuf, bytesReceived);
-		printf("[Socket %d][Info]: Received %ldB from client\n", clientSock, bytesReceived);
+		printf("[Info]: [Socket %d] Received %ldB from client\n", clientSock, bytesReceived);
 	}
 
 	if (bytesReceived == 0) {
-		printf("[Socket %d][Info]: Client has shut down the communication\n", clientSock);
+		printf("[Info]: [Socket %d] Client has shut down the communication\n", clientSock);
 		result = "";
 	}
 
 	if (bytesReceived < 0) {
-		printf("[Socket %d][Error]: Failed to receive message\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
+		printf("[Error]: [Socket %d] Failed to receive message\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
 		result = "";
 	}
 
@@ -153,7 +153,7 @@ int TCP_conn::receiveRequest(Socket &clientSock, std::string &result) {
 /**
  * Send the buffer (buff) to the client, and return the bytes sent
  */
-int TCP_conn::sendResponse(Socket &clientSock, std::string &buff) {
+int TCP_conn::sendResponse(const Socket clientSock, std::string &buff) {
 
 	auto bytesSent = send(clientSock, buff.c_str(), buff.size(), 0);
 	if (bytesSent < 0) {
@@ -163,6 +163,8 @@ int TCP_conn::sendResponse(Socket &clientSock, std::string &buff) {
 	if (bytesSent != static_cast<ssize_t>(buff.size())) {
 		printf("[Warning]: Missmatch between buffer size (%ldb) and bytes sent (%ldb)\n", buff.size(), bytesSent);
 	}
+
+	printf("[Info]: [Socket %d] Sent %dB to client\n", clientSock, bytesSent);
 
 	return bytesSent;
 }

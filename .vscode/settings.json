@@ -106,7 +106,9 @@
 		"xtree": "cpp",
 		"xutility": "cpp",
 		"*.ipp": "cpp",
-		"source_location": "cpp"
+		"source_location": "cpp",
+		"numbers": "cpp",
+		"semaphore": "cpp"
 	},
 	"python.pythonPath": "c:\\Program Files\\Python39\\python.exe"
 }

@@ -12,5 +12,6 @@ void        composeHeader(const std::string &filename, std::map<std::string, std
 std::string getFile(const std::string &file);
 
 void setupContentTypes();
+void parseArgs(int argc, char *argv[]);
 
 void getContentType(const std::string &filetype, std::string &result);

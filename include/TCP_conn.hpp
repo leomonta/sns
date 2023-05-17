@@ -23,9 +23,9 @@ public:
 
 	TCP_conn(const short port);
 	~TCP_conn();
-	int	   receiveRequest(Socket &clientSock, std::string &result);
-	int	   sendResponse(Socket &clientSock, std::string &buff);
+	int	   receiveRequest(const Socket clientSock, std::string &result);
+	int	   sendResponse(const Socket clientSock, std::string &buff);
 	Socket acceptClientSock();
-	void   closeSocket(Socket &clientSock);
-	void   shutDown(Socket &clientSocket);
+	void   closeSocket(const Socket clientSock);
+	void   shutDown(const Socket clientSocket);
 };
