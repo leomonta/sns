@@ -320,9 +320,11 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 
 	auto uncompressed = getFile(outbound.url);
 
-	std::string compressed;
-	compressGz(compressed, uncompressed.c_str(), uncompressed.length());
-	log(LOG_DEBUG, "[SERVER] File found and compressed\n");
+	std::string compressed = "";
+	if (uncompressed != "") {
+		compressGz(compressed, uncompressed.c_str(), uncompressed.length());
+		log(LOG_DEBUG, "[SERVER] File found and compressed\n");
+	}
 
 	// set the content of the message
 	outbound.body = compressed;
@@ -394,7 +396,7 @@ std::string getFile(const std::string &file) {
 
 	// if the file does not exist i load a default 404.html
 	if (content.empty()) {
-		log(LOG_WARNING, "[SERVER] File %s not found\n", file.c_str());
+		log(LOG_ERROR, "[SERVER] File %s not found\n", file.c_str());
 		return "";
 	}
 
