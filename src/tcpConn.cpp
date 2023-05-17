@@ -5,29 +5,17 @@
 #include "utils.hpp"
 
 #include <arpa/inet.h>
-#include <netinet/in.h>
+#include <netdb.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-void tcpConn::terminate() {
-
-	PROFILE_FUNCTION();
-
-	shutDown(serverSocket);
-	closeSocket(serverSocket);
-}
-
-/**
- * Setup the TCP connection on the given port and ip, fails if the port isn't on the local machine and if the port is already used
- * Setup the server listening socket, the one that accept incoming client requests
- */
-void tcpConn::initialize(const short port) {
+Socket tcpConn::initializeServer(const short port) {
 
 	PROFILE_FUNCTION();
 
 	// create the server socket descriptor, return -1 on failure
-	serverSocket = socket(
+	auto serverSocket = socket(
 	    AF_INET,                     // IPv4
 	    SOCK_STREAM | SOCK_NONBLOCK, // reliable conn, multiple communication per socket, non blocking accept
 	    IPPROTO_TCP);                // Tcp protocol
@@ -72,14 +60,123 @@ void tcpConn::initialize(const short port) {
 		return;
 	}
 
-	isConnValid = true;
+	return serverSocket;
 }
 
-/**
- * Shortcut to accept any client socket, to be used multiple time by thread
- * this functions blocks until it receive a socket
- */
-Socket tcpConn::acceptClientSock() {
+Socket tcpConn::initializeClient(const int port, const char *server_name) {
+
+	Socket clientSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (clientSock == INVALID_SOCKET) {
+		log(LOG_FATAL, "Impossible to create server Socket.\n	Reason: %d %s\n", errno, strerror(errno));
+		return INVALID_SOCKET;
+	}
+
+	hostent *server_hn = gethostbyname(server_name);
+
+	if (server_hn == nullptr) {
+		log(LOG_FATAL, "Hostname requested is unrechable.\n	Reason. %d %s\n", errno, strerror(errno));
+		return INVALID_SOCKET;
+	}
+
+	sockaddr_in serv_addr;
+
+	// set the entire server address struct to 0
+	bzero((char *)&serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+
+	// copy th server ip from the server hostname to the server socket internet address
+	bcopy((char *)server_hn->h_addr_list[0], (char *)&serv_addr.sin_addr.s_addr, server_hn->h_length);
+	serv_addr.sin_port = htons(port);
+
+	if (connect(clientSock, reinterpret_cast<sockaddr *>(&serv_addr), sizeof(serv_addr)) == -1) {
+		log(LOG_FATAL, "Connectionn to server failed.\n	Reason. %d %s\n", errno, strerror(errno));
+		return INVALID_SOCKET;
+	}
+
+	return clientSock;
+}
+
+void tcpConn::terminate(const Socket sck) {
+
+	PROFILE_FUNCTION();
+
+	shutdownSocket(sck);
+	closeSocket(sck);
+}
+
+void tcpConn::closeSocket(const Socket sck) {
+
+	PROFILE_FUNCTION();
+
+	auto res = close(sck);
+
+	if (res < 0) {
+		log(LOG_ERROR, "[Socket %d] Could not close socket\n	Reason: %d %s\n", sck, errno, strerror(errno));
+	}
+}
+
+void tcpConn::shutdownSocket(const Socket sck) {
+
+	PROFILE_FUNCTION();
+
+	// shutdown for both ReaD and WRite
+	auto res = shutdown(sck, SHUT_RDWR);
+
+	if (res < 0) {
+		log(LOG_ERROR, "[Socket %d] Could not shutdown socket\n	Reason: %d %s\n", sck, errno, strerror(errno));
+	}
+}
+
+int tcpConn::receiveSegment(const Socket sck, std::string &result) {
+
+	PROFILE_FUNCTION();
+
+	char recvbuf[DEFAULT_BUFLEN];
+	// result is the amount of bytes received
+	ssize_t bytesReceived    = DEFAULT_BUFLEN;
+	int     totBytesReceived = 0;
+
+	while (bytesReceived == DEFAULT_BUFLEN) {
+		bytesReceived = recv(sck, recvbuf, DEFAULT_BUFLEN, 0);
+		totBytesReceived += bytesReceived;
+		result.append(recvbuf, totBytesReceived);
+	}
+
+	if (totBytesReceived > 0) {
+		log(LOG_INFO, "[Socket %d] Received %ldB from client\n", sck, totBytesReceived);
+	}
+
+	if (totBytesReceived == 0) {
+		log(LOG_INFO, "[Socket %d] Client has shut down the communication\n", sck);
+	}
+
+	if (totBytesReceived < 0) {
+		log(LOG_ERROR, "[Socket %d] Failed to receive message\n	Reason: %d %s\n", sck, errno, strerror(errno));
+	}
+
+	return totBytesReceived;
+}
+
+int tcpConn::sendSegment(const Socket sck, std::string &buff) {
+
+	PROFILE_FUNCTION();
+
+	auto bytesSent = send(sck, buff.c_str(), buff.size(), 0);
+	if (bytesSent < 0) {
+		log(LOG_ERROR, "Failed to send message\n	Reason: %d %s\n", errno, strerror(errno));
+	}
+
+	if (bytesSent != static_cast<ssize_t>(buff.size())) {
+		log(LOG_WARNING, "Mismatch between buffer size (%ldb) and bytes sent (%ldb)\n", buff.size(), bytesSent);
+	}
+
+	log(LOG_INFO, "[Socket %d] Sent %dB to client\n", sck, bytesSent);
+
+	return bytesSent;
+}
+
+Socket tcpConn::acceptClientSock(const Socket ssck) {
 
 	PROFILE_FUNCTION();
 
@@ -90,7 +187,7 @@ Socket tcpConn::acceptClientSock() {
 	socklen_t clientSize = sizeof(clientAddr);
 
 	// get the socket (int) and the socket address fot the client
-	Socket client = accept(serverSocket, &clientAddr, &clientSize);
+	Socket client = accept(ssck, &clientAddr, &clientSize);
 
 	// received and invalid socket
 	if (client == INVALID_SOCKET) {
@@ -104,86 +201,4 @@ Socket tcpConn::acceptClientSock() {
 	log(LOG_INFO, "[Socket %d] Accepted client IP %s:%u\n", client, inet_ntoa(temp->sin_addr), ntohs(temp->sin_port));
 
 	return client;
-}
-
-/**
- * Destroy the socket
- */
-void tcpConn::closeSocket(const Socket clientSock) {
-
-	PROFILE_FUNCTION();
-
-	auto res = close(clientSock);
-
-	if (res < 0) {
-		log(LOG_ERROR, "[Socket %d] Could not close socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
-	}
-}
-
-/**
- * close the communication from the server to the client and viceversa
- */
-void tcpConn::shutDown(const Socket clientSock) {
-
-	PROFILE_FUNCTION();
-
-	// shutdown for both ReaD and WRite
-	auto res = shutdown(clientSock, SHUT_RDWR);
-
-	if (res < 0) {
-		log(LOG_ERROR, "[Socket %d] Could not shutdown socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
-	}
-}
-
-/**
- * copy the incoming message requested to buff and return the bytes received
- *
- * if the bytes received are bigger than the buffer length, the remaining bytes
- */
-int tcpConn::receiveRequest(const Socket clientSock, std::string &result) {
-
-	PROFILE_FUNCTION();
-
-	char recvbuf[DEFAULT_BUFLEN];
-	// result is the amount of bytes received
-
-	auto bytesReceived = recv(clientSock, recvbuf, DEFAULT_BUFLEN, 0);
-
-	if (bytesReceived > 0) {
-		result = std::string(recvbuf, bytesReceived);
-		log(LOG_INFO, "[Socket %d] Received %ldB from client\n", clientSock, bytesReceived);
-	}
-
-	if (bytesReceived == 0) {
-		log(LOG_INFO, "[Socket %d] Client has shut down the communication\n", clientSock);
-		result = "";
-	}
-
-	if (bytesReceived < 0) {
-		log(LOG_ERROR, "[Socket %d] Failed to receive message\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
-		result = "";
-	}
-
-	return bytesReceived;
-}
-
-/**
- * Send the buffer (buff) to the client, and return the bytes sent
- */
-int tcpConn::sendResponse(const Socket clientSock, std::string &buff) {
-
-	PROFILE_FUNCTION();
-
-	auto bytesSent = send(clientSock, buff.c_str(), buff.size(), 0);
-	if (bytesSent < 0) {
-		log(LOG_ERROR, "Failed to send message\n	Reason: %d %s\n", errno, strerror(errno));
-	}
-
-	if (bytesSent != static_cast<ssize_t>(buff.size())) {
-		log(LOG_WARNING, "Mismatch between buffer size (%ldb) and bytes sent (%ldb)\n", buff.size(), bytesSent);
-	}
-
-	log(LOG_INFO, "[Socket %d] Sent %dB to client\n", clientSock, bytesSent);
-
-	return bytesSent;
 }

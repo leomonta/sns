@@ -12,21 +12,49 @@ Thanks to -> https://www.linuxhowtos.org/C_C++/socket.htm
 #define DEFAULT_BUFLEN 8000
 typedef int Socket;
 
-class tcpConn {
-private:
-	// tcp socket listener
-	Socket serverSocket = INVALID_SOCKET;
+namespace tcpConn {
 
-public:
-	// signal if the connection is valid
-	bool isConnValid = false;
+	/**
+	 * setup a server listening on port
+	 * @return the server socket
+	 */
+	Socket initializeServer(const short port);
 
-	tcpConn(){};
-	void   terminate();
-	void   initialize(const short port);
-	int    receiveRequest(const Socket clientSock, std::string &result);
-	int    sendResponse(const Socket clientSock, std::string &buff);
-	Socket acceptClientSock();
-	void   closeSocket(const Socket clientSock);
-	void   shutDown(const Socket clientSocket);
-};
+	/**
+	 * retup a client connected to server_name
+	 * @return the client socket
+	 */
+	Socket initializeClient(const int port, const char *server_name);
+
+	/**
+	 * shorthand to close and shutdown a socket
+	 */
+	void terminate(const Socket sck);
+
+	/**
+	 * close the given socked, close the related fd
+	 */
+	void closeSocket(const Socket sck);
+
+	/**
+	 * send the tcp shutdown message through the socket
+	 */
+	void shutdownSocket(const Socket sck);
+
+	/**
+	 * receive a segment from the specified socket
+	 * @return the amount of bytes sent
+	 */
+	int receiveSegment(const Socket sck, std::string &result);
+
+	/**
+	 * send a segment through specified socket
+	 * @return the amount of bytes received
+	 */
+	int sendSegment(const Socket sck, std::string &buff);
+
+	/**
+	 * @return a client that wants to connect to this server
+	 */
+	Socket acceptClientSock(const Socket ssck);
+} // namespace tcpConn
