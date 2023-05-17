@@ -18,13 +18,16 @@ HTTP_conn::HTTP_conn(const std::string &basedir, const std::string &ip, const st
 
 	// create the server socket descriptor, return -1 on failure
 	serverSocket = socket(
-		AF_INET,	  // IPv4
-		SOCK_STREAM,  // reliable conn, multiple communication per socket
-		IPPROTO_TCP); // Tcp protocol
+		AF_INET,					 // IPv4
+		SOCK_STREAM | SOCK_NONBLOCK, // reliable conn, multiple communication per socket, non blocking accept
+		IPPROTO_TCP);				 // Tcp protocol
 
 	if (serverSocket == INVALID_SOCKET) {
 		std::cout << "[Error]: Impossible to create server Socket. " << strerror(errno) << std::endl;
 	}
+
+	int enable = 1;
+	setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
 
 	/*
 	type of address of this socket
@@ -51,8 +54,14 @@ HTTP_conn::HTTP_conn(const std::string &basedir, const std::string &ip, const st
 		std::cout << "[Error]: Listening failed. " << strerror(errno) << std::endl;
 	}
 
-	std::cout << "Server now listening on " << ip << ":" << port << std::endl;
-	std::cout << "On folder " << basedir << std::endl;
+	std::cout << "Server now listening on " << ip << ":" << port
+			  << "\nOn folder " << basedir << std::endl;
+}
+
+
+HTTP_conn::~HTTP_conn() {
+	shutDown(serverSocket);
+	closeSocket(serverSocket);
 }
 
 /**
@@ -68,13 +77,18 @@ Socket HTTP_conn::acceptClientSock() {
 	Socket client = accept(serverSocket, &clientAddr, &clientSize);
 
 	if (client == INVALID_SOCKET) {
-		std::cout << "[Error]: Could not accept client socket. " << strerror(errno) << std::endl;
+		// std::cout << "[Error]: Could not accept client socket. " << strerror(errno) << std::endl;
+		return -1;
+	}
+
+	// no clients for now
+	if (client == EWOULDBLOCK || client == EAGAIN) {
 		return -1;
 	}
 
 	sockaddr_in *temp = reinterpret_cast<sockaddr_in *>(&clientAddr);
 
-	std::cout << "[Info]: Accepted client " << inet_ntoa(temp->sin_addr) << ":" << ntohs(temp->sin_port);
+	std::cout << "[Info]: Accepted client " << inet_ntoa(temp->sin_addr) << ":" << ntohs(temp->sin_port) << " with socket " << client << "\n";
 
 	return client;
 }
@@ -83,16 +97,24 @@ Socket HTTP_conn::acceptClientSock() {
  * Close the communication on the socket on both directions
  * the destroy the socket
  */
-void HTTP_conn::closeClientSock(Socket &clientSock) {
+void HTTP_conn::closeSocket(Socket &clientSock) {
 
-	close(clientSock);
+	auto res = close(clientSock);
+
+	if (res < 0) {
+		std::cout << "[Error]: Could not close Socket " << clientSock << ". " << strerror(errno) << std::endl;
+	}
 }
 
 /**
  * close the communication from the server to the client and viceversa
  */
 void HTTP_conn::shutDown(Socket &clientSock) {
-	shutdown(clientSock, SHUT_RDWR);
+	auto res = shutdown(clientSock, SHUT_RDWR);
+
+	if (res < 0) {
+		std::cout << "[Error]: Could not shutdown Socket " << clientSock << ". " << strerror(errno) << std::endl;
+	}
 }
 
 /**
@@ -123,5 +145,9 @@ int HTTP_conn::receiveRequest(Socket &clientSock, std::string &result) {
 int HTTP_conn::sendResponse(Socket &clientSock, std::string &buff) {
 
 	int result = send(clientSock, buff.c_str(), buff.size(), 0);
+	if (result < 0) {
+
+		std::cout << "[Error]: failed to send message. " << strerror(errno) << std::endl;
+	}
 	return result;
 }

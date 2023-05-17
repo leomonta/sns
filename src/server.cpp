@@ -25,8 +25,10 @@ std::string HTTP_Port	 = "80";
 std::mutex						   mtx;
 std::map<std::string, std::string> contents;
 
+void acceptRequests(HTTP_conn *htt, bool *threadStopp);
+void resolveRequest(Socket clientSocket, HTTP_conn *httpConnectio, bool *threadStopn);
+
 void		readIni();
-void		resolveRequest(Socket clientSocket, HTTP_conn *httpConnection);
 void		Head(HTTP_message &inbound, HTTP_message &outbound);
 void		Get(HTTP_message &inbound, HTTP_message &outbound);
 void		composeHeader(const char *filename, std::map<std::string, std::string> &result);
@@ -41,24 +43,53 @@ int main() {
 	readIni();
 	setupContentTypes();
 	// initialize winsock and the server options
-	HTTP_conn http(HTTP_Basedir.c_str(), HTTP_IP.c_str(), HTTP_Port.c_str());
+	HTTP_conn http(HTTP_Basedir, HTTP_IP, HTTP_Port);
+
+	bool threadStop = false;
+
+	auto requestAcceptor = std::thread(acceptRequests, &http, &threadStop);
+
+	std::string input = "";
+
+	while (true) {
+		std::cin >> input;
+
+		if (input.compare("exit") == 0) {
+			threadStop = true;
+			break;
+		}
+	}
+
+	requestAcceptor.join();
+
+	return 0;
+}
+
+void acceptRequests(HTTP_conn *http, bool *threadStop) {
 
 	// used for controlling
 	Socket		client = 0;
 	std::string request;
 
-	// Receive until the peer shuts down the connection
-	while (true) {
+	std::vector<std::thread> threads;
 
-		client = http.acceptClientSock();
-		resolveRequest(client, &http);
-		// std::thread(resolveRequest, client, &http).detach();
+	// Receive until the peer shuts down the connection
+	while (!(*threadStop)) {
+
+		client = http->acceptClientSock();
+
+		if (client != -1) {
+			// resolveRequest(client, &http);
+			threads.push_back(std::thread(resolveRequest, client, http, threadStop));
+		}
 	}
 
-	return 0;
+	for (size_t i = 0; i < threads.size(); ++i) {
+		threads[i].join();
+	}
 }
 
-void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection) {
+void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection, bool *threadStop) {
 
 	int bytesReceived;
 	int bytesSent;
@@ -66,7 +97,7 @@ void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection) {
 	std::string	 request;
 	HTTP_message response;
 
-	while (true) {
+	while (!(*threadStop)) {
 
 		// ---------------------------------------------------------------------- RECEIVE
 		bytesReceived = httpConnection->receiveRequest(clientSocket, request);
@@ -96,28 +127,22 @@ void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection) {
 
 			// send failed, close socket and close program
 			if (bytesSent == 0) {
-				std::cout << "send failed with error: " << std::endl;
-				httpConnection->closeClientSock(clientSocket);
+				std::cout << " [Error]: Send failed with error: " << std::endl;
 			}
 
 			break;
 		}
 
 		// received an error
-		if (bytesReceived < 0) {
-			bytesReceived = 0;
+		if (bytesReceived <= 0) {
 			std::cout << "[Error]: Cannot keep on listening" << std::endl;
 
-			httpConnection->closeClientSock(clientSocket);
-			break;
-		}
-
-		if (bytesReceived == 0) {
 			break;
 		}
 	}
 
 	httpConnection->shutDown(clientSocket);
+	httpConnection->closeSocket(clientSocket);
 }
 
 /**

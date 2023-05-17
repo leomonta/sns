@@ -35,9 +35,10 @@ public:
 	// Asio variables
 
 	HTTP_conn(const std::string &basedir, const std::string &ip, const std::string &port);
+	~HTTP_conn();
 	int	   receiveRequest(Socket &clientSock, std::string &result);
 	int	   sendResponse(Socket &clientSock, std::string &buff);
 	Socket acceptClientSock();
-	void   closeClientSock(Socket &clientSock);
+	void   closeSocket(Socket &clientSock);
 	void   shutDown(Socket &clientSocket);
 };
