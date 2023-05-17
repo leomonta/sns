@@ -32,7 +32,7 @@ namespace tcpConn {
 	void terminate(const Socket sck);
 
 	/**
-	 * close the given socked, close the related fd
+	 * close the given socket, close the related fd
 	 */
 	void closeSocket(const Socket sck);
 
