@@ -128,6 +128,9 @@ void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection, bool *thread
 			// make the message a single formatted string
 			response.compileMessage();
 
+			std::cout << "Received request " << mex.filename
+					  << ".\n  Responded with " << response.filename << std::endl;
+
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
 			bytesSent = httpConnection->sendResponse(clientSocket, response.message);
@@ -218,6 +221,7 @@ void Head(HTTP_message &inbound, HTTP_message &outbound) {
 	// i know that i'm loading an entire file, if i find a better solution i'll use it
 	std::string content						 = getFile(file.c_str());
 	outbound.headerOptions["Content-Lenght"] = std::to_string(content.length());
+	outbound.headerOptions["Cache-Control"]	 = "max-age=604800";
 	outbound.filename						 = file;
 }
 
