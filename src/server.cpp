@@ -25,7 +25,6 @@ namespace Res {
 	short       tcpPort       = 80;
 
 	// for controlling debug prints
-	std::mutex                         mtx;
 	std::map<std::string, std::string> mimeTypes;
 
 	std::thread requestAcceptor;
@@ -62,9 +61,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	exit(0);
-
 	Instrumentor::Get().EndSession();
+
+	exit(0);
 
 	return 0;
 }

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -35,6 +36,7 @@ private:
 	InstrumentationSession *m_CurrentSession;
 	std::ofstream           m_OutputStream;
 	int                     m_ProfileCount;
+	std::mutex              mtx;
 
 public:
 	Instrumentor()
@@ -56,6 +58,9 @@ public:
 	}
 
 	void WriteProfile(const ProfileResult &result) {
+
+		mtx.lock();
+
 		if (m_ProfileCount++ > 0)
 			m_OutputStream << ",";
 
@@ -73,6 +78,7 @@ public:
 		m_OutputStream << "}";
 
 		m_OutputStream.flush();
+		mtx.unlock();
 	}
 
 	void WriteHeader() {
