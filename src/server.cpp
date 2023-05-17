@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <mutex>
+#include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <thread>
@@ -29,6 +30,11 @@ const char *methodStr[] = {
 const unsigned char serverVersionMajor = 3;
 const unsigned char serverVersionMinor = 3;
 
+void Panico(int cos) {
+	printf("Signal %d received \n", cos);
+	exit(1);
+}
+
 namespace Res {
 
 	// Http Server
@@ -49,6 +55,8 @@ namespace Res {
 int main(const int argc, const char *argv[]) {
 
 	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
+
+	signal(SIGPIPE, Panico);
 
 	// Get port and directory, maybe
 	parseArgs(argc, argv);
@@ -295,7 +303,10 @@ void Head(httpMessage &inbound, httpMessage &outbound) {
 
 	// check of I'm dealing with a directory
 	struct stat fileStat;
-	stat(file.c_str(), &fileStat);
+	auto        errCode = stat(file.c_str(), &fileStat);
+	if (errCode != 0) {
+		file = "";
+	}
 
 	if (S_ISDIR(fileStat.st_mode)) {
 		file += "/index.html";
@@ -345,26 +356,29 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
 	// I use map to easily manage key : value, the only problem is when i compile the header, the response code must be at the top
 
 	// if the requested file actually exist
-	if (std::filesystem::exists(filename)) {
+	if (filename != "") {
 
 		// status code OK
 		result[http::RP_Status] = "200 OK";
 
 		// get the content type
 		std::string content_type = "";
+		content_type             = "text/plain"; // fallback if finds nothing
 		getContentType(filename, content_type);
-
-		// fallback if finds nothing
-		if (content_type == "") {
-			content_type = "text/plain";
-		}
 
 		// and actually add it in
 		result[http::RP_Content_Type] = content_type;
 
 	} else {
 		// status code -> Not Found
-		result[http::RP_Status]       = "404 Not Found";
+		srand(time(0));
+		
+		// we do a little bit of trolling
+		if (rand() < 10) {
+			result[http::RP_Status] = "418 I'm a teapot";
+		} else {
+			result[http::RP_Status] = "404 Not Found";
+		}
 		result[http::RP_Content_Type] = "text/html";
 	}
 
