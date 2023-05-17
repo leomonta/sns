@@ -1,42 +1,42 @@
 {
-	"projectDir": ".",
-	"exeName": "server.bin",
-	"compiler_style" : "gcc",
-	"compilerExe" : "g++",
-	"linkerExe" : "g++",
-	"Directories": {
-		"includeDir": [
+	"compiler": {
+		"compiler_style": "gcc",
+		"compiler_exe": "g++",
+		"linker_exe": "g++"
+	},
+
+	"directories": {
+		"project_dir": ".",
+		"exe_path_name": "bin/server.bin",
+		"include_dirs": [
 			"include",
-			"ext/"
+			"ext"
 		],
-		"sourceDir": [
+		"source_dirs": [
 			"src"
 		],
-		"libraryDir": [
-		],
-		"objectsDir": "objs",
-		"exeDir": "bin"
+		"temp_dir": "objs"
 	},
-	"libraries": {
-		"Debug": [
-			"dl",
-			"pthread",
-			"z"
+
+	"debug": {
+		"compiler_args": "-g3 -std=c++2a -Wno-missing-field-initializers -Wall -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
+		"linker_args": "-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
+		"libraries_dirs": [
 		],
-		"Release": [
+		"libraries_names": [
 			"dl",
 			"pthread",
 			"z"
 		]
+
 	},
-	"Arguments": {
-		"Debug": {
-			"Compiler": "-g3 -std=c++2a -Wno-missing-field-initializers -Wall -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
-			"Linker": "-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak"
-		},
-		"Release": {
-			"Compiler": "-O2 -g3 -std=c++2a",
-			"Linker": ""
-		}
+
+	"release": {
+		"compiler_args": "-O2 -std=c++2a",
+		"linker_args": "-s",
+		"libraries_dirs": [
+		],
+		"libraries_names": [
+		]
 	}
 }
