@@ -1,0 +1,49 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/bin/Game.bin",
+			"args": [],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}/bin/",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"miDebuggerPath": "/usr/bin/gdb",
+			"setupCommands": [
+				{
+					"description": "Abilita la riformattazione per gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": false
+				}
+			],
+			"preLaunchTask": "C/C++: g++.exe build all modified files"
+		},
+		{
+			"name": "Launch",
+			"type": "cppvsdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/bin/Game.bin",
+			"args": [],
+			"stopAtEntry": false,
+			"console": "integratedTerminal",
+			"cwd": "${workspaceFolder}/bin",
+			"environment": []
+		},
+		{
+			"name": "Build and Launch",
+			"type": "cppvsdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/bin/Game.bin",
+			"args": [],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}/bin",
+			"console": "integratedTerminal",
+			"environment": [],
+			"preLaunchTask": "C/C++: g++.exe build all modified files"
+		}
+	]
+}

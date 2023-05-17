@@ -1,0 +1,39 @@
+{
+	"projectDir": ".",
+	"exeName": "Game.bin",
+	"compilerExe" : "g++",
+	"Directories": {
+		"includeDir": [
+			"include",
+			"ext"
+		],
+		"sourceDir": [
+			"src"
+		],
+		"libraryDir": [
+			"ext/"
+		],
+		"objectsDir": "objs",
+		"exeDir": "bin"
+	},
+	"libraries": {
+		"Debug": [
+			"dl",
+			"pthread"
+		],
+		"Release": [
+			"dl",
+			"pthread"
+		]
+	},
+	"Arguments": {
+		"Debug": {
+			"Compiler": "-g3 -std=c++2a -Wno-missing-field-initializers -Wconversion -Wshadow -Wextra -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
+			"Linker": "-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak"
+		},
+		"Release": {
+			"Compiler": "-O2 -std=c++2a",
+			"Linker": "-s"
+		}
+	}
+}

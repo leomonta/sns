@@ -1,0 +1,27 @@
+{
+	"configurations": [
+		{
+			"name": "gcc64",
+			"includePath": [
+				"include",
+				"ext"
+			],
+			"compilerArgs": [
+				"-Wconversion",
+				"-Wshadow",
+				"-Wextra"
+			],
+			"defines": [
+				"_DEBUG",
+				"UNICODE",
+				"_UNICODE"
+			],
+			"windowsSdkVersion": "10.0.18362.0",
+			"compilerPath": "/usr/bin/g++",
+			"cStandard": "c11",
+			"cppStandard": "c++20",
+			"intelliSenseMode": "linux-gcc-x64"
+		}
+	],
+	"version": 4
+}
