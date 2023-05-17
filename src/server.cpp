@@ -73,7 +73,7 @@ int main(const int argc, const char *argv[]) {
 		trimwhitespace(line);
 
 		// simple commands
-		if (strcmp(line, "exit") == 0 || strcmp(line, "quit")) {
+		if (strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
 			stop();
 			break;
 		}
@@ -105,6 +105,8 @@ void setup() {
 	PROFILE_FUNCTION();
 
 	setupContentTypes();
+
+	errno = 0;
 
 	Res::serverSocket = tcpConn::initializeServer(Res::tcpPort, 4);
 

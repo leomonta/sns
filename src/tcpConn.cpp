@@ -156,7 +156,7 @@ void tcpConn::shutdownSocket(const Socket sck) {
 	auto res = shutdown(sck, SHUT_RDWR);
 
 	if (res < 0) {
-		log(LOG_ERROR, "[TCP] Could not shutdown socket %s\n	Reason: %d %s\n", sck, errno, strerror(errno));
+		log(LOG_ERROR, "[TCP] Could not shutdown socket %d\n	Reason: %d %s\n", sck, errno, strerror(errno));
 	}
 }
 

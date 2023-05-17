@@ -60,8 +60,12 @@ void log(const char logLevel, const char *mex, ...) {
 	//               0   123456789
 	char TColor[] = "\x1B[38;5;000m";
 
+	// where to modify the TColor variable
 	auto index = 9;
-	int  Tnum  = tid % 129 + 1;
+	
+	// how colors are looped
+	// take the remainer of the division by 129 + 32 to ignore the first 32 colors
+	int  Tnum  = tid % 191 + 1;
 
 	for (int i = 0; i < 3; ++i) {
 

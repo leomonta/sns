@@ -132,6 +132,8 @@ void sslConn::destroyConnection(SSL *ssl) {
 
 int sslConn::receiveRecord(SSL *ssl, std::string &buff) {
 
+	// FIXME: receiving ZERO_RETURN as error code lead to a SIGSEGV read smeowhere in or after this function
+
 	char recvBuf[DEFAULT_BUFLEN];
 
 	int bytesReceived = DEFAULT_BUFLEN;
