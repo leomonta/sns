@@ -1,6 +1,7 @@
 #include "server.hpp"
 
 #include "logger.hpp"
+#include "pages/notFound.hpp"
 #include "profiler.hpp"
 #include "utils.hpp"
 
@@ -303,10 +304,7 @@ void Head(httpMessage &inbound, httpMessage &outbound) {
 
 	// check of I'm dealing with a directory
 	struct stat fileStat;
-	auto        errCode = stat(file.c_str(), &fileStat);
-	if (errCode != 0) {
-		file = "";
-	}
+	stat(file.c_str(), &fileStat);
 
 	if (S_ISDIR(fileStat.st_mode)) {
 		file += "/index.html";
@@ -336,7 +334,7 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 	std::string compressed = "";
 	if (uncompressed != "") {
 		compressGz(compressed, uncompressed.c_str(), uncompressed.length());
-		log(LOG_DEBUG, "[SERVER] File found and compressed\n");
+		log(LOG_DEBUG, "[SERVER] Compressing response body\n");
 	}
 
 	// set the content of the message
@@ -355,8 +353,10 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
 
 	// I use map to easily manage key : value, the only problem is when i compile the header, the response code must be at the top
 
+	struct stat fileStat;
+	auto        errCode = stat(filename.c_str(), &fileStat);
 	// if the requested file actually exist
-	if (filename != "") {
+	if (errCode == 0) {
 
 		// status code OK
 		result[http::RP_Status] = "200 OK";
@@ -370,15 +370,9 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
 		result[http::RP_Content_Type] = content_type;
 
 	} else {
-		// status code -> Not Found
-		srand(time(0));
-		
-		// we do a little bit of trolling
-		if (rand() < 10) {
-			result[http::RP_Status] = "418 I'm a teapot";
-		} else {
-			result[http::RP_Status] = "404 Not Found";
-		}
+		log(LOG_WARNING, "[SERVER] File requested (%s) not found\n", filename.c_str());
+		log(LOG_WARNING, "[SYSTEM] %s\n", strerror(errno));
+		result[http::RP_Status]       = "404 Not Found";
 		result[http::RP_Content_Type] = "text/html";
 	}
 
@@ -387,7 +381,7 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
 	result[http::RP_Date]       = getUTC();
 	result[http::RP_Connection] = "close";
 	result[http::RP_Vary]       = "Accept-Encoding";
-	char srvr[]                 = "LeonardCustom/x.x (ArchLinux64)";
+	char srvr[]                 = "SNS/x.x (ArchLinux64)";
 
 	srvr[14] = '0' + serverVersionMajor;
 	srvr[16] = '0' + serverVersionMinor;
@@ -410,13 +404,15 @@ std::string getFile(const std::string &file) {
 	//							start iterator							end iterator
 	std::string content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
 
+	ifs.close();
+
 	// if the file does not exist i load a default 404.html
 	if (content.empty()) {
-		log(LOG_ERROR, "[SERVER] File %s not found\n", file.c_str());
-		return "";
-	}
+		log(LOG_WARNING, "[SERVER] File not found. Loading deafult Error 404 page\n", file.c_str());
 
-	ifs.close();
+		// Load the internal 404 error page
+		content = Not_Found_Page;
+	}
 
 	return content;
 }
