@@ -1,12 +1,15 @@
-#include "HTTP_message.hpp"
+#include "httpMessage.hpp"
 
+#include "profiler.hpp"
 #include "utils.hpp"
 
 #include <cstring>
 
-HTTP_message::HTTP_message(std::string &raw_message, unsigned int dir) {
-	message   = raw_message;
-	direction = dir;
+httpMessage::httpMessage(std::string &raw_message) {
+
+	PROFILE_FUNCTION();
+
+	message = raw_message;
 
 	decompileMessage();
 }
@@ -14,7 +17,10 @@ HTTP_message::HTTP_message(std::string &raw_message, unsigned int dir) {
 /**
  * deconstruct the raw header in a map with key (option) -> value
  */
-void HTTP_message::decompileHeader() {
+void httpMessage::decompileHeader() {
+
+	PROFILE_FUNCTION();
+
 	std::vector<std::string> options = split(rawHeader, "\r\n");
 	std::vector<std::string> temp;
 
@@ -34,7 +40,7 @@ void HTTP_message::decompileHeader() {
 			} else {
 				filename = temp[1];
 			}
-			HTTP_version = temp[2];
+			version = HTTP_11;
 		}
 
 		// the last header option is \n making temp >= 2
@@ -47,7 +53,10 @@ void HTTP_message::decompileHeader() {
 /**
  * decompile message in header and body
  */
-void HTTP_message::decompileMessage() {
+void httpMessage::decompileMessage() {
+
+	PROFILE_FUNCTION();
+
 	// body and header are divided by two newlines
 	size_t pos = message.find("\r\n\r\n");
 
@@ -87,7 +96,10 @@ void HTTP_message::decompileMessage() {
 /**
  * format the header from the array to a string
  */
-void HTTP_message::compileHeader() {
+void httpMessage::compileHeader() {
+
+	PROFILE_FUNCTION();
+
 	// Always the response code fisrt
 	rawHeader += "HTTP/1.1 " + headerOptions["HTTP/1.1"] + "\r\n";
 
@@ -103,7 +115,10 @@ void HTTP_message::compileHeader() {
 /**
  * unite the header and the body in a single message
  */
-void HTTP_message::compileMessage() {
+void httpMessage::compileMessage() {
+
+	PROFILE_FUNCTION();
+
 	compileHeader();
 	message = rawHeader + "\r\n" + rawBody;
 }
@@ -111,7 +126,10 @@ void HTTP_message::compileMessage() {
 /**
  * given the string containing the request method the the property method to it's correct value
  */
-void HTTP_message::parseMethod(std::string &requestMethod) {
+void httpMessage::parseMethod(std::string &requestMethod) {
+
+	PROFILE_FUNCTION();
+
 	// Yep that's it, such logic
 	if (requestMethod == "GET") {
 		method = HTTP_GET;
@@ -135,9 +153,12 @@ void HTTP_message::parseMethod(std::string &requestMethod) {
 }
 
 /**
- * Given a string of urlencoded parameters parse and decode them, then insert them in the parameters map in the HTTP_message
+ * Given a string of urlencoded parameters parse and decode them, then insert them in the parameters map in the httpMessage
  */
-void HTTP_message::parseQueryParameters(std::string &params) {
+void httpMessage::parseQueryParameters(std::string &params) {
+
+	PROFILE_FUNCTION();
+
 	std::vector<std::string> datas;
 	std::vector<std::string> temp;
 
@@ -163,9 +184,12 @@ void HTTP_message::parseQueryParameters(std::string &params) {
 }
 
 /**
- * Parse the data not encoded in form data and then insert them in the parameters map in the HTTP_message
+ * Parse the data not encoded in form data and then insert them in the parameters map in the httpMessage
  */
-void HTTP_message::parsePlainParameters(std::string &params) {
+void httpMessage::parsePlainParameters(std::string &params) {
+
+	PROFILE_FUNCTION();
+
 	std::vector<std::string> datas;
 	std::vector<std::string> temp;
 
@@ -185,9 +209,11 @@ void HTTP_message::parsePlainParameters(std::string &params) {
 }
 
 /**
- * Parse the data divided by special divisor in form data and then insert them in the parameters map in the HTTP_message
+ * Parse the data divided by special divisor in form data and then insert them in the parameters map in the httpMessage
  */
-void HTTP_message::parseFormData(std::string &params, std::string &divisor) {
+void httpMessage::parseFormData(std::string &params, std::string &divisor) {
+
+	PROFILE_FUNCTION();
 
 	std::vector<std::string> datas;
 	std::vector<std::string> temp;

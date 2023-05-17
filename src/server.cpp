@@ -1,6 +1,7 @@
 #include "server.hpp"
 
 #include "logger.hpp"
+#include "profiler.hpp"
 #include "utils.hpp"
 
 #include "json/include/json.hpp"
@@ -13,6 +14,9 @@
 using json = nlohmann::json;
 
 #define Res Resources
+
+const unsigned char serverVersionMajor = 3;
+const unsigned char serverVersionMinor = 3;
 
 namespace Res {
 
@@ -32,6 +36,8 @@ namespace Res {
 
 int main(int argc, char *argv[]) {
 
+	Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
+
 	parseArgs(argc, argv);
 
 	setup();
@@ -47,7 +53,7 @@ int main(int argc, char *argv[]) {
 			// simple commands
 			if (strcmp(line, "exit") == 0) {
 				stop();
-				exit(0);
+				break;
 			} else if (strcmp(line, "restart") == 0) {
 				restart();
 			}
@@ -56,12 +62,16 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	stop();
+	exit(0);
+
+	Instrumentor::Get().EndSession();
 
 	return 0;
 }
 
 void setup() {
+
+	PROFILE_FUNCTION();
 
 	setupContentTypes();
 
@@ -77,6 +87,8 @@ void setup() {
 
 void stop() {
 
+	PROFILE_FUNCTION();
+
 	Res::conn.terminate();
 
 	Res::threadStop = true;
@@ -86,18 +98,24 @@ void stop() {
 
 void start() {
 
+	PROFILE_FUNCTION();
+
 	Res::threadStop = false;
 
 	Res::requestAcceptor = std::thread(acceptRequests, &Res::conn, &Res::threadStop);
 }
 
 void restart() {
+
+	PROFILE_FUNCTION();
 	stop();
 	setup();
 	start();
 }
 
 void parseArgs(int argc, char *argv[]) {
+
+	PROFILE_FUNCTION();
 	// server directory port
 	//    0       1      3
 
@@ -114,6 +132,8 @@ void parseArgs(int argc, char *argv[]) {
  * Actively wait for clients, if one is received spawn a thread and continue
  */
 void acceptRequests(tcpConn *tcpConnection, bool *threadStop) {
+
+	PROFILE_FUNCTION();
 
 	// used for controlling
 	Socket      client = 0;
@@ -142,11 +162,12 @@ void acceptRequests(tcpConn *tcpConnection, bool *threadStop) {
  */
 void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadStop) {
 
-	int bytesReceived;
-	int bytesSent;
+	PROFILE_FUNCTION();
 
-	std::string  request;
-	HTTP_message response;
+	int bytesReceived;
+
+	std::string request;
+	httpMessage response;
 
 	while (!(*threadStop)) {
 
@@ -156,15 +177,15 @@ void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadSto
 		// received some bytes
 		if (bytesReceived > 0) {
 
-			HTTP_message mex(request);
+			httpMessage mex(request);
 
 			// no really used
 			switch (mex.method) {
-			case HTTP_HEAD:
+			case httpMessage::HTTP_HEAD:
 				Head(mex, response);
 				break;
 
-			case HTTP_GET:
+			case httpMessage::HTTP_GET:
 				Get(mex, response);
 				break;
 			}
@@ -176,7 +197,7 @@ void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadSto
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			bytesSent = tcpConnection->sendResponse(clientSocket, response.message);
+			tcpConnection->sendResponse(clientSocket, response.message);
 
 			break;
 		}
@@ -195,7 +216,9 @@ void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadSto
 /**
  * the http method, set the value of result as the header that would have been sent in a GET response
  */
-void Head(HTTP_message &inbound, HTTP_message &outbound) {
+void Head(httpMessage &inbound, httpMessage &outbound) {
+
+	PROFILE_FUNCTION();
 
 	const char *src = inbound.filename.c_str();
 	char       *dst = new char[strlen(src) + 1];
@@ -234,7 +257,9 @@ void Head(HTTP_message &inbound, HTTP_message &outbound) {
 /**
  * the http method, get both the header and the body
  */
-void Get(HTTP_message &inbound, HTTP_message &outbound) {
+void Get(httpMessage &inbound, httpMessage &outbound) {
+
+	PROFILE_FUNCTION();
 
 	// I just need to add the body to the head,
 	Head(inbound, outbound);
@@ -254,6 +279,8 @@ void Get(HTTP_message &inbound, HTTP_message &outbound) {
  * compose the header given the file requested
  */
 void composeHeader(const std::string &filename, std::map<std::string, std::string> &result) {
+
+	PROFILE_FUNCTION();
 
 	// I use map to easily manage key : value, the only problem is when i compile the header, the response code must be at the top
 
@@ -289,7 +316,12 @@ void composeHeader(const std::string &filename, std::map<std::string, std::strin
 	result["Date"]       = getUTC();
 	result["Connection"] = "close";
 	result["Vary"]       = "Accept-Encoding";
-	result["Server"]     = "LeonardCustom/3.2 (ArchLinux64)";
+	char srvr[]          = "LeonardCustom/x.x (ArchLinux64)";
+
+	srvr[14] = '0' + serverVersionMajor;
+	srvr[16] = '0' + serverVersionMinor;
+
+	result["Server"] = srvr;
 }
 
 /**
@@ -297,6 +329,8 @@ void composeHeader(const std::string &filename, std::map<std::string, std::strin
  * https://stackoverflow.com/questions/5840148/how-can-i-get-a-files-size-in-c maybe better
  */
 std::string getFile(const std::string &file) {
+
+	PROFILE_FUNCTION();
 
 	// get the required file
 	std::fstream ifs(file, std::ios::binary | std::ios::in);
@@ -318,6 +352,8 @@ std::string getFile(const std::string &file) {
 }
 
 void setupContentTypes() {
+
+	PROFILE_FUNCTION();
 
 	Res::mimeTypes["abw"]    = "application/x-abiword";
 	Res::mimeTypes["aac"]    = "audio/aac";
@@ -402,6 +438,8 @@ void setupContentTypes() {
 }
 
 void getContentType(const std::string &filetype, std::string &result) {
+
+	PROFILE_FUNCTION();
 
 	auto parts = split(filetype, ".");
 

@@ -1,13 +1,13 @@
 #pragma once
 
-#include "HTTP_message.hpp"
+#include "httpMessage.hpp"
 #include "tcpConn.hpp"
 
 void acceptRequests(tcpConn *tcpConnection, bool *threadStop);
 void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadStop);
 
-void        Head(HTTP_message &inbound, HTTP_message &outbound);
-void        Get(HTTP_message &inbound, HTTP_message &outbound);
+void        Head(httpMessage &inbound, httpMessage &outbound);
+void        Get(httpMessage &inbound, httpMessage &outbound);
 void        composeHeader(const std::string &filename, std::map<std::string, std::string> &result);
 std::string getFile(const std::string &file);
 

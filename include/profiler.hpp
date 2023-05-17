@@ -3,7 +3,7 @@
 
 // Usage: include this header file somewhere in your code (eg. precompiled header), and then use like:
 //
-// Instrumentor::Get().BeginSession("Session Name");        // Begin session 
+// Instrumentor::Get().BeginSession("Session Name");        // Begin session
 // {
 //     InstrumentationTimer timer("Profiled Scope Name");   // Place code like this in scopes you'd like to include in profiling
 //     // Code
@@ -14,18 +14,16 @@
 //
 #pragma once
 
-#include <string>
-#include <chrono>
 #include <algorithm>
+#include <chrono>
 #include <fstream>
-
+#include <string>
 #include <thread>
-
 
 struct ProfileResult {
 	std::string Name;
-	long long Start, End;
-	uint32_t ThreadID;
+	long long   Start, End;
+	uint32_t    ThreadID;
 };
 
 struct InstrumentationSession {
@@ -34,17 +32,19 @@ struct InstrumentationSession {
 
 class Instrumentor {
 private:
-	InstrumentationSession* m_CurrentSession;
-	std::ofstream m_OutputStream;
-	int m_ProfileCount;
+	InstrumentationSession *m_CurrentSession;
+	std::ofstream           m_OutputStream;
+	int                     m_ProfileCount;
+
 public:
 	Instrumentor()
-		: m_CurrentSession(nullptr), m_ProfileCount(0) {}
+	    : m_CurrentSession(nullptr), m_ProfileCount(0) {
+	}
 
-	void BeginSession(const std::string& name, const std::string& filepath = "results.json") {
+	void BeginSession(const std::string &name, const std::string &filepath = "results.json") {
 		m_OutputStream.open(filepath);
 		WriteHeader();
-		m_CurrentSession = new InstrumentationSession {name};
+		m_CurrentSession = new InstrumentationSession{name};
 	}
 
 	void EndSession() {
@@ -52,10 +52,10 @@ public:
 		m_OutputStream.close();
 		delete m_CurrentSession;
 		m_CurrentSession = nullptr;
-		m_ProfileCount = 0;
+		m_ProfileCount   = 0;
 	}
 
-	void WriteProfile(const ProfileResult& result) {
+	void WriteProfile(const ProfileResult &result) {
 		if (m_ProfileCount++ > 0)
 			m_OutputStream << ",";
 
@@ -85,7 +85,7 @@ public:
 		m_OutputStream.flush();
 	}
 
-	static Instrumentor& Get() {
+	static Instrumentor &Get() {
 		static Instrumentor instance;
 		return instance;
 	}
@@ -93,8 +93,8 @@ public:
 
 class InstrumentationTimer {
 public:
-	InstrumentationTimer(const char* name)
-		: m_Name(name), m_Stopped(false) {
+	InstrumentationTimer(const char *name)
+	    : m_Name(name), m_Stopped(false) {
 		m_StartTimepoint = std::chrono::high_resolution_clock::now();
 	}
 
@@ -107,18 +107,24 @@ public:
 		auto endTimepoint = std::chrono::high_resolution_clock::now();
 
 		long long start = std::chrono::time_point_cast<std::chrono::microseconds>(m_StartTimepoint).time_since_epoch().count();
-		long long end = std::chrono::time_point_cast<std::chrono::microseconds>(endTimepoint).time_since_epoch().count();
+		long long end   = std::chrono::time_point_cast<std::chrono::microseconds>(endTimepoint).time_since_epoch().count();
 
-		uint32_t threadID = std::hash<std::thread::id> {}(std::this_thread::get_id());
+		uint32_t threadID = static_cast<uint32_t>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
 		Instrumentor::Get().WriteProfile({m_Name, start, end, threadID});
 
 		m_Stopped = true;
 	}
+
 private:
-	const char* m_Name;
+	const char                                                 *m_Name;
 	std::chrono::time_point<std::chrono::high_resolution_clock> m_StartTimepoint;
-	bool m_Stopped;
+	bool                                                        m_Stopped;
 };
 
 #define PROFILING_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
-#define PROFILE_FUNCTION() PROFILING_SCOPE(__FUNCSIG__)
+
+#ifdef _WIN32
+#	define PROFILE_FUNCTION() PROFILING_SCOPE(__FUNCSIG__)
+#else
+#	define PROFILE_FUNCTION() PROFILING_SCOPE(__PRETTY_FUNCTION__)
+#endif

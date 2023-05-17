@@ -1,16 +1,20 @@
 #include "utils.hpp"
 
-#include "zlib.h"
+#include "profiler.hpp"
 
 #include <stdexcept>
 #include <string.h>
 #include <time.h>
 #include <vector>
+#include <zlib.h>
 
 /**
  * split the given string with a single token, and return the vector of the splitted strings
  */
 std::vector<std::string> split(const std::string &source, const std::string &find) {
+
+	PROFILE_FUNCTION();
+
 	std::vector<std::string> res;
 	std::string              haystack(source);
 
@@ -56,6 +60,9 @@ std::string getUTC() {
  * Thank you ThomasH, https://stackoverflow.com/users/2012498/thomash at https://stackoverflow.com/questions/2673207/c-c-url-decode-library/2766963,
  */
 void urlDecode(char *dst, const char *src) {
+
+	PROFILE_FUNCTION();
+
 	char a, b;
 	while (*src) {
 		if ((*src == '%') &&
@@ -90,6 +97,8 @@ void urlDecode(char *dst, const char *src) {
  * used this (https://github.com/mapbox/gzip-hpp/blob/master/include/gzip/compress.hpp) as a reference
  */
 void compressGz(std::string &output, const char *data, std::size_t size) {
+
+	PROFILE_FUNCTION();
 
 	z_stream deflate_s;
 	deflate_s.zalloc   = Z_NULL;
@@ -128,6 +137,9 @@ void compressGz(std::string &output, const char *data, std::size_t size) {
 }
 
 void simpleMemcpy(char *src, char *dst, size_t size) {
+
+	PROFILE_FUNCTION();
+
 	while (size > 0) {
 		*dst++ = *src++;
 		--size;
@@ -141,6 +153,9 @@ void simpleMemcpy(char *src, char *dst, size_t size) {
  *
  */
 void trimwhitespace(char *str) {
+
+	PROFILE_FUNCTION();
+
 	char *nEnd;
 	char *nStart = str;
 

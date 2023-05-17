@@ -1,5 +1,7 @@
 #include "logger.hpp"
 
+#include "profiler.hpp"
+
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -10,6 +12,8 @@ void setLogLevel(const char newLogLevel) {
 }
 
 void log(const char logLevel, const char *mex, ...) {
+
+	PROFILE_FUNCTION();
 
 	if (currLogLevel > logLevel) {
 		return;

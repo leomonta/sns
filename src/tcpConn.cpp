@@ -1,6 +1,7 @@
 #include "tcpConn.hpp"
 
 #include "logger.hpp"
+#include "profiler.hpp"
 #include "utils.hpp"
 
 #include <arpa/inet.h>
@@ -10,6 +11,9 @@
 #include <unistd.h>
 
 void tcpConn::terminate() {
+
+	PROFILE_FUNCTION();
+
 	shutDown(serverSocket);
 	closeSocket(serverSocket);
 }
@@ -19,6 +23,8 @@ void tcpConn::terminate() {
  * Setup the server listening socket, the one that accept incoming client requests
  */
 void tcpConn::initialize(const short port) {
+
+	PROFILE_FUNCTION();
 
 	// create the server socket descriptor, return -1 on failure
 	serverSocket = socket(
@@ -75,6 +81,8 @@ void tcpConn::initialize(const short port) {
  */
 Socket tcpConn::acceptClientSock() {
 
+	PROFILE_FUNCTION();
+
 	// the client socket address
 	sockaddr clientAddr;
 
@@ -103,6 +111,8 @@ Socket tcpConn::acceptClientSock() {
  */
 void tcpConn::closeSocket(const Socket clientSock) {
 
+	PROFILE_FUNCTION();
+
 	auto res = close(clientSock);
 
 	if (res < 0) {
@@ -114,6 +124,9 @@ void tcpConn::closeSocket(const Socket clientSock) {
  * close the communication from the server to the client and viceversa
  */
 void tcpConn::shutDown(const Socket clientSock) {
+
+	PROFILE_FUNCTION();
+
 	// shutdown for both ReaD and WRite
 	auto res = shutdown(clientSock, SHUT_RDWR);
 
@@ -128,6 +141,9 @@ void tcpConn::shutDown(const Socket clientSock) {
  * if the bytes received are bigger than the buffer length, the remaining bytes
  */
 int tcpConn::receiveRequest(const Socket clientSock, std::string &result) {
+
+	PROFILE_FUNCTION();
+
 	char recvbuf[DEFAULT_BUFLEN];
 	// result is the amount of bytes received
 
@@ -155,6 +171,8 @@ int tcpConn::receiveRequest(const Socket clientSock, std::string &result) {
  * Send the buffer (buff) to the client, and return the bytes sent
  */
 int tcpConn::sendResponse(const Socket clientSock, std::string &buff) {
+
+	PROFILE_FUNCTION();
 
 	auto bytesSent = send(clientSock, buff.c_str(), buff.size(), 0);
 	if (bytesSent < 0) {
