@@ -50,6 +50,8 @@ int main(const int argc, const char *argv[]) {
 
 	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
 
+	const temp = 10;
+
 	// Get port and directory, maybe
 	parseArgs(argc, argv);
 

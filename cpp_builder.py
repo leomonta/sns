@@ -22,6 +22,7 @@
 # Done: retrive include dirs, libs and args from a file
 # Done: retrive target directories for exe, objects, include and source files
 # Done: support for debug and optimization compilation, compiler flag and libraries
+# Done: support for pre and post script
 
 import subprocess  # execute command on the cmd / bash / whatever
 import os  # get directories file names
@@ -184,7 +185,7 @@ def exe_command(command: str) -> tuple[str, str]:
 	return stream.communicate()  # execute the command and get the result
 
 
-def parse_config_json(optimization: str) -> None:
+def parse_config_json(optimization: str) -> int:
 	"""
 	Set the global variables by reading the from cpp_builder_config.json
 	the optimization argument decide if debug or release mode
@@ -195,8 +196,16 @@ def parse_config_json(optimization: str) -> None:
 	global settings
 
 	# load and parse the file
-	config_file = json.load(open("cpp_builder_config.json"))
+	config_filename="cpp_builder_config.json"
+	if os.path.isfile(config_filename):
+		config_file = json.load(open(config_filename))
+	else:
+		print(COLS.FG_RED, f"[ERROR]{COLS.FG_LIGHT_RED} Config file \"{config_filename}\" not found", COLS.RESET);
+		return 0
 
+
+	# --- Scripts settings ---
+	settings["scripts"] = config_file["scripts"]
 
 
 	# --- Compiler settings ---
@@ -311,6 +320,8 @@ def parse_config_json(optimization: str) -> None:
 	if settings["largs"]:
 		settings["largs"] = " " + settings["largs"]
 
+	return 1
+	
 
 def is_modified(filename: str) -> bool:
 	"""
@@ -575,18 +586,25 @@ def main():
 	if "-e" in sys.argv:
 		create_makefile()
 		return
-
  
+
 	# Release or debug mode
 	optimization_mode: str = "debug"
 	if "-o" in sys.argv:
 		optimization_mode = "release"
 	
-	parse_config_json(optimization_mode)
+	if not parse_config_json(optimization_mode):
+		sys.exit(1)
 
 
 	# go to the project dir
 	os.chdir(settings["project_path"])
+
+
+	# Execute pre-script 
+	if "pre" in settings["scripts"]:
+		print(COLS.FG_GREEN, " --- Pre Script ---", COLS.RESET);
+		print(exe_command(f'./{settings["scripts"]["pre"]}')[1])
 
 
 	# create file if it does not exist
@@ -599,7 +617,6 @@ def main():
 	if "-a" not in sys.argv:
 		# load old hashes
 		load_old_hashes()
-
 
 	# obtain new hashes
 	calculate_new_hashes()
@@ -625,7 +642,7 @@ def main():
 	# and check for errors
 	if compile(to_compile):
 		print(f"\n{COLS.FG_RED} --- Linking skipped due to errors in compilation process! ---")
-		sys.exit(1)
+		sys.exit(2)
 
 
 	# --- Linking ---
@@ -634,7 +651,12 @@ def main():
 
 	if not link(to_compile):
 		print(f"\n{COLS.FG_RED} --- Errors in linking process! ---")
-		sys.exit(1)
+		sys.exit(3)
+
+
+	if "post" in settings["scripts"]:
+		print(COLS.FG_GREEN, " --- Post Script ---", COLS.RESET)
+		print(exe_command(f'./{settings["scripts"]["post"]}')[1])
 
 
 	save_new_hashes()

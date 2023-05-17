@@ -7,7 +7,7 @@
 
 	"directories": {
 		"project_dir": ".",
-		"exe_path_name": "bin/server.bin",
+		"exe_path_name": "bin/sns",
 		"include_dirs": [
 			"include",
 			"ext"

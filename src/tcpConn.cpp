@@ -16,7 +16,7 @@ Socket tcpConn::initializeServer(const short port) {
 
 	// create the server socket descriptor, return -1 on failure
 	auto serverSocket = socket(
-	    AF_INET,                     // IPv4
+	    AF_INET6,                    // IPv4
 	    SOCK_STREAM | SOCK_NONBLOCK, // reliable conn, multiple communication per socket, non blocking accept
 	    IPPROTO_TCP);                // Tcp protocol
 
@@ -37,16 +37,19 @@ Socket tcpConn::initializeServer(const short port) {
 	log(LOG_DEBUG, "[TCP] Set REUSEADDR for the server socket\n");
 
 	// input socket of the server
-	sockaddr_in serverAddr;
+	sockaddr_in6 serverAddr;
 	/*
 	type of address of this socket
 	type of inbound socket
 	port
 	*/
-	serverAddr.sin_family      = AF_INET;     // again IPv4
-	serverAddr.sin_addr.s_addr = INADDR_ANY;  // accept any type of ipv4 address
-	serverAddr.sin_port        = htons(port); // change to network byte order since its needed internally,
-	                                          // network byte order is Big Endian, this machine is Little Endian
+
+	inet_pton(AF_INET6, "::1", &serverAddr.sin6_addr);
+
+	serverAddr.sin6_family      = AF_INET6;    // again IPv4
+	// serverAddr.sin6_addr.s_addr = INADDR_ANY;  // accept any type of ipv4 address
+	serverAddr.sin6_port        = htons(port); // change to network byte order since its needed internally,
+	                                           // network byte order is Big Endian, this machine is Little Endian
 
 	// bind the socket	Reason: "activate the socket"
 	// return -1 on failure
@@ -77,7 +80,7 @@ Socket tcpConn::initializeServer(const short port) {
 
 Socket tcpConn::initializeClient(const short port, const char *server_name) {
 
-	Socket clientSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	Socket clientSock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
 	if (clientSock == INVALID_SOCKET) {
 		log(LOG_FATAL, "Impossible to create server Socket.\n	Reason: %d %s\n", errno, strerror(errno));
@@ -95,7 +98,7 @@ Socket tcpConn::initializeClient(const short port, const char *server_name) {
 
 	// set the entire server address struct to 0
 	bzero((char *)&serv_addr, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_family = AF_INET6;
 
 	// copy th server ip from the server hostname to the server socket internet address
 	bcopy((char *)server_hn->h_addr_list[0], (char *)&serv_addr.sin_addr.s_addr, server_hn->h_length);
