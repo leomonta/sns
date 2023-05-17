@@ -36,7 +36,7 @@ std::string getUTC() {
 
 	// set unix time on unixtime
 	time(&unixtime);
-	gmtime_s(&UTC, &unixtime);
+	gmtime_r(&unixtime, &UTC);
 
 	// format based on rfc822 revision rfc1123
 	strftime(buffer, 80, "%a, %d %b %Y %H:%M:%S GMT", &UTC);

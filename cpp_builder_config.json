@@ -30,7 +30,7 @@
 	},
 	"Arguments": {
 		"Debug": {
-			"Compiler": "-g3 -std=c++2a -Wno-missing-field-initializers -Wconversion -Wshadow -Wextra -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
+			"Compiler": "-g3 -std=c++2a -Wno-missing-field-initializers -Wconversion -Wextra -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
 			"Linker": "-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak"
 		},
 		"Release": {

@@ -197,7 +197,7 @@ void HTTP_message::parseFormData(std::string& params, std::string& divisor) {
 	datas.erase(datas.begin());
 
 	for (size_t i = 0; i < datas.size(); i++) {
-		/* 0  |                    1                        |    2   |  4   | 5  |
+		/* 0  |                    1                        |  2   3 |  4   | 5  |
 		* \r\n|Content-Disposition: form-data; name="field1"|\r\n\r\n|value1|\r\n|
 		*/
 		std::vector<std::string> option_value = split(datas[i], "\r\n");
