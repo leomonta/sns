@@ -6,78 +6,114 @@
 #include "json/include/json.hpp"
 #include <filesystem>
 #include <mutex>
+#include <string.h>
 #include <sys/stat.h>
 #include <thread>
 
-#undef break
-
 using json = nlohmann::json;
 
-// Http Server
-std::string HTTP_Basedir = "/";
-std::string HTTP_IP      = "127.0.0.1";
-short       HTTP_Port    = 80;
+#define Res Resources
 
-// for controlling debug prints
-std::mutex                         mtx;
-std::map<std::string, std::string> contents;
+namespace Res {
+
+	// Http Server
+	std::string baseDirectory = "/";
+	short       tcpPort       = 80;
+
+	// for controlling debug prints
+	std::mutex                         mtx;
+	std::map<std::string, std::string> mimeTypes;
+
+	std::thread requestAcceptor;
+
+	tcpConn conn;
+	bool    threadStop = false;
+} // namespace Res
 
 int main(int argc, char *argv[]) {
 
 	parseArgs(argc, argv);
-	setupContentTypes();
-	// initialize winsock and the server options
-	TCP_conn tcp(HTTP_Port);
 
-	if (tcp.isConnValid) {
-		log(LOG_INFO, "Server Listening on %s:%d\n	On directory %s\n", HTTP_IP.c_str(), HTTP_Port, HTTP_Basedir.c_str());
-	} else {
-		log(LOG_FATAL, "TCP connection is invalid. Shutting down\n");
-		return 0;
-	}
+	setup();
 
-	bool threadStop = false;
-
-	auto requestAcceptor = std::thread(acceptRequests, &tcp, &threadStop);
-
-	std::string input = "";
+	start();
 
 	// cli like interface
-	/*
 	while (true) {
-	    std::cin >> input;
+		char line[256];
+		if (fgets(line, sizeof(line), stdin) != nullptr) {
+			trimwhitespace(line);
 
-	    if (input.compare("exit") == 0) {
-	        threadStop = true;
-	        break;
-	    }
+			// simple commands
+			if (strcmp(line, "exit") == 0) {
+				stop();
+				exit(0);
+			} else if (strcmp(line, "restart") == 0) {
+				restart();
+			}
+
+			printf("> ");
+		}
 	}
-	*/
-	requestAcceptor.join();
+
+	stop();
 
 	return 0;
 }
 
+void setup() {
+
+	setupContentTypes();
+
+	Res::conn.initialize(Res::tcpPort);
+
+	if (Res::conn.isConnValid) {
+		log(LOG_INFO, "Server Listening on port %d\n	On directory %s\n", Res::tcpPort, Res::baseDirectory.c_str());
+	} else {
+		log(LOG_FATAL, "TCP connection is invalid. Shutting down\n");
+		exit(1);
+	}
+}
+
+void stop() {
+
+	Res::conn.terminate();
+
+	Res::threadStop = true;
+
+	Res::requestAcceptor.join();
+}
+
+void start() {
+
+	Res::threadStop = false;
+
+	Res::requestAcceptor = std::thread(acceptRequests, &Res::conn, &Res::threadStop);
+}
+
+void restart() {
+	stop();
+	setup();
+	start();
+}
+
 void parseArgs(int argc, char *argv[]) {
-	// server directory ip port
-	//    0       1      2   3
+	// server directory port
+	//    0       1      3
 
 	switch (argc) {
-	case 4:
-		HTTP_Port = std::atoi(argv[3]);
-
 	case 3:
-		HTTP_IP = argv[2];
+		Res::tcpPort = std::atoi(argv[3]);
 
 	case 2:
-		HTTP_Basedir = argv[1];
+		Res::baseDirectory = argv[1];
 	}
 }
 
 /**
  * Actively wait for clients, if one is received spawn a thread and continue
  */
-void acceptRequests(TCP_conn *tcpConnection, bool *threadStop) {
+void acceptRequests(tcpConn *tcpConnection, bool *threadStop) {
 
 	// used for controlling
 	Socket      client = 0;
@@ -104,7 +140,7 @@ void acceptRequests(TCP_conn *tcpConnection, bool *threadStop) {
 /**
  * threaded, resolve the request obtained via the sockey
  */
-void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadStop) {
+void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadStop) {
 
 	int bytesReceived;
 	int bytesSent;
@@ -166,7 +202,7 @@ void Head(HTTP_message &inbound, HTTP_message &outbound) {
 	urlDecode(dst, src);
 
 	// re set the filename as the base directory and the decoded filename
-	std::string file = HTTP_Basedir + dst;
+	std::string file = Res::baseDirectory + dst;
 
 	delete[] dst;
 
@@ -283,91 +319,91 @@ std::string getFile(const std::string &file) {
 
 void setupContentTypes() {
 
-	contents["abw"]    = "application/x-abiword";
-	contents["aac"]    = "audio/aac";
-	contents["arc"]    = "application/x-freearc";
-	contents["avif"]   = "image/avif";
-	contents["aac"]    = "audio/aac";
-	contents["avi"]    = "video/x-msvideo";
-	contents["azw"]    = "application/vnd.amazon.ebook";
-	contents["bin"]    = "application/octet-stream";
-	contents["bmp"]    = "image/bmp";
-	contents["bz"]     = "application/x-bzip";
-	contents["bz2"]    = "application/x-bzip2";
-	contents["cda"]    = "application/x-cdf";
-	contents["csh"]    = "application/x-csh";
-	contents["css"]    = "text/css";
-	contents["csv"]    = "text/csv";
-	contents["doc"]    = "application/msword";
-	contents["docx"]   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-	contents["eot"]    = "application/vnd.ms-fontobject";
-	contents["exe"]    = "application/octet-stream";
-	contents["epub"]   = "application/epub+zip";
-	contents["gz"]     = "application/gzip";
-	contents["gif"]    = "image/gif";
-	contents["tml"]    = "text/html";
-	contents["htm"]    = "text/html";
-	contents["html"]   = "text/html";
-	contents["ico"]    = "image/vnd.microsoft.icon";
-	contents["ics"]    = "text/calendar";
-	contents["jar"]    = "application/java-archive";
-	contents["jpeg"]   = "image/jpeg";
-	contents["jpg"]    = "image/jpeg";
-	contents["js"]     = "text/javascript";
-	contents["json"]   = "application/json";
-	contents["jsonld"] = "application/ld+json";
-	contents["midi"]   = "audio/midi";
-	contents["mid"]    = "audio/midi";
-	contents["mjs"]    = "text/javascript";
-	contents["mp3"]    = "audio/mpeg";
-	contents["mp4"]    = "video/mp4";
-	contents["mpeg"]   = "video/mpeg";
-	contents["mpkg"]   = "application/vnd.apple.installer+xml";
-	contents["odp"]    = "application/vnd.oasis.opendocument.presentation";
-	contents["ods"]    = "application/vnd.oasis.opendocument.spreadsheet";
-	contents["odt"]    = "application/vnd.oasis.opendocument.text";
-	contents["oga"]    = "audio/ogg";
-	contents["ogv"]    = "video/ogg";
-	contents["ogx"]    = "application/ogg";
-	contents["opus"]   = "audio/opus";
-	contents["otf"]    = "font/otf";
-	contents["png"]    = "image/png";
-	contents["pdf"]    = "application/pdf";
-	contents["php"]    = "application/x-httpd-php";
-	contents["ppt"]    = "application/vnd.ms-powerpoint";
-	contents["pptx"]   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-	contents["rar"]    = "application/vnd.rar";
-	contents["rtf"]    = "application/rtf";
-	contents["sh"]     = "application/x-sh";
-	contents["svg"]    = "image/svg+xml";
-	contents["swf"]    = "application/x-shockwave-flash";
-	contents["tar"]    = "application/x-tar";
-	contents["tiff"]   = "image/tiff";
-	contents["tif"]    = "image/tiff";
-	contents["ts"]     = "video/mp2t";
-	contents["ttf"]    = "font/ttf";
-	contents["txt"]    = "text/plain";
-	contents["vsd"]    = "application/vnd.visio";
-	contents["wav"]    = "audio/wav";
-	contents["weba"]   = "audio/webm";
-	contents["webm"]   = "video/webm";
-	contents["webp"]   = "image/webp";
-	contents["woff"]   = "font/woff";
-	contents["woff2"]  = "font/woff2";
-	contents["xhtml"]  = "application/xhtml+xml";
-	contents["xls"]    = "application/vnd.ms-excel";
-	contents["xlsx"]   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-	contents["xml"]    = "application/xml";
-	contents["xul"]    = "application/vnd.mozilla.xul+xml";
-	contents["zip"]    = "application/zip";
-	contents["3gp"]    = "video/3gpp";
-	contents["3g2"]    = "video/3gpp2";
-	contents["7z"]     = "application/x-7z-compressed";
+	Res::mimeTypes["abw"]    = "application/x-abiword";
+	Res::mimeTypes["aac"]    = "audio/aac";
+	Res::mimeTypes["arc"]    = "application/x-freearc";
+	Res::mimeTypes["avif"]   = "image/avif";
+	Res::mimeTypes["aac"]    = "audio/aac";
+	Res::mimeTypes["avi"]    = "video/x-msvideo";
+	Res::mimeTypes["azw"]    = "application/vnd.amazon.ebook";
+	Res::mimeTypes["bin"]    = "application/octet-stream";
+	Res::mimeTypes["bmp"]    = "image/bmp";
+	Res::mimeTypes["bz"]     = "application/x-bzip";
+	Res::mimeTypes["bz2"]    = "application/x-bzip2";
+	Res::mimeTypes["cda"]    = "application/x-cdf";
+	Res::mimeTypes["csh"]    = "application/x-csh";
+	Res::mimeTypes["css"]    = "text/css";
+	Res::mimeTypes["csv"]    = "text/csv";
+	Res::mimeTypes["doc"]    = "application/msword";
+	Res::mimeTypes["docx"]   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	Res::mimeTypes["eot"]    = "application/vnd.ms-fontobject";
+	Res::mimeTypes["exe"]    = "application/octet-stream";
+	Res::mimeTypes["epub"]   = "application/epub+zip";
+	Res::mimeTypes["gz"]     = "application/gzip";
+	Res::mimeTypes["gif"]    = "image/gif";
+	Res::mimeTypes["tml"]    = "text/html";
+	Res::mimeTypes["htm"]    = "text/html";
+	Res::mimeTypes["html"]   = "text/html";
+	Res::mimeTypes["ico"]    = "image/vnd.microsoft.icon";
+	Res::mimeTypes["ics"]    = "text/calendar";
+	Res::mimeTypes["jar"]    = "application/java-archive";
+	Res::mimeTypes["jpeg"]   = "image/jpeg";
+	Res::mimeTypes["jpg"]    = "image/jpeg";
+	Res::mimeTypes["js"]     = "text/javascript";
+	Res::mimeTypes["json"]   = "application/json";
+	Res::mimeTypes["jsonld"] = "application/ld+json";
+	Res::mimeTypes["midi"]   = "audio/midi";
+	Res::mimeTypes["mid"]    = "audio/midi";
+	Res::mimeTypes["mjs"]    = "text/javascript";
+	Res::mimeTypes["mp3"]    = "audio/mpeg";
+	Res::mimeTypes["mp4"]    = "video/mp4";
+	Res::mimeTypes["mpeg"]   = "video/mpeg";
+	Res::mimeTypes["mpkg"]   = "application/vnd.apple.installer+xml";
+	Res::mimeTypes["odp"]    = "application/vnd.oasis.opendocument.presentation";
+	Res::mimeTypes["ods"]    = "application/vnd.oasis.opendocument.spreadsheet";
+	Res::mimeTypes["odt"]    = "application/vnd.oasis.opendocument.text";
+	Res::mimeTypes["oga"]    = "audio/ogg";
+	Res::mimeTypes["ogv"]    = "video/ogg";
+	Res::mimeTypes["ogx"]    = "application/ogg";
+	Res::mimeTypes["opus"]   = "audio/opus";
+	Res::mimeTypes["otf"]    = "font/otf";
+	Res::mimeTypes["png"]    = "image/png";
+	Res::mimeTypes["pdf"]    = "application/pdf";
+	Res::mimeTypes["php"]    = "application/x-httpd-php";
+	Res::mimeTypes["ppt"]    = "application/vnd.ms-powerpoint";
+	Res::mimeTypes["pptx"]   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+	Res::mimeTypes["rar"]    = "application/vnd.rar";
+	Res::mimeTypes["rtf"]    = "application/rtf";
+	Res::mimeTypes["sh"]     = "application/x-sh";
+	Res::mimeTypes["svg"]    = "image/svg+xml";
+	Res::mimeTypes["swf"]    = "application/x-shockwave-flash";
+	Res::mimeTypes["tar"]    = "application/x-tar";
+	Res::mimeTypes["tiff"]   = "image/tiff";
+	Res::mimeTypes["tif"]    = "image/tiff";
+	Res::mimeTypes["ts"]     = "video/mp2t";
+	Res::mimeTypes["ttf"]    = "font/ttf";
+	Res::mimeTypes["txt"]    = "text/plain";
+	Res::mimeTypes["vsd"]    = "application/vnd.visio";
+	Res::mimeTypes["wav"]    = "audio/wav";
+	Res::mimeTypes["weba"]   = "audio/webm";
+	Res::mimeTypes["webm"]   = "video/webm";
+	Res::mimeTypes["webp"]   = "image/webp";
+	Res::mimeTypes["woff"]   = "font/woff";
+	Res::mimeTypes["woff2"]  = "font/woff2";
+	Res::mimeTypes["xhtml"]  = "application/xhtml+xml";
+	Res::mimeTypes["xls"]    = "application/vnd.ms-excel";
+	Res::mimeTypes["xlsx"]   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+	Res::mimeTypes["xml"]    = "application/xml";
+	Res::mimeTypes["xul"]    = "application/vnd.mozilla.xul+xml";
+	Res::mimeTypes["zip"]    = "application/zip";
+	Res::mimeTypes["3gp"]    = "video/3gpp";
+	Res::mimeTypes["3g2"]    = "video/3gpp2";
+	Res::mimeTypes["7z"]     = "application/x-7z-compressed";
 }
 
 void getContentType(const std::string &filetype, std::string &result) {
 
 	auto parts = split(filetype, ".");
 
-	result = contents[parts.back()];
+	result = Res::mimeTypes[parts.back()];
 }

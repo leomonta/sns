@@ -41,9 +41,10 @@ void log(const char logLevel, const char *mex, ...) {
 		break;
 	}
 
-	printf("%s: ", prefix);
-	printf(mex, args);
-	printf("\n");
+	printf("\r%s: ", prefix);
+	vprintf(mex, args);
+	printf("> ");
+	fflush(stdout);
 
 	va_end(args);
 }

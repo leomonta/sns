@@ -1,4 +1,4 @@
-#include "TCP_conn.hpp"
+#include "tcpConn.hpp"
 
 #include "logger.hpp"
 #include "utils.hpp"
@@ -9,17 +9,22 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+void tcpConn::terminate() {
+	shutDown(serverSocket);
+	closeSocket(serverSocket);
+}
+
 /**
  * Setup the TCP connection on the given port and ip, fails if the port isn't on the local machine and if the port is already used
  * Setup the server listening socket, the one that accept incoming client requests
  */
-TCP_conn::TCP_conn(const short port) {
+void tcpConn::initialize(const short port) {
 
 	// create the server socket descriptor, return -1 on failure
 	serverSocket = socket(
-	    AF_INET,      // IPv4
-	    SOCK_STREAM,  // reliable conn, multiple communication per socket, non blocking accept
-	    IPPROTO_TCP); // Tcp protocol
+	    AF_INET,                     // IPv4
+	    SOCK_STREAM | SOCK_NONBLOCK, // reliable conn, multiple communication per socket, non blocking accept
+	    IPPROTO_TCP);                // Tcp protocol
 
 	if (serverSocket == INVALID_SOCKET) {
 		log(LOG_FATAL, "Impossible to create server Socket.\n	Reason: %d %s\n", errno, strerror(errno));
@@ -64,16 +69,11 @@ TCP_conn::TCP_conn(const short port) {
 	isConnValid = true;
 }
 
-TCP_conn::~TCP_conn() {
-	shutDown(serverSocket);
-	closeSocket(serverSocket);
-}
-
 /**
  * Shortcut to accept any client socket, to be used multiple time by thread
  * this functions blocks until it receive a socket
  */
-Socket TCP_conn::acceptClientSock() {
+Socket tcpConn::acceptClientSock() {
 
 	// the client socket address
 	sockaddr clientAddr;
@@ -86,7 +86,7 @@ Socket TCP_conn::acceptClientSock() {
 
 	// received and invalid socket
 	if (client == INVALID_SOCKET) {
-		log(LOG_ERROR, "Could not accept client socket\n	Reason: %d %s\n", errno, strerror(errno));
+		// log(LOG_ERROR, "Could not accept client socket\n	Reason: %d %s\n", errno, strerror(errno));
 		return -1;
 	}
 
@@ -101,7 +101,7 @@ Socket TCP_conn::acceptClientSock() {
 /**
  * Destroy the socket
  */
-void TCP_conn::closeSocket(const Socket clientSock) {
+void tcpConn::closeSocket(const Socket clientSock) {
 
 	auto res = close(clientSock);
 
@@ -113,7 +113,7 @@ void TCP_conn::closeSocket(const Socket clientSock) {
 /**
  * close the communication from the server to the client and viceversa
  */
-void TCP_conn::shutDown(const Socket clientSock) {
+void tcpConn::shutDown(const Socket clientSock) {
 	// shutdown for both ReaD and WRite
 	auto res = shutdown(clientSock, SHUT_RDWR);
 
@@ -127,7 +127,7 @@ void TCP_conn::shutDown(const Socket clientSock) {
  *
  * if the bytes received are bigger than the buffer length, the remaining bytes
  */
-int TCP_conn::receiveRequest(const Socket clientSock, std::string &result) {
+int tcpConn::receiveRequest(const Socket clientSock, std::string &result) {
 	char recvbuf[DEFAULT_BUFLEN];
 	// result is the amount of bytes received
 
@@ -154,7 +154,7 @@ int TCP_conn::receiveRequest(const Socket clientSock, std::string &result) {
 /**
  * Send the buffer (buff) to the client, and return the bytes sent
  */
-int TCP_conn::sendResponse(const Socket clientSock, std::string &buff) {
+int tcpConn::sendResponse(const Socket clientSock, std::string &buff) {
 
 	auto bytesSent = send(clientSock, buff.c_str(), buff.size(), 0);
 	if (bytesSent < 0) {

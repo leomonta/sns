@@ -12,19 +12,20 @@ Thanks to -> https://www.linuxhowtos.org/C_C++/socket.htm
 #define DEFAULT_BUFLEN 8000
 typedef int Socket;
 
-class TCP_conn {
+class tcpConn {
 private:
 	// tcp socket listener
-	Socket serverSocket;
+	Socket serverSocket = INVALID_SOCKET;
 
 public:
 	// signal if the connection is valid
 	bool isConnValid = false;
 
-	TCP_conn(const short port);
-	~TCP_conn();
-	int	   receiveRequest(const Socket clientSock, std::string &result);
-	int	   sendResponse(const Socket clientSock, std::string &buff);
+	tcpConn(){};
+	void   terminate();
+	void   initialize(const short port);
+	int    receiveRequest(const Socket clientSock, std::string &result);
+	int    sendResponse(const Socket clientSock, std::string &buff);
 	Socket acceptClientSock();
 	void   closeSocket(const Socket clientSock);
 	void   shutDown(const Socket clientSocket);

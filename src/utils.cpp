@@ -3,6 +3,7 @@
 #include "zlib.h"
 
 #include <stdexcept>
+#include <string.h>
 #include <time.h>
 #include <vector>
 
@@ -124,4 +125,47 @@ void compressGz(std::string &output, const char *data, std::size_t size) {
 
 	deflateEnd(&deflate_s);
 	output.resize(size_compressed);
+}
+
+void simpleMemcpy(char *src, char *dst, size_t size) {
+	while (size > 0) {
+		*dst++ = *src++;
+		--size;
+	}
+}
+
+/**
+ * Thaks to https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
+ * @author https://stackoverflow.com/users/9530/adam-rosenfield
+ * plus some modification
+ *
+ */
+void trimwhitespace(char *str) {
+	char *nEnd;
+	char *nStart = str;
+
+	// Trim leading space
+	while (isspace((unsigned char)*nStart)) {
+		nStart++;
+	}
+
+	// All spaces?
+	if (*nStart == 0) {
+		return;
+	}
+
+	// Trim trailing space
+	nEnd = nStart + strlen(nStart) - 1;
+	while (nEnd > nStart && isspace((unsigned char)*nEnd)) {
+		nEnd--;
+	}
+
+	// Write new null terminator character
+	nEnd[1] = '\0';
+
+	auto size = strlen(nStart);
+
+	simpleMemcpy(nStart, str, size);
+
+	str[size] = '\0';
 }
