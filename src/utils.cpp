@@ -1,5 +1,11 @@
 #include "utils.hpp"
 
+#include "zlib.h"
+
+#include <stdexcept>
+#include <time.h>
+#include <vector>
+
 /**
  * split the given string with a single token, and return the vector of the splitted strings
  */

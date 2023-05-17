@@ -1,5 +1,6 @@
 #include "server.hpp"
 
+#include "logger.hpp"
 #include "utils.hpp"
 
 #include "json/include/json.hpp"
@@ -26,18 +27,18 @@ int main(int argc, char *argv[]) {
 	parseArgs(argc, argv);
 	setupContentTypes();
 	// initialize winsock and the server options
-	TCP_conn http(HTTP_Port);
+	TCP_conn tcp(HTTP_Port);
 
-	if (http.isConnValid) {
-		printf("[Info]: Server Listening on %s:%d\n	On directory %s\n", HTTP_IP.c_str(), HTTP_Port, HTTP_Basedir.c_str());
+	if (tcp.isConnValid) {
+		log(LOG_INFO, "Server Listening on %s:%d\n	On directory %s\n", HTTP_IP.c_str(), HTTP_Port, HTTP_Basedir.c_str());
 	} else {
-		printf("[Error]: Http connection is invalid. Shutting down\n");
+		log(LOG_FATAL, "TCP connection is invalid. Shutting down\n");
 		return 0;
 	}
 
 	bool threadStop = false;
 
-	auto requestAcceptor = std::thread(acceptRequests, &http, &threadStop);
+	auto requestAcceptor = std::thread(acceptRequests, &tcp, &threadStop);
 
 	std::string input = "";
 
@@ -135,7 +136,7 @@ void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadSt
 			// make the message a single formatted string
 			response.compileMessage();
 
-			printf("[Info]: [Socket %d] Received request	%s \n", clientSocket, mex.headerOptions["Method"].c_str());
+			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, mex.headerOptions["Method"].c_str());
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
@@ -270,7 +271,7 @@ std::string getFile(const std::string &file) {
 
 	// if the file does not exist i load a default 404.html
 	if (content.empty()) {
-		printf("[Warning]: File %s not found\n", file.c_str());
+		log(LOG_WARNING, "File %s not found\n", file.c_str());
 		std::fstream ifs("404.html", std::ios::binary | std::ios::in);
 		std::string  content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
 	}

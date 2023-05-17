@@ -1,12 +1,13 @@
 #include "TCP_conn.hpp"
 
+#include "logger.hpp"
 #include "utils.hpp"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 /**
  * Setup the TCP connection on the given port and ip, fails if the port isn't on the local machine and if the port is already used
@@ -21,7 +22,7 @@ TCP_conn::TCP_conn(const short port) {
 	    IPPROTO_TCP); // Tcp protocol
 
 	if (serverSocket == INVALID_SOCKET) {
-		printf("[Error]: Impossible to create server Socket.\n	Reason: %d %s\n", errno, strerror(errno));
+		log(LOG_FATAL, "Impossible to create server Socket.\n	Reason: %d %s\n", errno, strerror(errno));
 		return;
 	}
 
@@ -45,7 +46,7 @@ TCP_conn::TCP_conn(const short port) {
 	auto errorCode = bind(serverSocket, reinterpret_cast<sockaddr *>(&serverAddr), sizeof(serverAddr));
 
 	if (errorCode == -1) {
-		printf("[Error]: Bind failed.\n	Reason: %d %s\n", errno, strerror(errno));
+		log(LOG_FATAL, "Bind failed.\n	Reason: %d %s\n", errno, strerror(errno));
 		return;
 	}
 
@@ -56,7 +57,7 @@ TCP_conn::TCP_conn(const short port) {
 	errorCode = listen(serverSocket, SOMAXCONN);
 
 	if (errorCode == -1) {
-		printf("[Error]: Listening failed.\n	Reason: %d %s\n", errno, strerror(errno));
+		log(LOG_FATAL, "Listening failed.\n	Reason: %d %s\n", errno, strerror(errno));
 		return;
 	}
 
@@ -85,14 +86,14 @@ Socket TCP_conn::acceptClientSock() {
 
 	// received and invalid socket
 	if (client == INVALID_SOCKET) {
-		printf("[Error]: Could not accept client socket\n	Reason: %d %s\n", errno, strerror(errno));
+		log(LOG_ERROR, "Could not accept client socket\n	Reason: %d %s\n", errno, strerror(errno));
 		return -1;
 	}
 
 	sockaddr_in *temp = reinterpret_cast<sockaddr_in *>(&clientAddr);
 
 	// everything fine, communicate on stdout
-	printf("[Info]: [Socket %d] Accepted client IP %s:%u\n", client, inet_ntoa(temp->sin_addr), ntohs(temp->sin_port));
+	log(LOG_INFO, "[Socket %d] Accepted client IP %s:%u\n", client, inet_ntoa(temp->sin_addr), ntohs(temp->sin_port));
 
 	return client;
 }
@@ -105,7 +106,7 @@ void TCP_conn::closeSocket(const Socket clientSock) {
 	auto res = close(clientSock);
 
 	if (res < 0) {
-		printf("[Error]: [Socket %d] Could not close socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
+		log(LOG_ERROR, "[Socket %d] Could not close socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
 	}
 }
 
@@ -117,7 +118,7 @@ void TCP_conn::shutDown(const Socket clientSock) {
 	auto res = shutdown(clientSock, SHUT_RDWR);
 
 	if (res < 0) {
-		printf("[Error]: [Socket %d] Could not shutdown socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
+		log(LOG_ERROR, "[Socket %d] Could not shutdown socket\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
 	}
 }
 
@@ -134,16 +135,16 @@ int TCP_conn::receiveRequest(const Socket clientSock, std::string &result) {
 
 	if (bytesReceived > 0) {
 		result = std::string(recvbuf, bytesReceived);
-		printf("[Info]: [Socket %d] Received %ldB from client\n", clientSock, bytesReceived);
+		log(LOG_INFO, "[Socket %d] Received %ldB from client\n", clientSock, bytesReceived);
 	}
 
 	if (bytesReceived == 0) {
-		printf("[Info]: [Socket %d] Client has shut down the communication\n", clientSock);
+		log(LOG_INFO, "[Socket %d] Client has shut down the communication\n", clientSock);
 		result = "";
 	}
 
 	if (bytesReceived < 0) {
-		printf("[Error]: [Socket %d] Failed to receive message\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
+		log(LOG_ERROR, "[Socket %d] Failed to receive message\n	Reason: %d %s\n", clientSock, errno, strerror(errno));
 		result = "";
 	}
 
@@ -157,14 +158,14 @@ int TCP_conn::sendResponse(const Socket clientSock, std::string &buff) {
 
 	auto bytesSent = send(clientSock, buff.c_str(), buff.size(), 0);
 	if (bytesSent < 0) {
-		printf("[Error]: Failed to send message\n	Reason: %d %s\n", errno, strerror(errno));
+		log(LOG_ERROR, "Failed to send message\n	Reason: %d %s\n", errno, strerror(errno));
 	}
 
 	if (bytesSent != static_cast<ssize_t>(buff.size())) {
-		printf("[Warning]: Missmatch between buffer size (%ldb) and bytes sent (%ldb)\n", buff.size(), bytesSent);
+		log(LOG_WARNING, "Mismatch between buffer size (%ldb) and bytes sent (%ldb)\n", buff.size(), bytesSent);
 	}
 
-	printf("[Info]: [Socket %d] Sent %dB to client\n", clientSock, bytesSent);
+	log(LOG_INFO, "[Socket %d] Sent %dB to client\n", clientSock, bytesSent);
 
 	return bytesSent;
 }

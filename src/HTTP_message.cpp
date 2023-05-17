@@ -3,7 +3,6 @@
 #include "utils.hpp"
 
 #include <cstring>
-#include <iostream>
 
 HTTP_message::HTTP_message(std::string &raw_message, unsigned int dir) {
 	message   = raw_message;
