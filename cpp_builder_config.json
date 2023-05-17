@@ -6,7 +6,7 @@
 		"includeDir": [
 			"include",
 			"ext/json/include/nlohmann",
-			"ext/asio/include",
+			"ext/asio",
 			"ext/zlib/include"
 		],
 		"sourceDir": [
@@ -21,20 +21,22 @@
 	"libraries": {
 		"Debug": [
 			"dl",
-			"pthread"
+			"pthread",
+			"z"
 		],
 		"Release": [
 			"dl",
-			"pthread"
+			"pthread",
+			"z"
 		]
 	},
 	"Arguments": {
 		"Debug": {
-			"Compiler": "-g3 -std=c++2a -Wno-missing-field-initializers -Wconversion -Wextra -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
+			"Compiler": "-g3 -std=c++2a -Wno-missing-field-initializers -Wall -fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
 			"Linker": "-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak"
 		},
 		"Release": {
-			"Compiler": "-O2 -std=c++2a",
+			"Compiler": "-O2 -DASIO_STANDALONE -std=c++2a",
 			"Linker": "-s"
 		}
 	}

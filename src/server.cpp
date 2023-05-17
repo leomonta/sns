@@ -1,12 +1,16 @@
+/**
+ * TODO: add a cli to stop the server
+ */
 #include <filesystem>
 #include <mutex>
 #include <thread>
-// my headers
-//#undef _DEBUG
+
 #include "HTTP_conn.hpp"
 #include "HTTP_message.hpp"
 #include "json.hpp"
 #include "utils.hpp"
+
+#undef break
 
 using json = nlohmann::json;
 
@@ -18,65 +22,46 @@ std::string HTTP_IP		 = "127.0.0.1";
 std::string HTTP_Port	 = "80";
 
 // for controlling debug prints
-std::mutex mtx;
+std::mutex						   mtx;
+std::map<std::string, std::string> contents;
 
 void		readIni();
-void		resolveRequest(SOCKET clientSocket, HTTP_conn *http_);
+void		resolveRequest(Socket *clientSocket, HTTP_conn *httpConnection);
 void		Head(HTTP_message &inbound, HTTP_message &outbound);
 void		Get(HTTP_message &inbound, HTTP_message &outbound);
-bool		manageApi(HTTP_message &inbound, HTTP_message &result);
 void		composeHeader(const char *filename, std::map<std::string, std::string> &result);
 std::string getFile(const char *file);
 
-// DB - interfacing function
+void setupContentTypes();
+
 void getContentType(const std::string *filetype, std::string &result);
 
 int main() {
 
 	readIni();
+	setupContentTypes();
 	// initialize winsock and the server options
 	HTTP_conn http(HTTP_Basedir.c_str(), HTTP_IP.c_str(), HTTP_Port.c_str());
 
-	// create connection
-	sql::SQLString l_host("tcp://" + DB_Host + ":" + DB_Port);
-
-	conn.connect(l_host, DB_Username, DB_Password, DB_Name);
-
 	// used for controlling
-	int			iResult;
-	SOCKET		client;
+	Socket		client = 0;
 	std::string request;
 
 	// Receive until the peer shuts down the connection
 	while (true) {
 
 		client = http.acceptClientSock();
-		if (client == INVALID_SOCKET) {
-			continue;
-		} else {
-			// resolveRequest(client, &http);
-			std::thread(resolveRequest, client, &http).detach();
-		}
+		// resolveRequest(client, &http);
+		std::thread(resolveRequest, &client, &http).detach();
 	}
-
-	if (iResult == SOCKET_ERROR) {
-		std::cout << "shutdown failed with error: " << WSAGetLastError() << std::endl;
-		http.closeClientSock(&client);
-		WSACleanup();
-		return 1;
-	}
-
-	// cleanup
-	http.closeClientSock(&client);
-	WSACleanup();
 
 	return 0;
 }
 
-void resolveRequest(SOCKET clientSocket, HTTP_conn *http_) {
+void resolveRequest(Socket *clientSocket, HTTP_conn *httpConnection) {
 
-	int iResult;
-	int iSendResult;
+	int bytesReceived;
+	int bytesSent;
 
 	std::string	 request;
 	HTTP_message response;
@@ -84,10 +69,10 @@ void resolveRequest(SOCKET clientSocket, HTTP_conn *http_) {
 	while (true) {
 
 		// ---------------------------------------------------------------------- RECEIVE
-		iResult = http_->receiveRequest(&clientSocket, request);
+		bytesReceived = httpConnection->receiveRequest(*clientSocket, request);
 
 		// received some bytes
-		if (iResult > 0) {
+		if (bytesReceived > 0) {
 
 			HTTP_message mex(request);
 
@@ -107,32 +92,23 @@ void resolveRequest(SOCKET clientSocket, HTTP_conn *http_) {
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			iSendResult = http_->sendResponse(&clientSocket, &response.message);
+			bytesSent = httpConnection->sendResponse(*clientSocket, response.message);
 
 			// send failed, close socket and close program
-			if (iSendResult == SOCKET_ERROR) {
-				std::cout << "send failed with error: " << WSAGetLastError() << std::endl;
-				http_->closeClientSock(&clientSocket);
-				WSACleanup();
-				break;
+			if (bytesSent == 0) {
+				std::cout << "send failed with error: " << std::endl;
+				httpConnection->closeClientSock(*clientSocket);
 			}
 
-			http_->shutDown(&clientSocket);
 			break;
 		}
 
 		// received an error
-		if (iResult < 0) {
-			iResult = 0;
-			std::cout << "Error! Cannot keep on listening" << WSAGetLastError();
+		if (bytesReceived < 0) {
+			bytesReceived = 0;
+			std::cout << "[Error]: Cannot keep on listening" << std::endl;
 
-			http_->shutDown(&clientSocket);
-			break;
-		}
-
-		// actually impossible cus recv block the thread for any communication
-		// nothing received, depend on the request
-		if (iResult == 0) {
+			httpConnection->closeClientSock(*clientSocket);
 			break;
 		}
 	}
@@ -143,8 +119,8 @@ void resolveRequest(SOCKET clientSocket, HTTP_conn *http_) {
  */
 void readIni() {
 
-	std::string	 buf;
-	std::fstream Read(server_init_file, std::ios::in);
+	std::string				 buf;
+	std::fstream			 Read(server_init_file, std::ios::in);
 	std::vector<std::string> key_val;
 
 	// read props from the ini file and sets the important variables
@@ -204,11 +180,7 @@ void Get(HTTP_message &inbound, HTTP_message &outbound) {
 	// I just need to add the body to the head,
 	Head(inbound, outbound);
 
-	// i know that i'm loading an entire file, if i find a better solution i'll use it
-	//
-	if (!manageApi(inbound, outbound)) {
-		outbound.rawBody = getFile(outbound.filename.c_str());
-	}
+	outbound.rawBody = getFile(outbound.filename.c_str());
 
 	std::string compressed;
 	compressGz(compressed, outbound.rawBody.c_str(), outbound.rawBody.length());
@@ -233,7 +205,7 @@ void composeHeader(const char *filename, std::map<std::string, std::string> &res
 		result["HTTP/1.1"] = "200 OK";
 
 		// get the file extension, i'll use it to get the content type
-		std::string temp = split(filename, ".").back(); // + ~24 alloc
+		std::string temp = split(filename, "").back(); // + ~24 alloc
 
 		// get the content type
 		std::string content_type = "";
@@ -283,4 +255,93 @@ std::string getFile(const char *file) {
 	ifs.close();
 
 	return content;
+}
+
+void setupContentTypes() {
+
+	contents["abw"]	   = "application/x-abiword";
+	contents["aac"]	   = "audio/aac";
+	contents["arc"]	   = "application/x-freearc";
+	contents["avif"]   = "image/avif";
+	contents["aac"]	   = "audio/aac";
+	contents["avi"]	   = "video/x-msvideo";
+	contents["azw"]	   = "application/vnd.amazon.ebook";
+	contents["bin"]	   = "application/octet-stream";
+	contents["bmp"]	   = "image/bmp";
+	contents["bz"]	   = "application/x-bzip";
+	contents["bz2"]	   = "application/x-bzip2";
+	contents["cda"]	   = "application/x-cdf";
+	contents["csh"]	   = "application/x-csh";
+	contents["css"]	   = "text/css";
+	contents["csv"]	   = "text/csv";
+	contents["doc"]	   = "application/msword";
+	contents["docx"]   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	contents["eot"]	   = "application/vnd.ms-fontobject";
+	contents["epub"]   = "application/epub+zip";
+	contents["gz"]	   = "application/gzip";
+	contents["gif"]	   = "image/gif";
+	contents["tml"]	   = "text/html";
+	contents["htm"]	   = "text/html";
+	contents["ico"]	   = "image/vnd.microsoft.icon";
+	contents["ics"]	   = "text/calendar";
+	contents["jar"]	   = "application/java-archive";
+	contents["jpeg"]   = "image/jpeg";
+	contents["jpg"]	   = "image/jpeg";
+	contents["js"]	   = "text/javascript";
+	contents["json"]   = "application/json";
+	contents["jsonld"] = "application/ld+json";
+	contents["midi"]   = "audio/midi";
+	contents["mid"]	   = "audio/midi";
+	contents["mjs"]	   = "text/javascript";
+	contents["mp3"]	   = "audio/mpeg";
+	contents["mp4"]	   = "video/mp4";
+	contents["mpeg"]   = "video/mpeg";
+	contents["mpkg"]   = "application/vnd.apple.installer+xml";
+	contents["odp"]	   = "application/vnd.oasis.opendocument.presentation";
+	contents["ods"]	   = "application/vnd.oasis.opendocument.spreadsheet";
+	contents["odt"]	   = "application/vnd.oasis.opendocument.text";
+	contents["oga"]	   = "audio/ogg";
+	contents["ogv"]	   = "video/ogg";
+	contents["ogx"]	   = "application/ogg";
+	contents["opus"]   = "audio/opus";
+	contents["otf"]	   = "font/otf";
+	contents["png"]	   = "image/png";
+	contents["pdf"]	   = "application/pdf";
+	contents["php"]	   = "application/x-httpd-php";
+	contents["ppt"]	   = "application/vnd.ms-powerpoint";
+	contents["pptx"]   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+	contents["rar"]	   = "application/vnd.rar";
+	contents["rtf"]	   = "application/rtf";
+	contents["sh"]	   = "application/x-sh";
+	contents["svg"]	   = "image/svg+xml";
+	contents["swf"]	   = "application/x-shockwave-flash";
+	contents["tar"]	   = "application/x-tar";
+	contents["tiff"]   = "image/tiff";
+	contents["tif"]	   = "image/tiff";
+	contents["ts"]	   = "video/mp2t";
+	contents["ttf"]	   = "font/ttf";
+	contents["txt"]	   = "text/plain";
+	contents["vsd"]	   = "application/vnd.visio";
+	contents["wav"]	   = "audio/wav";
+	contents["weba"]   = "audio/webm";
+	contents["webm"]   = "video/webm";
+	contents["webp"]   = "image/webp";
+	contents["woff"]   = "font/woff";
+	contents["woff2"]  = "font/woff2";
+	contents["xhtml"]  = "application/xhtml+xml";
+	contents["xls"]	   = "application/vnd.ms-excel";
+	contents["xlsx"]   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+	contents["xml"]	   = "application/xml";
+	contents["xul"]	   = "application/vnd.mozilla.xul+xml";
+	contents["zip"]	   = "application/zip";
+	contents["3gp"]	   = "video/3gpp";
+	contents["3g2"]	   = "video/3gpp2";
+	contents["7z"]	   = "application/x-7z-compressed";
+}
+
+void getContentType(const std::string &filetype, std::string &result) {
+
+	auto parts = split(filetype, ".");
+
+	result = contents.at(parts.back());
 }

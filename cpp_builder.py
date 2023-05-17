@@ -3,14 +3,14 @@
 # @Author Leonardo Montagner https://github.com/leomonta/Python_cpp_builder
 #
 # Build only the modified files on a cpp project
-# Link and compile usign the appropriate library and include path
+# Link and compile using the appropriate library and include path
 # Print out error and warning messages
 # add the args for the link and the compile process
 #
 # Done: compile and link files
 # Done: check for newer version of source files
 # Done: skip compilation or linking if there are no new or modified files
-# TODO: check for newer versione of header files (check in every file if that header is included, if it has to be rebuilt)
+# TODO: check for newer version of header files (check in every file if that header is included, if it has to be rebuilt)
 # TODO: identify each header and figure out which source file include which
 # Done: error and warning coloring in the console
 # Done: if error occurs stop compilation and return 1
@@ -28,8 +28,11 @@ import sys # for arguments parsing
 
 
 includes_variable = {
+	# names of all includes dir + name
 	"all_includes" : [],
-	"src_referencies": []
+
+	# file: list of references (indices) to include files
+	"src_references": {}
 }
 
 
@@ -46,9 +49,10 @@ compilation_variables = {
 
 	# the string composed by the path of the includes -> "-I./include -I./ext/include -I..."
 	"includes_paths": "",
+	"includes_dirs": [],
 
 	# directories containing the names of the source directories 
-	"src_paths" : [],
+	"src_dirs" : [],
 
 	# name of the compiler executable
 	"compiler_exec": "",
@@ -71,14 +75,6 @@ old_hashes = {}
 new_hashes = {}
 
 source_files_extensions = ["c", "cpp", "cxx", "c++", "cc", "C"]
-
-
-def get_includes():
-	global compilation_variables, includes_variable
-
-	for include_directory in compilation_variables["includes_paths"]: # loop trough all the include directories
-		for file in os.listdir(include_directory):
-			includes_variable["all_includes"].append(file)
 
 
 def print_stdout(mexage: tuple) -> bool:
@@ -119,6 +115,9 @@ def parse_config_json(optimization: bool) -> None:
 	"""
 	global compilation_variables
 
+	for k in compilation_variables:
+		compilation_variables[k] = ""
+
 	# load and parse the file
 	config_file = json.load(open("cpp_builder_config.json"))
 
@@ -130,7 +129,7 @@ def parse_config_json(optimization: bool) -> None:
 
 	# --- Libraries path and names ---
 
-	# create the library args -> -lsomelib -lsomelib2 -l...
+	# create the library args -> -lSomelib -lSomelib2 -l...
 	if optimization:
 		for lname in config_file["libraries"]["Release"]:
 			compilation_variables["libraries_names"] += " -l" + lname
@@ -140,14 +139,16 @@ def parse_config_json(optimization: bool) -> None:
 
 	compilation_variables["libraries_names"] = compilation_variables["libraries_names"][1:] # remove first whitespace
 
-	# create the libraries path args -> -Lsomelibrary/lib -L...
+	# create the libraries path args -> -LSomelibrary/lib -L...
 	for Lname in config_file["Directories"]["libraryDir"]:
 		compilation_variables["libraries_paths"] += " -L" + Lname
 	compilation_variables["libraries_paths"] = compilation_variables["libraries_paths"][1:] # remove first whitespace
 
 	# --- Include and Source Directories
 
-	# create the includes args -> -Iinclude -Isomelibrary/include -I...
+ 
+	compilation_variables["includes_dirs"] = config_file["Directories"]["includeDir"]
+	# create the includes args -> -IInclude -ISomelibrary/include -I...
 	for Idir in config_file["Directories"]["includeDir"]:
 		compilation_variables["includes_paths"] += " -I" + Idir
 	compilation_variables["includes_paths"]  = compilation_variables["includes_paths"][1:] # remove first whitespace
@@ -170,7 +171,7 @@ def parse_config_json(optimization: bool) -> None:
 		compilation_variables["linker_args"] = config_file["Arguments"]["Debug"]["Linker"]
 
 
-def ismodified(filename: str) -> bool:
+def is_modified(filename: str) -> bool:
 	"""
 	Given a filename return if it has been modified
 	"""
@@ -189,7 +190,7 @@ def calculate_new_hashes() -> None:
 	Calculate the hashes for all the source files
 	"""
 
-	global compilation_variables, sha1
+	global compilation_variables, sha1, includes_variable
 
 	for source_directory in compilation_variables["src_paths"]: # loop trough all the source files directories
 		for file in os.listdir(source_directory): # loop trough every file of each directory
@@ -199,10 +200,10 @@ def calculate_new_hashes() -> None:
 			with open(f"{source_directory}/{file}", "r+b") as f:
 				sha1.update(f.read())
 
-			# insert in the new_hashes dict the key filename eith the value hash
+			# insert in the new_hashes dict the key filename with the value hash
 			new_hashes[source_directory + file] = sha1.hexdigest()  # create the new hash
 
-			# i need to re-instanciate the object to empty it
+			# i need to re-instantiate the object to empty it
 			sha1 = hashlib.sha1()
 
 
@@ -234,15 +235,16 @@ def get_to_compile() -> list:
 	global compilation_variables
 
 	to_compile = [] # contains directory and filename
+
 	# checking which file need to be compiled
 	for source_directory in compilation_variables["src_paths"]: # loop trough all the source files directories
 		for file in os.listdir(source_directory): # loop trough every file of each directory
-			# i need to differentiate differen parts
+			# i need to differentiate different parts
 			# extension: to decide if it has to be compiled or not and to name it 
 			# filename: everything else of the file name ignoring the extension, useful for naming compilitation files
 			# source dir: necessary for differentiate eventual same-named files on different dirs
 
-			if ismodified(source_directory + file):
+			if is_modified(source_directory + file):
 
 				temp = file.split(".")
 				ext = temp.pop(-1)
@@ -289,7 +291,7 @@ def compile(to_compile: list) -> bool:
 
 def link() -> bool:
 	"""
-	Link togheter all the files that have been compiled with the specified libraries and arguments
+	Link together all the files that have been compiled with the specified libraries and arguments
 	"""
 
 	global compilation_variables
@@ -298,7 +300,7 @@ def link() -> bool:
 	# checking which file need to be compiled
 	for source_directory in compilation_variables["src_paths"]: # loop trough all the source files directories
 		for file in os.listdir(source_directory): # loop trough every file of each directory
-			# i need to differentiate differen parts
+			# i need to differentiate different parts
 			# extension: to decide if it has to be compiled or not and to name it 
 			# filename: everything else of the file name ignoring the extension, useful for naming compilitation files
 			# source dir: necessary for differentiate eventual same-named files on different dirs
@@ -328,9 +330,99 @@ def link() -> bool:
 	return print_stdout(exe_command(Link_cmd))
 
 
+def create_makefile():
+
+	# first debug options
+	parse_config_json(False)
+	make_file = ""
+
+	# variables
+
+	make_file += f'CC={compilation_variables["compiler_exec"]}\n'
+	make_file += f'BinName={compilation_variables["exe_path"]}/{compilation_variables["exe_name"]}\n'
+	make_file += f'ObjsDir={compilation_variables["objects_path"]}\n'
+
+	make_file += '\n# Debug variables\n'
+	make_file += f'DCompilerArgs={compilation_variables["compiler_args"]}\n'
+	make_file += f'DLinkerArgs={compilation_variables["linker_args"]}\n'
+	make_file += f'DLibrariesPaths={compilation_variables["libraries_paths"]}\n'
+	make_file += f'DLibrariesNames={compilation_variables["libraries_names"]}\n'
+
+	# first debug options
+	parse_config_json(True)
+
+	make_file += '\n# Release variables\n'
+	make_file += f'RCompilerArgs={compilation_variables["compiler_args"]}\n'
+	make_file += f'RLinkerArgs={compilation_variables["linker_args"]}\n'
+	make_file += f'RLibrariesPaths={compilation_variables["libraries_paths"]}\n'
+	make_file += f'RLibrariesNames={compilation_variables["libraries_names"]}\n'
+
+	make_file += '\n# includes\n'
+	make_file += f'Includes={compilation_variables["includes_paths"]}\n'
+
+	make_file += '\n\n'
+
+	# targets
+
+	os.chdir(compilation_variables["project_path"])
+
+	# obtain new hashes
+	calculate_new_hashes()
+
+	# get the file needed to compile
+	to_compile = get_to_compile()
+
+	make_file += 'debug: DCompile DLink\n\n'
+
+	make_file += 'release: RCompile RLink\n\n'
+
+	# Debug commands
+
+	make_file += '\nDCompile: \n'
+
+	for file in to_compile:
+		make_file += f"	$(CC) $(DCompilerArgs) $(Includes) -c -o $(ObjsDir)/{file[0]}{file[1]}.o {file[0]}/{file[1]}.{file[2]}\n"
+
+	make_file += '\nDLink: \n'
+
+	make_file += f'	$(CC) $(DLinkerArgs) -o $(BinName) $(DLibrariesPaths)'
+
+	for file in to_compile:
+		make_file += f" $(ObjsDir)/{file[0]}{file[1]}.o"
+
+	make_file += f' $(DLibrariesNames)\n'
+
+	# Release commands
+
+	make_file += '\nRCompile: \n'
+
+	for file in to_compile:
+		make_file += f"	$(CC) $(RCompilerArgs) $(Includes) -c -o $(ObjsDir)/{file[0]}{file[1]}.o {file[0]}/{file[1]}.{file[2]}\n"
+
+	make_file += '\nRLink: \n'
+
+	make_file += f'	$(CC) $(RLinkerArgs) -o $(BinName) $(RLibrariesPaths)'
+
+	for file in to_compile:
+		make_file += f" $(ObjsDir)/{file[0]}{file[1]}.o"
+
+	make_file += f' $(RLibrariesNames)\n'
+
+	make_file += '\nclean:\n'
+	make_file += '	rm -r -f objs/*\n'
+	make_file += '	rm -r -f $(BinName)\n'
+
+	with open("Makefile", "w+") as mf:
+		mf.write(make_file)
+
+
 def main():
 
 	global compilation_variables
+
+	if "-e" in sys.argv:
+		create_makefile()
+		return
 
 	if "-o" in sys.argv:
 		parse_config_json(True)

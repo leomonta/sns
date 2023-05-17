@@ -105,7 +105,8 @@
 		"xtr1common": "cpp",
 		"xtree": "cpp",
 		"xutility": "cpp",
-		"*.ipp": "cpp"
+		"*.ipp": "cpp",
+		"source_location": "cpp"
 	},
 	"python.pythonPath": "c:\\Program Files\\Python39\\python.exe"
 }

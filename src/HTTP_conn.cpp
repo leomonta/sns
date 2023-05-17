@@ -1,130 +1,130 @@
 #include "HTTP_conn.hpp"
 #include "utils.hpp"
 
+#include <arpa/inet.h>
+#include <string.h>
 
 /**
-* Shortcut to accept any client socket, to be used multiple time by thread
-*/
-SOCKET HTTP_conn::acceptClientSock() {
-	sockaddr client_addr;
-	client_addr.sa_family = AF_INET;
-	int claddr_size = sizeof(client_addr);
-	SOCKET result = accept(ListenSocket, &client_addr, &claddr_size);
+ * Setup the TCP connection on the given port and ip, fails if the port isn't on the local machine and if the port is already used
+ * Setup the server listening socket, the one that accept incoming client requests
+ */
+HTTP_conn::HTTP_conn(const std::string &basedir, const std::string &ip, const std::string &port) {
 
-	// get the ip of the host 
-	if (result != INVALID_SOCKET) {
-		sockaddr_in* temp = (struct sockaddr_in*) &client_addr;
-		char* s = (char*) new char[INET_ADDRSTRLEN];
-
-		if (s != nullptr) {
-			inet_ntop(AF_INET, &(temp->sin_addr), s, INET_ADDRSTRLEN);
-			std::cout << "\naccepted client : " << s << std::endl;
-		}
-
-		delete[] s;
-		temp = nullptr;
-	}
-
-	return result;
-}
-
-/**
-* Shortcup to close the current client socket
-*/
-void HTTP_conn::closeClientSock(SOCKET* clientSock) {
-
-	std::string temp;
-	int size;
-	while (true) {
-		size = receiveRequest(clientSock, temp);
-		if (size <= 0) {
-			break;
-		}
-	}
-
-	closesocket(*clientSock);
-}
-
-/**
-* close the communication from the server to the client
-*/
-void HTTP_conn::shutDown(SOCKET* clientSock) {
-	shutdown(*clientSock, SD_SEND);
-}
-
-/**
-* Setup the TCP connection on the given port and ip, fails if the port isn't on the local machine and if the port is already used
-* Setup the server listening socket, the one that accept incoming client requests
-*/
-HTTP_conn::HTTP_conn(const char* basedir, const char* ip, const char* port) {
-
-	// init WSA for networking
-	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	checkError("WSAstartup");
-
-	// set server variables 
-	HTTP_IP = ip;
-	HTTP_Port = port;
 	HTTP_Basedir = basedir;
+	HTTP_Port	 = port;
+	HTTP_IP		 = ip;
 
-	// resolve the server address full infos ad setup the listening socket
+	auto int_port = std::stoi(port);
 
-	// resolve the ip and find the appropriate address
-	ZeroMemory(&hints, sizeof(hints));
-	hints.ai_family = AF_INET; // tcp/udp
-	hints.ai_socktype = SOCK_STREAM; // stream, back and forth
-	hints.ai_protocol = IPPROTO_TCP; // over tcp protocol
-	hints.ai_flags = AI_PASSIVE; // wait for connection
+	// create the server socket descriptor, return -1 on failure
+	serverSocket = socket(
+		AF_INET,	  // IPv4
+		SOCK_STREAM,  // reliable conn, multiple communication per socket
+		IPPROTO_TCP); // Tcp protocol
 
-	iResult = getaddrinfo(HTTP_IP.c_str(), HTTP_Port.c_str(), &hints, &result);
-	checkError("getaddrinfo");
+	if (serverSocket == INVALID_SOCKET) {
+		std::cout << "[Error]: Impossible to create server Socket. " << strerror(errno) << std::endl;
+	}
 
-	// create the listen socket
-	ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-	checkError("socket");
+	/*
+	type of address of this socket
+	type of inbound socket
+	port
+	*/
+	serverAddr.sin_family	   = AF_INET;		  // again IPv4
+	serverAddr.sin_addr.s_addr = INADDR_ANY;	  // accept any type of ipv4 address
+	serverAddr.sin_port		   = htons(int_port); // change to network byte order since needed internally,
+												  // network byte order is Big Endian, this machine is Little Endian
 
-	// the binf the server address to the listen socket
-	iResult = bind(ListenSocket, result->ai_addr, (int) result->ai_addrlen);
-	checkError("bind");
+	// bind the socket, "activate the socket"
+	// return -1 on failure
+	auto errorCode = bind(serverSocket, reinterpret_cast<sockaddr *>(&serverAddr), sizeof(serverAddr));
 
-	// no longer useful
-	freeaddrinfo(result);
+	if (errorCode == -1) {
+		std::cout << "[Error]: Bind failed. " << strerror(errno) << std::endl;
+	}
 
-	// start listening
-	iResult = listen(ListenSocket, SOMAXCONN);
-	checkError("listen");
+	// setup this socket to listen for connection, with the queue of SOMAXCONN -> 2^12
+	errorCode = listen(serverSocket, SOMAXCONN);
 
-	// the server is ready to run
-	std::cout << "Server now listenig on " << HTTP_IP << ":" << HTTP_Port << std::endl;
-	std::cout << "On folder              " << HTTP_Basedir << std::endl;
+	if (errorCode == -1) {
+		std::cout << "[Error]: Listening failed. " << strerror(errno) << std::endl;
+	}
 
-	// Now the server is ready to accept any client with this socket
+	std::cout << "Server now listening on " << ip << ":" << port << "\n"
+			  << "On folder " << basedir << std::endl;
 }
 
 /**
-* copy the incoming message requested to buff and return the bytes received
-*/
-int HTTP_conn::receiveRequest(SOCKET* clientSock, std::string& result) {
+ * Shortcut to accept any client socket, to be used multiple time by thread
+ * this functions blocks until it receive a socket
+ */
+Socket HTTP_conn::acceptClientSock() {
 
+	sockaddr clientAddr;
+
+	socklen_t clientSize = sizeof(clientAddr);
+
+	Socket client = accept(serverSocket, &clientAddr, &clientSize);
+
+	if (client == INVALID_SOCKET) {
+		std::cout << "[Error]: Could not accept client socket. " << strerror(errno) << std::endl;
+		return -1;
+	}
+
+	sockaddr_in *temp = reinterpret_cast<sockaddr_in *>(&clientAddr);
+
+	std::cout << "[Info]: Accepted client " << inet_ntoa(temp->sin_addr) << ":" << ntohs(temp->sin_port);
+
+	return client;
+}
+
+/**
+ * Close the communication on the socket on both directions
+ * the destroy the socket
+ */
+void HTTP_conn::closeClientSock(Socket &clientSock) {
+
+	close(clientSock);
+}
+
+/**
+ * close the communication from the server to the client and viceversa
+ */
+void HTTP_conn::shutDown(Socket &clientSock) {
+	shutdown(clientSock, SHUT_RDWR);
+}
+
+/**
+ * copy the incoming message requested to buff and return the bytes received
+ *
+ * if the bytes received are bigger than the buffer length, the remaining bytes
+ */
+int HTTP_conn::receiveRequest(Socket &clientSock, std::string &result) {
 	char recvbuf[DEFAULT_BUFLEN];
 	// result is the amount of bytes received
 
-	int res = recv(*clientSock, recvbuf, DEFAULT_BUFLEN, 0);
-	if (res > 0) {
-		result = std::string(recvbuf, res);
+	auto bytesReceived = recv(clientSock, recvbuf, DEFAULT_BUFLEN, 0);
+	if (bytesReceived > 0) {
+		result = std::string(recvbuf, bytesReceived);
+
+	} else if (bytesReceived == 0) {
+		std::cout << "[Warning]: received 0 bytes long datagram\n";
+
 	} else {
+		std::cout << "[Error]: failed to receive message. " << strerror(errno) << std::endl;
+
 		result = "";
 	}
 
-	return res;
+	return bytesReceived;
 }
 
 /**
-* Send the buffer (buff) to the client, and return the bytes sent
-*/
-int HTTP_conn::sendResponse(SOCKET* clientSock, std::string* buff) {
+ * Send the buffer (buff) to the client, and return the bytes sent
+ */
+int HTTP_conn::sendResponse(Socket &clientSock, std::string &buff) {
 
-	int result = send(*clientSock, buff->c_str(), (int) buff->size(), 0);
+	int result = send(clientSock, buff.c_str(), buff.size(), 0);
 	return result;
 }
-

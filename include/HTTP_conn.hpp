@@ -1,54 +1,43 @@
 #pragma once
-#undef UNICODE
+
+/*
+Thanks to -> https://www.linuxhowtos.org/C_C++/socket.htm
+*/
 
 // system headers
-#define WIN32_LEAN_AND_MEAN
 #include <iostream>
 #include <map>
+#include <netinet/in.h>
 #include <string>
+#include <sys/socket.h>
 #include <vector>
-#include <asio.hpp>
+
+#define INVALID_SOCKET -1
 
 #define DEFAULT_BUFLEN 8000
+typedef int Socket;
 
 class HTTP_conn {
 private:
+	// tcp socket listener
 
-	WSADATA wsaData;
-	int iResult;
+	Socket serverSocket;
 
-	// server listen socket
-	SOCKET ListenSocket = INVALID_SOCKET;
+	// describe the internet socket address
+	struct sockaddr_in serverAddr;
 
-	struct addrinfo* result = NULL;
-	struct addrinfo hints;
-
-	int iSendResult;
-
-	// variables for initialization
-	// http
+	// http variables
 	std::string HTTP_Basedir = "/";
-	std::string HTTP_IP = "127.0.0.1";
-	std::string HTTP_Port = "80";
-
-	/**
-	* just print the error Winsocket error with a little formatting
-	*/
-	void checkError(std::string type) {
-
-		if (iResult != 0) {
-			std::cout << type << " failed with error: " << iResult << " " << WSAGetLastError() << std::endl;
-			return;
-		}
-	}
+	std::string HTTP_IP		 = "127.0.0.1";
+	std::string HTTP_Port	 = "80";
 
 public:
+	// Asio variables
 
-	HTTP_conn(const char* basedir, const char* ip, const char* port);
-	int receiveRequest(SOCKET* clientSock, std::string& result);
-	int sendResponse(SOCKET* clientSock, std::string* buff);
-	SOCKET acceptClientSock();
-	void closeClientSock(SOCKET* clientSock);
-	void shutDown(SOCKET* clientSock);
-
+	HTTP_conn(const std::string &basedir, const std::string &ip, const std::string &port);
+	int	   receiveRequest(Socket &clientSock, std::string &result);
+	int	   sendResponse(Socket &clientSock, std::string &buff);
+	Socket acceptClientSock();
+	void   closeClientSock(Socket &clientSock);
+	void   shutDown(Socket &clientSocket);
 };
