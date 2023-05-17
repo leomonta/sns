@@ -1,4 +1,4 @@
-#include "HTTP_conn.hpp"
+#include "TCP_conn.hpp"
 #include "utils.hpp"
 
 #include <arpa/inet.h>
@@ -8,7 +8,7 @@
  * Setup the TCP connection on the given port and ip, fails if the port isn't on the local machine and if the port is already used
  * Setup the server listening socket, the one that accept incoming client requests
  */
-HTTP_conn::HTTP_conn(const std::string &port) {
+TCP_conn::TCP_conn(const std::string &port) {
 
 
 	auto int_port = std::stoi(port);
@@ -58,7 +58,7 @@ HTTP_conn::HTTP_conn(const std::string &port) {
 }
 
 
-HTTP_conn::~HTTP_conn() {
+TCP_conn::~TCP_conn() {
 	shutDown(serverSocket);
 	closeSocket(serverSocket);
 }
@@ -67,7 +67,7 @@ HTTP_conn::~HTTP_conn() {
  * Shortcut to accept any client socket, to be used multiple time by thread
  * this functions blocks until it receive a socket
  */
-Socket HTTP_conn::acceptClientSock() {
+Socket TCP_conn::acceptClientSock() {
 
 	sockaddr clientAddr;
 
@@ -96,7 +96,7 @@ Socket HTTP_conn::acceptClientSock() {
  * Close the communication on the socket on both directions
  * the destroy the socket
  */
-void HTTP_conn::closeSocket(Socket &clientSock) {
+void TCP_conn::closeSocket(Socket &clientSock) {
 
 	auto res = close(clientSock);
 
@@ -108,7 +108,7 @@ void HTTP_conn::closeSocket(Socket &clientSock) {
 /**
  * close the communication from the server to the client and viceversa
  */
-void HTTP_conn::shutDown(Socket &clientSock) {
+void TCP_conn::shutDown(Socket &clientSock) {
 	auto res = shutdown(clientSock, SHUT_RDWR);
 
 	if (res < 0) {
@@ -121,7 +121,7 @@ void HTTP_conn::shutDown(Socket &clientSock) {
  *
  * if the bytes received are bigger than the buffer length, the remaining bytes
  */
-int HTTP_conn::receiveRequest(Socket &clientSock, std::string &result) {
+int TCP_conn::receiveRequest(Socket &clientSock, std::string &result) {
 	char recvbuf[DEFAULT_BUFLEN];
 	// result is the amount of bytes received
 
@@ -141,7 +141,7 @@ int HTTP_conn::receiveRequest(Socket &clientSock, std::string &result) {
 /**
  * Send the buffer (buff) to the client, and return the bytes sent
  */
-int HTTP_conn::sendResponse(Socket &clientSock, std::string &buff) {
+int TCP_conn::sendResponse(Socket &clientSock, std::string &buff) {
 
 	int result = send(clientSock, buff.c_str(), buff.size(), 0);
 	if (result < 0) {

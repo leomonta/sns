@@ -1,8 +1,8 @@
 #include "HTTP_message.hpp"
 #include "utils.hpp"
 
-#include <iostream>
 #include <cstring>
+#include <iostream>
 
 HTTP_message::HTTP_message(std::string &raw_message, unsigned int dir) {
 	message	  = raw_message;
@@ -146,14 +146,14 @@ void HTTP_message::parseQueryParameters(std::string &params) {
 	for (size_t i = 0; i < datas.size(); i++) {
 		// temp string to store the decoded value
 		const char *src = datas[i].c_str();
-		char		 *dst = new char[strlen(src)];
+		char		 *dst = new char[strlen(src) + 1];
 		urlDecode(dst, src);
-
-		delete[] dst;
 
 		//  0 |  1
 		// key=value
 		temp = split(dst, "=");
+
+		delete[] dst;
 
 		if (temp.size() >= 2 && temp[1] != "") {
 			parameters[temp[0]] = temp[1];

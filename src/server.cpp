@@ -6,8 +6,8 @@
 #include <sys/stat.h>
 #include <thread>
 
-#include "HTTP_conn.hpp"
 #include "HTTP_message.hpp"
+#include "TCP_conn.hpp"
 #include "json.hpp"
 #include "utils.hpp"
 
@@ -26,8 +26,8 @@ std::string HTTP_Port	 = "80";
 std::mutex						   mtx;
 std::map<std::string, std::string> contents;
 
-void acceptRequests(HTTP_conn *htt, bool *threadStopp);
-void resolveRequest(Socket clientSocket, HTTP_conn *httpConnectio, bool *threadStopn);
+void acceptRequests(TCP_conn *tcpConnection, bool *threadStop);
+void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadStop);
 
 void		readIni();
 void		Head(HTTP_message &inbound, HTTP_message &outbound);
@@ -44,10 +44,10 @@ int main() {
 	readIni();
 	setupContentTypes();
 	// initialize winsock and the server options
-	HTTP_conn http(HTTP_Port);
+	TCP_conn http(HTTP_Port);
 
 	if (http.isConnValid) {
-		std::cout << "Server Listening on " << HTTP_IP << ":" << HTTP_Port << "/" << HTTP_Basedir << std::endl;
+		std::cout << "Server Listening on " << HTTP_IP << ":" << HTTP_Port << HTTP_Basedir << std::endl;
 	} else {
 		return 0;
 	}
@@ -72,7 +72,11 @@ int main() {
 	return 0;
 }
 
-void acceptRequests(HTTP_conn *http, bool *threadStop) {
+
+/**
+ * Actively wait for clients, if one is received spawn a thread and continue
+ */
+void acceptRequests(TCP_conn *tcpConnection, bool *threadStop) {
 
 	// used for controlling
 	Socket		client = 0;
@@ -83,11 +87,11 @@ void acceptRequests(HTTP_conn *http, bool *threadStop) {
 	// Receive until the peer shuts down the connection
 	while (!(*threadStop)) {
 
-		client = http->acceptClientSock();
+		client = tcpConnection->acceptClientSock();
 
 		if (client != -1) {
 			// resolveRequest(client, &http);
-			threads.push_back(std::thread(resolveRequest, client, http, threadStop));
+			threads.push_back(std::thread(resolveRequest, client, tcpConnection, threadStop));
 		}
 	}
 
@@ -96,7 +100,10 @@ void acceptRequests(HTTP_conn *http, bool *threadStop) {
 	}
 }
 
-void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection, bool *threadStop) {
+/**
+ * threaded, resolve the request obtained via the sockey
+ */
+void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadStop) {
 
 	int bytesReceived;
 	int bytesSent;
@@ -107,7 +114,7 @@ void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection, bool *thread
 	while (!(*threadStop)) {
 
 		// ---------------------------------------------------------------------- RECEIVE
-		bytesReceived = httpConnection->receiveRequest(clientSocket, request);
+		bytesReceived = tcpConnection->receiveRequest(clientSocket, request);
 
 		// received some bytes
 		if (bytesReceived > 0) {
@@ -133,7 +140,7 @@ void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection, bool *thread
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			bytesSent = httpConnection->sendResponse(clientSocket, response.message);
+			bytesSent = tcpConnection->sendResponse(clientSocket, response.message);
 
 			// send failed, close socket and close program
 			if (bytesSent == 0) {
@@ -151,8 +158,8 @@ void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection, bool *thread
 		}
 	}
 
-	httpConnection->shutDown(clientSocket);
-	httpConnection->closeSocket(clientSocket);
+	tcpConnection->shutDown(clientSocket);
+	tcpConnection->closeSocket(clientSocket);
 }
 
 /**
@@ -195,7 +202,7 @@ void readIni() {
 void Head(HTTP_message &inbound, HTTP_message &outbound) {
 
 	const char *src = inbound.filename.c_str();
-	char		 *dst = new char[strlen(src)];
+	char		 *dst = new char[strlen(src) + 1];
 	urlDecode(dst, src);
 
 	// re set the filename as the base directory and the decoded filename

@@ -17,7 +17,7 @@ Thanks to -> https://www.linuxhowtos.org/C_C++/socket.htm
 #define DEFAULT_BUFLEN 8000
 typedef int Socket;
 
-class HTTP_conn {
+class TCP_conn {
 private:
 	// tcp socket listener
 	Socket serverSocket;
@@ -26,8 +26,8 @@ public:
 	// signal if the connection is valid
 	bool isConnValid = false;
 
-	HTTP_conn(const std::string &port);
-	~HTTP_conn();
+	TCP_conn(const std::string &port);
+	~TCP_conn();
 	int	   receiveRequest(Socket &clientSock, std::string &result);
 	int	   sendResponse(Socket &clientSock, std::string &buff);
 	Socket acceptClientSock();
