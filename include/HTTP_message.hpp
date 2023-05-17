@@ -9,10 +9,10 @@
 #define HTTP_RESPONSE 0
 #define HTTP_GET 1
 #define HTTP_HEAD 2
+// internally, all the methods below or equal to this number are implemented
 #define HTTP_POST 3
 #define HTTP_PUT 4
 #define HTTP_DELETE 5
-// internally, all the methods below or equal to this number are implemented
 #define HTTP_OPTIONS 5
 #define HTTP_CONNECT 6
 #define HTTP_TRACE 7

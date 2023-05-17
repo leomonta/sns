@@ -286,7 +286,7 @@ void composeHeader(const std::string &filename, std::map<std::string, std::strin
 	result["Date"]		 = getUTC();
 	result["Connection"] = "close";
 	result["Vary"]		 = "Accept-Encoding";
-	result["Server"]	 = "LeonardoCustom/3.0 (Win64)";
+	result["Server"]	 = "LeonardCustom/3.2 (Ubuntu64)";
 }
 
 /**
