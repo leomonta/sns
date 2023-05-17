@@ -51,8 +51,8 @@ HTTP_conn::HTTP_conn(const std::string &basedir, const std::string &ip, const st
 		std::cout << "[Error]: Listening failed. " << strerror(errno) << std::endl;
 	}
 
-	std::cout << "Server now listening on " << ip << ":" << port << "\n"
-			  << "On folder " << basedir << std::endl;
+	std::cout << "Server now listening on " << ip << ":" << port << std::endl;
+	std::cout << "On folder " << basedir << std::endl;
 }
 
 /**
@@ -107,9 +107,6 @@ int HTTP_conn::receiveRequest(Socket &clientSock, std::string &result) {
 	auto bytesReceived = recv(clientSock, recvbuf, DEFAULT_BUFLEN, 0);
 	if (bytesReceived > 0) {
 		result = std::string(recvbuf, bytesReceived);
-
-	} else if (bytesReceived == 0) {
-		std::cout << "[Warning]: received 0 bytes long datagram\n";
 
 	} else {
 		std::cout << "[Error]: failed to receive message. " << strerror(errno) << std::endl;

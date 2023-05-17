@@ -26,7 +26,7 @@ std::mutex						   mtx;
 std::map<std::string, std::string> contents;
 
 void		readIni();
-void		resolveRequest(Socket *clientSocket, HTTP_conn *httpConnection);
+void		resolveRequest(Socket clientSocket, HTTP_conn *httpConnection);
 void		Head(HTTP_message &inbound, HTTP_message &outbound);
 void		Get(HTTP_message &inbound, HTTP_message &outbound);
 void		composeHeader(const char *filename, std::map<std::string, std::string> &result);
@@ -34,7 +34,7 @@ std::string getFile(const char *file);
 
 void setupContentTypes();
 
-void getContentType(const std::string *filetype, std::string &result);
+void getContentType(const std::string &filetype, std::string &result);
 
 int main() {
 
@@ -51,14 +51,14 @@ int main() {
 	while (true) {
 
 		client = http.acceptClientSock();
-		// resolveRequest(client, &http);
-		std::thread(resolveRequest, &client, &http).detach();
+		resolveRequest(client, &http);
+		// std::thread(resolveRequest, client, &http).detach();
 	}
 
 	return 0;
 }
 
-void resolveRequest(Socket *clientSocket, HTTP_conn *httpConnection) {
+void resolveRequest(Socket clientSocket, HTTP_conn *httpConnection) {
 
 	int bytesReceived;
 	int bytesSent;
@@ -69,7 +69,7 @@ void resolveRequest(Socket *clientSocket, HTTP_conn *httpConnection) {
 	while (true) {
 
 		// ---------------------------------------------------------------------- RECEIVE
-		bytesReceived = httpConnection->receiveRequest(*clientSocket, request);
+		bytesReceived = httpConnection->receiveRequest(clientSocket, request);
 
 		// received some bytes
 		if (bytesReceived > 0) {
@@ -92,12 +92,12 @@ void resolveRequest(Socket *clientSocket, HTTP_conn *httpConnection) {
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			bytesSent = httpConnection->sendResponse(*clientSocket, response.message);
+			bytesSent = httpConnection->sendResponse(clientSocket, response.message);
 
 			// send failed, close socket and close program
 			if (bytesSent == 0) {
 				std::cout << "send failed with error: " << std::endl;
-				httpConnection->closeClientSock(*clientSocket);
+				httpConnection->closeClientSock(clientSocket);
 			}
 
 			break;
@@ -108,10 +108,16 @@ void resolveRequest(Socket *clientSocket, HTTP_conn *httpConnection) {
 			bytesReceived = 0;
 			std::cout << "[Error]: Cannot keep on listening" << std::endl;
 
-			httpConnection->closeClientSock(*clientSocket);
+			httpConnection->closeClientSock(clientSocket);
+			break;
+		}
+
+		if (bytesReceived == 0) {
 			break;
 		}
 	}
+
+	httpConnection->shutDown(clientSocket);
 }
 
 /**
@@ -129,6 +135,8 @@ void readIni() {
 			key_val = split(buf, "=");
 
 			if (key_val.size() > 1) {
+				key_val[1].erase(key_val[1].find_last_not_of(" \n\r\t") + 1);
+
 				// sectioon [HTTP]
 				if (key_val[0] == "IP") {
 					HTTP_IP = key_val[1];
@@ -205,11 +213,11 @@ void composeHeader(const char *filename, std::map<std::string, std::string> &res
 		result["HTTP/1.1"] = "200 OK";
 
 		// get the file extension, i'll use it to get the content type
-		std::string temp = split(filename, "").back(); // + ~24 alloc
+		std::string temp = split(filename, ".").back(); // + ~24 alloc
 
 		// get the content type
 		std::string content_type = "";
-		getContentType(&temp, content_type);
+		getContentType(temp, content_type);
 
 		// fallback if finds nothing
 		if (content_type == "") {
@@ -282,6 +290,7 @@ void setupContentTypes() {
 	contents["gif"]	   = "image/gif";
 	contents["tml"]	   = "text/html";
 	contents["htm"]	   = "text/html";
+	contents["html"]   = "text/html";
 	contents["ico"]	   = "image/vnd.microsoft.icon";
 	contents["ics"]	   = "text/calendar";
 	contents["jar"]	   = "application/java-archive";
@@ -343,5 +352,5 @@ void getContentType(const std::string &filetype, std::string &result) {
 
 	auto parts = split(filetype, ".");
 
-	result = contents.at(parts.back());
+	result = contents[parts.back()];
 }

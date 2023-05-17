@@ -5,7 +5,7 @@
 			"name": "Debug",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/bin/Game.bin",
+			"program": "${workspaceFolder}/bin/server.bin",
 			"args": [],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/bin/",
@@ -20,29 +20,6 @@
 					"ignoreFailures": false
 				}
 			],
-			"preLaunchTask": "C/C++: g++.exe build all modified files"
-		},
-		{
-			"name": "Launch",
-			"type": "cppvsdbg",
-			"request": "launch",
-			"program": "${workspaceFolder}/bin/Game.bin",
-			"args": [],
-			"stopAtEntry": false,
-			"console": "integratedTerminal",
-			"cwd": "${workspaceFolder}/bin",
-			"environment": []
-		},
-		{
-			"name": "Build and Launch",
-			"type": "cppvsdbg",
-			"request": "launch",
-			"program": "${workspaceFolder}/bin/Game.bin",
-			"args": [],
-			"stopAtEntry": false,
-			"cwd": "${workspaceFolder}/bin",
-			"console": "integratedTerminal",
-			"environment": [],
 			"preLaunchTask": "C/C++: g++.exe build all modified files"
 		}
 	]

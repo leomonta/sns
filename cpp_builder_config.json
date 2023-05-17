@@ -1,6 +1,6 @@
 {
 	"projectDir": ".",
-	"exeName": "Game.bin",
+	"exeName": "server.bin",
 	"compilerExe" : "g++",
 	"Directories": {
 		"includeDir": [
