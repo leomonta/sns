@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <asio.hpp>
 
 #define DEFAULT_BUFLEN 8000
 

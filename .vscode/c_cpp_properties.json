@@ -4,7 +4,8 @@
 			"name": "gcc64",
 			"includePath": [
 				"include",
-				"ext"
+				"ext/json/include/nlohmann",
+				"/home/leonardo/workspace/cpp/libs/asio/include"
 			],
 			"compilerArgs": [
 				"-Wconversion",

@@ -138,7 +138,7 @@ def parse_config_json(optimization: bool) -> None:
 		for lname in config_file["libraries"]["Debug"]:
 			compilation_variables["libraries_names"] += " -l" + lname
 
-	compilation_variables["libraries_names"] += compilation_variables["libraries_names"][1:] # remove first whitespace
+	compilation_variables["libraries_names"] = compilation_variables["libraries_names"][1:] # remove first whitespace
 
 	# create the libraries path args -> -Lsomelibrary/lib -L...
 	for Lname in config_file["Directories"]["libraryDir"]:
@@ -321,7 +321,7 @@ def link() -> bool:
 
 	for file in to_link:
 		Link_cmd += f" {obj_dir}/{file[0]}{file[1]}.o"
-	
+
 	Link_cmd += " " + compilation_variables["libraries_names"]
 
 	print(Link_cmd)

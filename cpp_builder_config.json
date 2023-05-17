@@ -5,13 +5,15 @@
 	"Directories": {
 		"includeDir": [
 			"include",
-			"ext"
+			"ext/json/include/nlohmann",
+			"ext/asio/include",
+			"ext/zlib/include"
 		],
 		"sourceDir": [
 			"src"
 		],
 		"libraryDir": [
-			"ext/"
+			"ext/zlib/lib"
 		],
 		"objectsDir": "objs",
 		"exeDir": "bin"
