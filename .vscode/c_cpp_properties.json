@@ -3,7 +3,8 @@
 		{
 			"name": "gcc64",
 			"includePath": [
-				"include"
+				"include",
+				"/usr/local/include"
 			],
 			"compilerArgs": [
 				"-Wconversion",

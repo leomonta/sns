@@ -30,7 +30,8 @@
 			"pthread",
 			"z",
 			"crypto",
-			"ssl"
+			"ssl",
+			"netTcpSsl"
 		]
 
 	},
