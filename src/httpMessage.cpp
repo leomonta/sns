@@ -5,47 +5,69 @@
 
 #include <cstring>
 
-httpMessage::httpMessage(std::string &raw_message) {
+httpMessage::httpMessage(std::string &rawMessage) {
 
 	PROFILE_FUNCTION();
 
-	message = raw_message;
+	// body and header are divided by two newlines
+	auto pos = rawMessage.find("\r\n\r\n");
 
-	decompileMessage();
+	auto rawHeader = rawMessage.substr(0, pos);
+
+	// the +4 is to account for the length of the string searched
+	body = rawMessage.substr(pos + 4);
+
+	http::decompileHeader(rawHeader, *this);
+
+	http::decompileMessage(header[http::RQ_Content_Type], parameters, body);
 }
 
 /**
  * deconstruct the raw header in a map with key (option) -> value
  */
-void httpMessage::decompileHeader() {
+void http::decompileHeader(const std::string &rawHeader, httpMessage &msg) {
 
 	PROFILE_FUNCTION();
 
 	std::vector<std::string> options = split(rawHeader, "\r\n");
-	std::vector<std::string> temp;
+	std::vector<std::string> line;
 
-	for (size_t i = 0; i < options.size(); i++) {
+	// the first line should be "METHOD URL HTTP/Version"
 
-		temp = split(options[i], ": ");
-		// first header option "METHOD file HTTP/version"
-		if (temp.size() <= 1 && temp[0] != "") {
-			headerOptions["Method"] = options[i];
+	//    0    1       2
+	// METHOD|URL|HTTP/Version
+	line = split(options[0], " ");
 
-			temp = split(options[i], " ");
-			parseMethod(temp[0]);
-			if (temp[1].find("?") != std::string::npos) {
-				std::vector<std::string> query = split(temp[1], "?");
-				filename                       = query[0];
-				parseQueryParameters(query[1]);
-			} else {
-				filename = temp[1];
-			}
-			version = HTTP_11;
-		}
+	msg.method  = http::getMethodCode(line[0]);
+	msg.url     = line[1];
+	msg.version = http::getVersionCode(line[2]);
 
-		// the last header option is \n making temp >= 2
-		if (temp.size() >= 2) {
-			headerOptions[temp[0]] = temp[1];
+	// the position of the query parameter market (if present)
+	auto qPos = msg.url.find("?");
+
+	// if '?' is in the url, it means that query parameters are used
+	if (qPos != std::string::npos) {
+		// get the entire query
+		parseQueryParameters(msg.url.substr(qPos + 1), msg.parameters);
+
+		// erase the '?' and everything after it
+		msg.url.erase(msg.url.begin() + qPos);
+	}
+
+	// parse the remaining header options
+
+	for (size_t i = 1; i < options.size(); ++i) {
+
+		// each header option is composed as "option: value\n"
+		//    0      1
+		// option: value
+		line = split(options[i], ": ");
+
+		auto code = http::getParameterCode(line[0]);
+		if (code == -1) {
+			// log the warn
+		} else {
+			msg.header[code] = line[1];
 		}
 	}
 }
@@ -53,61 +75,32 @@ void httpMessage::decompileHeader() {
 /**
  * decompile message in header and body
  */
-void httpMessage::decompileMessage() {
+void http::decompileMessage(const std::string &cType, std::map<std::string, std::string> &parameters, std::string &body) {
 
 	PROFILE_FUNCTION();
 
-	// body and header are divided by two newlines
-	size_t pos = message.find("\r\n\r\n");
+	// the content type indicates how parameters are showed
+	if (!cType.empty()) {
 
-	rawHeader = message.substr(0, pos);
-	rawBody   = message.substr(pos);
-
-	decompileHeader();
-	std::string divisor;
-
-	divisor = headerOptions["Content-Type"];
-
-	// the first four bytes are \r\n\r\n, i need to remove them
-	rawBody.erase(rawBody.begin(), rawBody.begin() + 4);
-
-	if (!divisor.empty()) {
 		// the fields are separated from each others with a "&" and key -> value are separated with "="
 		// plus they are encoded as a URL
-		if (divisor == "application/x-www-form-urlencoded") {
-			parseQueryParameters(rawBody);
-		} else if (divisor == "text/plain") {
-			parsePlainParameters(rawBody);
-		} else if (divisor.find("multipart/form-data;") != std::string::npos) {
+		if (cType == "application/x-www-form-urlencoded") {
+			http::parseQueryParameters(body, parameters);
+			// } else if (cType == "text/plain") {
+			// http::parsePlainParameters(body, parameters);
+		} else if (cType.find("multipart/form-data;") != std::string::npos) {
 
 			// find the divisor
-			divisor = "--" + split(divisor, "=")[1];
+			//               0              |      1
+			// multipart/form-data; boundary=----asdwadawd
+			auto divisor = split(cType, "=")[1];
 			// sometimes the boundary is encolsed in quotes, take care of this case
 			if (divisor[0] == '"' && divisor.back() == '"') {
 				divisor.pop_back();
 				divisor.erase(divisor.begin());
 			}
 
-			parseFormData(rawBody, divisor);
-		}
-	}
-}
-
-/**
- * format the header from the array to a string
- */
-void httpMessage::compileHeader() {
-
-	PROFILE_FUNCTION();
-
-	// Always the response code fisrt
-	rawHeader += "HTTP/1.1 " + headerOptions["HTTP/1.1"] + "\r\n";
-
-	for (auto const &[key, val] : headerOptions) {
-		// already wrote response code
-		if (key != "HTTP/1.1") {
-			// header option name :	header option value
-			rawHeader += key + ": " + val + "\r\n";
+			http::parseFormData(body, divisor, parameters);
 		}
 	}
 }
@@ -115,55 +108,100 @@ void httpMessage::compileHeader() {
 /**
  * unite the header and the body in a single message
  */
-void httpMessage::compileMessage() {
+std::string http::compileMessage(const std::map<int, std::string> &header, const std::string &body) {
 
 	PROFILE_FUNCTION();
 
-	compileHeader();
-	message = rawHeader + "\r\n" + rawBody;
+	// Always the response code fisrt
+	// TODO: implement more methods
+	std::string rawHeader = "HTTP/1.0";
+	rawHeader += "\r\n";
+	auto ah_boh = header.at(http::RP_Status);
+
+	for (auto const &[key, val] : header) {
+		// already wrote response code
+		if (key != http::RP_Status) {
+			// header option name :	header option value
+			rawHeader += std::string(headerRpStr[key]) + ": " + val + "\r\n";
+		}
+	}
+
+	return rawHeader + "\r\n" + body;
 }
 
-/**
- * given the string containing the request method the the property method to it's correct value
- */
-void httpMessage::parseMethod(std::string &requestMethod) {
+int http::getMethodCode(const std::string &requestMethod) {
 
 	PROFILE_FUNCTION();
 
 	// Yep that's it, such logic
 	if (requestMethod == "GET") {
-		method = HTTP_GET;
+		return HTTP_GET;
 	} else if (requestMethod == "HEAD") {
-		method = HTTP_HEAD;
+		return HTTP_HEAD;
 	} else if (requestMethod == "POST") {
-		method = HTTP_POST;
+		return HTTP_POST;
 	} else if (requestMethod == "PUT") {
-		method = HTTP_PUT;
+		return HTTP_PUT;
 	} else if (requestMethod == "DELETE") {
-		method = HTTP_DELETE;
+		return HTTP_DELETE;
 	} else if (requestMethod == "OPTIONS") {
-		method = HTTP_OPTIONS;
+		return HTTP_OPTIONS;
 	} else if (requestMethod == "CONNECT") {
-		method = HTTP_CONNECT;
+		return HTTP_CONNECT;
 	} else if (requestMethod == "TRACE") {
-		method = HTTP_TRACE;
+		return HTTP_TRACE;
 	} else if (requestMethod == "PATCH") {
-		method = HTTP_PATCH;
+		return HTTP_PATCH;
 	}
+
+	return -1;
+}
+
+int http::getVersionCode(const std::string &httpVersion) {
+
+	// Yep that's it, such logic pt 2.0
+
+	if (httpVersion == "HTTP/0.9") {
+		return HTTP_09;
+	} else if (httpVersion == "HTTP/1.0") {
+		return HTTP_10;
+	} else if (httpVersion == "HTTP/1.1") {
+		return HTTP_11;
+	} else if (httpVersion == "HTTP/2") {
+		return HTTP_2;
+	} else if (httpVersion == "HTTP/3") {
+		return HTTP_3;
+	}
+
+	return -1;
+}
+
+int http::getParameterCode(const std::string &parameter) {
+
+	// thi is one hell of a elif chain
+	// lickily i need to check only for the requests headers
+	// I'm becoming yan dev
+
+	for (int i = 0; i < REQUEST_HEADERS; ++i) {
+		if (parameter == headerRqStr[i]) {
+			return i;
+		}
+	}
+
+	return -1;
 }
 
 /**
  * Given a string of urlencoded parameters parse and decode them, then insert them in the parameters map in the httpMessage
  */
-void httpMessage::parseQueryParameters(std::string &params) {
+void http::parseQueryParameters(const std::string &query, std::map<std::string, std::string> &parameters) {
 
 	PROFILE_FUNCTION();
 
-	std::vector<std::string> datas;
 	std::vector<std::string> temp;
 
-	// parameters may come from the body via POST or the url via GET
-	datas = split(params, "&");
+	// each parameter is separeted by the '&'
+	auto datas = split(query, "&");
 
 	for (size_t i = 0; i < datas.size(); i++) {
 		// temp string to store the decoded value
@@ -186,24 +224,22 @@ void httpMessage::parseQueryParameters(std::string &params) {
 /**
  * Parse the data not encoded in form data and then insert them in the parameters map in the httpMessage
  */
-void httpMessage::parsePlainParameters(std::string &params) {
+void http::parsePlainParameters(const std::string &params, std::map<std::string, std::string> &parameters) {
 
 	PROFILE_FUNCTION();
 
-	std::vector<std::string> datas;
-	std::vector<std::string> temp;
-
-	datas = split(params, "\r\n");
+	auto datas = split(params, "\r\n");
 
 	// the last place always contains "--", no real data in here
 	datas.pop_back();
 	datas.erase(datas.begin());
 
+	std::vector<std::string> line;
 	for (size_t i = 0; i < datas.size(); i++) {
-		temp = split(datas[i], "=");
+		line = split(datas[i], "=");
 
-		if (temp.size() >= 2) {
-			parameters[temp[0]] = temp[1];
+		if (line.size() >= 2) {
+			parameters[line[0]] = line[1];
 		}
 	}
 }
@@ -211,25 +247,24 @@ void httpMessage::parsePlainParameters(std::string &params) {
 /**
  * Parse the data divided by special divisor in form data and then insert them in the parameters map in the httpMessage
  */
-void httpMessage::parseFormData(std::string &params, std::string &divisor) {
+void http::parseFormData(const std::string &params, std::string &divisor, std::map<std::string, std::string> &parameters) {
 
 	PROFILE_FUNCTION();
 
-	std::vector<std::string> datas;
 	std::vector<std::string> temp;
 
-	datas = split(params, divisor);
+	auto datas = split(params, divisor);
 
 	// the last place always contains "--", no real data in here
 	datas.pop_back();
 	datas.erase(datas.begin());
 
 	for (size_t i = 0; i < datas.size(); i++) {
-		/* 0  |                    1                        |  2   3 |  4   | 5  |
-		 * \r\n|Content-Disposition: form-data; name="field1"|\r\n\r\n|value1|\r\n|
-		 */
+		// 0 |||||                    1                        ||||||2|||||  3   | 4  |
+		//   \r\n|Content-Disposition: form-data; name="field1"|\r\n| \r\n|value1|\r\n|
+		//                            0                                      1
 		std::vector<std::string> option_value = split(datas[i], "\r\n");
-		option_value.pop_back();                      // pos 5
+		option_value.pop_back();                      // pos 4
 		option_value.erase(option_value.begin() + 2); // pos 2
 		option_value.erase(option_value.begin());     // pos 0
 

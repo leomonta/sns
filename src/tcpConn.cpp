@@ -22,7 +22,7 @@ Socket tcpConn::initializeServer(const short port) {
 
 	if (serverSocket == INVALID_SOCKET) {
 		log(LOG_FATAL, "Impossible to create server Socket.\n	Reason: %d %s\n", errno, strerror(errno));
-		return;
+		return INVALID_SOCKET;
 	}
 
 	int enable = 1;
@@ -46,7 +46,7 @@ Socket tcpConn::initializeServer(const short port) {
 
 	if (errorCode == -1) {
 		log(LOG_FATAL, "Bind failed.\n	Reason: %d %s\n", errno, strerror(errno));
-		return;
+		return INVALID_SOCKET;
 	}
 
 	// setup this socket to listen for connection, with the queue of SOMAXCONN	Reason: 2^12
@@ -57,7 +57,7 @@ Socket tcpConn::initializeServer(const short port) {
 
 	if (errorCode == -1) {
 		log(LOG_FATAL, "Listening failed.\n	Reason: %d %s\n", errno, strerror(errno));
-		return;
+		return INVALID_SOCKET;
 	}
 
 	return serverSocket;

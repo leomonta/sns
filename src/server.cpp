@@ -29,13 +29,13 @@ namespace Res {
 
 	std::thread requestAcceptor;
 
-	tcpConn conn;
-	bool    threadStop = false;
+	Socket serverSocket;
+	bool   threadStop = false;
 } // namespace Res
 
 int main(int argc, char *argv[]) {
 
-	Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
+	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
 
 	parseArgs(argc, argv);
 
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	Instrumentor::Get().EndSession();
+	// Instrumentor::Get().EndSession();
 
 	exit(0);
 
@@ -74,9 +74,9 @@ void setup() {
 
 	setupContentTypes();
 
-	Res::conn.initialize(Res::tcpPort);
+	Res::serverSocket = tcpConn::initializeServer(Res::tcpPort);
 
-	if (Res::conn.isConnValid) {
+	if (Res::serverSocket != INVALID_SOCKET) {
 		log(LOG_INFO, "Server Listening on port %d\n	On directory %s\n", Res::tcpPort, Res::baseDirectory.c_str());
 	} else {
 		log(LOG_FATAL, "TCP connection is invalid. Shutting down\n");
@@ -88,7 +88,7 @@ void stop() {
 
 	PROFILE_FUNCTION();
 
-	Res::conn.terminate();
+	tcpConn::terminate(Res::serverSocket);
 
 	Res::threadStop = true;
 
@@ -101,7 +101,7 @@ void start() {
 
 	Res::threadStop = false;
 
-	Res::requestAcceptor = std::thread(acceptRequests, &Res::conn, &Res::threadStop);
+	Res::requestAcceptor = std::thread(acceptRequests, &Res::threadStop);
 }
 
 void restart() {
@@ -130,7 +130,7 @@ void parseArgs(int argc, char *argv[]) {
 /**
  * Actively wait for clients, if one is received spawn a thread and continue
  */
-void acceptRequests(tcpConn *tcpConnection, bool *threadStop) {
+void acceptRequests(bool *threadStop) {
 
 	PROFILE_FUNCTION();
 
@@ -143,11 +143,11 @@ void acceptRequests(tcpConn *tcpConnection, bool *threadStop) {
 	// Receive until the peer shuts down the connection
 	while (!(*threadStop)) {
 
-		client = tcpConnection->acceptClientSock();
+		client = tcpConn::acceptClientSock(Res::serverSocket);
 
 		if (client != -1) {
 			// resolveRequest(client, &http);
-			threads.push_back(std::thread(resolveRequest, client, tcpConnection, threadStop));
+			threads.push_back(std::thread(resolveRequest, client, threadStop));
 		}
 	}
 
@@ -159,7 +159,7 @@ void acceptRequests(tcpConn *tcpConnection, bool *threadStop) {
 /**
  * threaded, resolve the request obtained via the sockey
  */
-void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadStop) {
+void resolveRequest(Socket clientSocket, bool *threadStop) {
 
 	PROFILE_FUNCTION();
 
@@ -171,7 +171,7 @@ void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadSto
 	while (!(*threadStop)) {
 
 		// ---------------------------------------------------------------------- RECEIVE
-		bytesReceived = tcpConnection->receiveRequest(clientSocket, request);
+		bytesReceived = tcpConn::receiveSegment(clientSocket, request);
 
 		// received some bytes
 		if (bytesReceived > 0) {
@@ -180,23 +180,23 @@ void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadSto
 
 			// no really used
 			switch (mex.method) {
-			case httpMessage::HTTP_HEAD:
+			case http::HTTP_HEAD:
 				Head(mex, response);
 				break;
 
-			case httpMessage::HTTP_GET:
+			case http::HTTP_GET:
 				Get(mex, response);
 				break;
 			}
 
 			// make the message a single formatted string
-			response.compileMessage();
+			auto res = http::compileMessage(response.header, response.body);
 
-			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, mex.headerOptions["Method"].c_str());
+			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, http::methodStr[mex.method]);
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			tcpConnection->sendResponse(clientSocket, response.message);
+			tcpConn::sendSegment(clientSocket, res);
 
 			break;
 		}
@@ -208,8 +208,8 @@ void resolveRequest(Socket clientSocket, tcpConn *tcpConnection, bool *threadSto
 		}
 	}
 
-	tcpConnection->shutDown(clientSocket);
-	tcpConnection->closeSocket(clientSocket);
+	tcpConn::shutdownSocket(clientSocket);
+	tcpConn::closeSocket(clientSocket);
 }
 
 /**
@@ -219,7 +219,7 @@ void Head(httpMessage &inbound, httpMessage &outbound) {
 
 	PROFILE_FUNCTION();
 
-	const char *src = inbound.filename.c_str();
+	const char *src = inbound.url.c_str();
 	char       *dst = new char[strlen(src) + 1];
 	urlDecode(dst, src);
 
@@ -244,13 +244,13 @@ void Head(httpMessage &inbound, httpMessage &outbound) {
 	}
 
 	// insert in the outbound message the necessaire header options, filename is used to determine the response code
-	composeHeader(file, outbound.headerOptions);
+	composeHeader(file, outbound.header);
 
 	// i know that i'm loading an entire file, if i find a better solution i'll use it
 	std::string content                      = getFile(file);
-	outbound.headerOptions["Content-Lenght"] = std::to_string(content.length());
-	outbound.headerOptions["Cache-Control"]  = "max-age=604800";
-	outbound.filename                        = file;
+	outbound.header[http::RP_Content_Length] = std::to_string(content.length());
+	outbound.header[http::RP_Cache_Control]  = "max-age=604800";
+	outbound.url                             = file;
 }
 
 /**
@@ -263,21 +263,21 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 	// I just need to add the body to the head,
 	Head(inbound, outbound);
 
-	outbound.rawBody = getFile(outbound.filename);
+	outbound.body = getFile(outbound.url);
 
 	std::string compressed;
-	compressGz(compressed, outbound.rawBody.c_str(), outbound.rawBody.length());
+	compressGz(compressed, outbound.body.c_str(), outbound.body.length());
 	// set the content of the message
-	outbound.rawBody = compressed;
+	outbound.body = compressed;
 
-	outbound.headerOptions["Content-Lenght"]   = std::to_string(compressed.length());
-	outbound.headerOptions["Content-Encoding"] = "gzip";
+	outbound.header[http::RP_Content_Length]   = std::to_string(compressed.length());
+	outbound.header[http::RP_Content_Encoding] = "gzip";
 }
 
 /**
  * compose the header given the file requested
  */
-void composeHeader(const std::string &filename, std::map<std::string, std::string> &result) {
+void composeHeader(const std::string &filename, std::map<int, std::string> &result) {
 
 	PROFILE_FUNCTION();
 
@@ -287,7 +287,7 @@ void composeHeader(const std::string &filename, std::map<std::string, std::strin
 	if (std::filesystem::exists(filename)) {
 
 		// status code OK
-		result["HTTP/1.1"] = "200 OK";
+		result[http::RP_Status] = "200 OK";
 
 		// get the file extension, i'll use it to get the content type
 		std::string temp = split(filename, ".").back(); // + ~24 alloc
@@ -302,25 +302,25 @@ void composeHeader(const std::string &filename, std::map<std::string, std::strin
 		}
 
 		// and actually add it in
-		result["Content-Type"] = content_type;
+		result[http::RP_Content_Type] = content_type;
 
 	} else {
-		// status code Not Found
-		result["HTTP/1.1"]     = "404 Not Found";
-		result["Content-Type"] = "text/html";
+		// status code -> Not Found
+		result[http::RP_Status]       = "404 Not Found";
+		result[http::RP_Content_Type] = "text/html";
 	}
 
 	// various header options
 
-	result["Date"]       = getUTC();
-	result["Connection"] = "close";
-	result["Vary"]       = "Accept-Encoding";
-	char srvr[]          = "LeonardCustom/x.x (ArchLinux64)";
+	result[http::RP_Date]       = getUTC();
+	result[http::RP_Connection] = "close";
+	result[http::RP_Vary]       = "Accept-Encoding";
+	char srvr[]                 = "LeonardCustom/x.x (ArchLinux64)";
 
 	srvr[14] = '0' + serverVersionMajor;
 	srvr[16] = '0' + serverVersionMinor;
 
-	result["Server"] = srvr;
+	result[http::RP_Server] = srvr;
 }
 
 /**

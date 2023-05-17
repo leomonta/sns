@@ -25,12 +25,12 @@ std::vector<std::string> split(const std::string &source, const std::string &fin
 		// retrive the string before it
 		token = haystack.substr(0, pos);
 		// insert it in the result
-		res.insert(res.end(), token);
+		res.push_back(token);
 		// remove it from the source
 		haystack.erase(0, pos + find.length());
 	}
 	// insert the last substring
-	res.insert(res.end(), haystack);
+	res.push_back(haystack);
 
 	return res;
 }
@@ -57,7 +57,8 @@ std::string getUTC() {
 
 /**
  * Decode url character (%20 => " ") to ascii character, NOT MINE, JUST COPY PASTED
- * Thank you ThomasH, https://stackoverflow.com/users/2012498/thomash at https://stackoverflow.com/questions/2673207/c-c-url-decode-library/2766963,
+ * copied from https://stackoverflow.com/questions/2673207/c-c-url-decode-library/2766963,
+ * @author Thank you ThomasH, https://stackoverflow.com/users/2012498/thomash
  */
 void urlDecode(char *dst, const char *src) {
 
@@ -65,9 +66,7 @@ void urlDecode(char *dst, const char *src) {
 
 	char a, b;
 	while (*src) {
-		if ((*src == '%') &&
-		    ((a = src[1]) && (b = src[2])) &&
-		    (isxdigit(a) && isxdigit(b))) {
+		if ((*src == '%') && ((a = src[1]) && (b = src[2])) && (isxdigit(a) && isxdigit(b))) {
 			if (a >= 'a')
 				a -= 'a' - 'A';
 			if (a >= 'A')

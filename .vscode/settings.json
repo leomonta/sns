@@ -108,7 +108,8 @@
 		"*.ipp": "cpp",
 		"source_location": "cpp",
 		"numbers": "cpp",
-		"semaphore": "cpp"
+		"semaphore": "cpp",
+		"netfwd": "cpp"
 	},
 	"python.pythonPath": "c:\\Program Files\\Python39\\python.exe"
 }
