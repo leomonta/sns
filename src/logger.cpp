@@ -4,6 +4,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <pthread.h>
 
 char currLogLevel = LOG_ALL;
 
@@ -45,7 +46,9 @@ void log(const char logLevel, const char *mex, ...) {
 		break;
 	}
 
-	printf("\r%s: ", prefix);
+	auto tid = gettid();
+
+	printf("\r%s [THREAD %6d] ", prefix, tid);
 	vprintf(mex, args);
 	printf("> ");
 	fflush(stdout);

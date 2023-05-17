@@ -210,9 +210,8 @@ std::string http::compileMessage(const std::map<int, std::string> &header, const
 
 	// Always the response code fisrt
 	// TODO: implement more methods
-	std::string rawHeader = "HTTP/1.0";
+	std::string rawHeader = "HTTP/1.0 " + header.at(http::RP_Status);
 	rawHeader += "\r\n";
-	auto ah_boh = header.at(http::RP_Status);
 
 	for (auto const &[key, val] : header) {
 		// already wrote response code

@@ -59,9 +59,11 @@ int main(const int argc, const char *argv[]) {
 	// start the requests accpetor secure thread
 	start();
 
+	// line that will be read from stdin
+	char line[256];
+
 	// cli like interface
 	while (true) {
-		char line[256];
 		if (fgets(line, sizeof(line), stdin) == nullptr) {
 			continue;
 		}
@@ -75,26 +77,25 @@ int main(const int argc, const char *argv[]) {
 			stop();
 			break;
 		}
+
 		if (strcmp(line, "restart") == 0) {
 			restart();
 		}
 
 		if (strcmp(line, "time") == 0) {
-			time_t        now   = time(nullptr) - Res::startTime;
-			unsigned      days  = now / (60 * 60 * 24);
-			unsigned char hours = now / (60 * 60) % 24;
-			unsigned char mins  = now / 20 % 60;
-			unsigned char secs  = now % 60;
+			time_t now   = time(nullptr) - Res::startTime;
+			long   days  = now / (60 * 60 * 24);
+			long   hours = now / (60 * 60) % 24;
+			long   mins  = now / 20 % 60;
+			long   secs  = now % 60;
 
-			printf("Time elapsed since the 'start()' method was called is %d Days and %02d:%02d:%02d\n",days, hours, mins, secs);
+			printf("Time elapsed since the 'start()' method was called is %ld.%02ld:%02ld:%02ld\n", days, hours, mins, secs);
 		}
 
 		printf("> ");
 	}
 
 	// Instrumentor::Get().EndSession();
-
-	exit(0);
 
 	return 0;
 }
@@ -107,21 +108,21 @@ void setup() {
 
 	Res::serverSocket = tcpConn::initializeServer(Res::tcpPort);
 
-	if (Res::serverSocket != INVALID_SOCKET) {
-		log(LOG_INFO, "Server Listening on port %d\n	On directory %s\n", Res::tcpPort, Res::baseDirectory.c_str());
-	} else {
+	if (Res::serverSocket == INVALID_SOCKET) {
 		exit(1);
 	}
+
+	log(LOG_INFO, "[SERVER] Listening on %s:%d\n", Res::baseDirectory.c_str(), Res::tcpPort);
 
 	sslConn::initializeServer();
 
 	Res::sslContext = sslConn::createContext();
 
-	if (Res::sslContext != nullptr) {
-		log(LOG_INFO, "SSL context created\n");
-	} else {
+	if (Res::sslContext == nullptr) {
 		exit(1);
 	}
+
+	log(LOG_INFO, "[SSL] Context created\n");
 }
 
 void stop() {
@@ -131,12 +132,16 @@ void stop() {
 	tcpConn::terminate(Res::serverSocket);
 
 	Res::threadStop = true;
+	log(LOG_INFO, "[SERVER] Sent stop message to all threads\n");
 
 	Res::requestAcceptor.join();
+	log(LOG_INFO, "[SERVER] Request acceptor stopped\n");
 
 	sslConn::destroyContext(Res::sslContext);
 
 	sslConn::terminateServer();
+
+	log(LOG_INFO, "[SERVER] Server stopped\n");
 }
 
 void start() {
@@ -146,6 +151,7 @@ void start() {
 	Res::threadStop = false;
 
 	Res::requestAcceptor = std::thread(acceptRequestsSecure, &Res::threadStop);
+	log(LOG_DEBUG, "[SERVER] ReqeustAcceptorSecure thread Started\n");
 
 	Res::startTime = time(nullptr);
 }
@@ -167,10 +173,12 @@ void parseArgs(const int argc, const char *argv[]) {
 	switch (argc) {
 	case 3:
 		Res::tcpPort = static_cast<short>(std::atoi(argv[2]));
+		log(LOG_DEBUG, "[SERVER] Read port %d from cli args\n", Res::tcpPort);
 		[[fallthrough]];
 
 	case 2:
 		Res::baseDirectory = argv[1];
+		log(LOG_DEBUG, "[SERVER] Read directory %s from cli args\n", Res::baseDirectory.c_str());
 	}
 }
 
@@ -190,17 +198,16 @@ void acceptRequestsSecure(bool *threadStop) {
 		auto sslConnection = sslConn::createConnection(Res::sslContext, client);
 
 		if (sslConnection == nullptr) {
-			*threadStop = true;
-			exit(1);
+			continue;
 		}
 
 		auto err = sslConn::acceptClientConnection(sslConnection);
 
-		if (err == 0) {
-			*threadStop = true;
-			exit(1);
+		if (err == -1) {
+			continue;
 		}
 
+		log(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
 		std::thread(resolveRequestSecure, sslConnection, client, threadStop).detach();
 	}
 }
@@ -222,6 +229,8 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 
 			httpMessage mex(request);
 
+			log(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.method]);
+
 			// no really used
 			switch (mex.method) {
 			case http::HTTP_HEAD:
@@ -236,7 +245,7 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 			// make the message a single formatted string
 			auto res = http::compileMessage(response.header, response.body);
 
-			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, methodStr[mex.method]);
+			// log(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res.c_str());
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
@@ -271,12 +280,15 @@ void Head(httpMessage &inbound, httpMessage &outbound) {
 	// re set the filename as the base directory and the decoded filename
 	std::string file = Res::baseDirectory + dst;
 
+	log(LOG_DEBUG, "[SERVER] Decoded URL to '%s'\n", dst);
+
 	delete[] dst;
 
 	// usually to request index.html browsers do not specify it, they usually use /, if that's the case I add index.html
 	// back access the last char of the string
 	if (file.back() == '/') {
 		file += "index.html";
+		log(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
 	}
 
 	// check of I'm dealing with a directory
@@ -284,17 +296,15 @@ void Head(httpMessage &inbound, httpMessage &outbound) {
 	stat(file.c_str(), &fileStat);
 
 	if (S_ISDIR(fileStat.st_mode)) {
-
 		file += "/index.html";
+		log(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
 	}
 
 	// insert in the outbound message the necessaire header options, filename is used to determine the response code
 	composeHeader(file, outbound.header);
 
-	// i know that i'm loading an entire file, if i find a better solution i'll use it
-	std::string content                      = getFile(file);
-	outbound.header[http::RP_Content_Length] = std::to_string(content.length());
-	outbound.header[http::RP_Cache_Control]  = "max-age=604800";
+	outbound.header[http::RP_Content_Length] = std::to_string(fileStat.st_size);
+	outbound.header[http::RP_Cache_Control]  = "max-age=3600";
 	outbound.url                             = file;
 }
 
@@ -308,10 +318,12 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 	// I just need to add the body to the head,
 	Head(inbound, outbound);
 
-	outbound.body = getFile(outbound.url);
+	auto uncompressed = getFile(outbound.url);
 
 	std::string compressed;
-	compressGz(compressed, outbound.body.c_str(), outbound.body.length());
+	compressGz(compressed, uncompressed.c_str(), uncompressed.length());
+	log(LOG_DEBUG, "[SERVER] File found and compressed\n");
+
 	// set the content of the message
 	outbound.body = compressed;
 
@@ -382,13 +394,8 @@ std::string getFile(const std::string &file) {
 
 	// if the file does not exist i load a default 404.html
 	if (content.empty()) {
-		log(LOG_WARNING, "File %s not found\n", file.c_str());
-		std::fstream notFound("404.html", std::ios::binary | std::ios::in);
-		std::string  noContent((std::istreambuf_iterator<char>(notFound)), (std::istreambuf_iterator<char>()));
-
-		notFound.close();
-
-		return noContent;
+		log(LOG_WARNING, "[SERVER] File %s not found\n", file.c_str());
+		return "";
 	}
 
 	ifs.close();
