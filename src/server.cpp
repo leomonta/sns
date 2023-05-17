@@ -1,46 +1,47 @@
 /**
  * TODO: add a cli to stop the server
  */
+#include "HTTP_message.hpp"
+#include "TCP_conn.hpp"
+#include "utils.hpp"
+
+#include "json/include/json.hpp"
 #include <filesystem>
 #include <mutex>
 #include <sys/stat.h>
 #include <thread>
 
-#include "HTTP_message.hpp"
-#include "TCP_conn.hpp"
-#include "json/include/json.hpp"
-#include "utils.hpp"
-
 #undef break
 
 using json = nlohmann::json;
 
-const char *server_init_file = "server_options.ini";
+const char *server_init_file = "server_options.conf";
 
 // Http Server
 std::string HTTP_Basedir = "/";
-std::string HTTP_IP		 = "127.0.0.1";
-std::string HTTP_Port	 = "80";
+std::string HTTP_IP      = "127.0.0.1";
+std::string HTTP_Port    = "80";
 
 // for controlling debug prints
-std::mutex						   mtx;
+std::mutex                         mtx;
 std::map<std::string, std::string> contents;
 
 void acceptRequests(TCP_conn *tcpConnection, bool *threadStop);
 void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadStop);
 
-void		readIni();
-void		Head(HTTP_message &inbound, HTTP_message &outbound);
-void		Get(HTTP_message &inbound, HTTP_message &outbound);
-void		composeHeader(const std::string &filename, std::map<std::string, std::string> &result);
+void        readIni();
+void        Head(HTTP_message &inbound, HTTP_message &outbound);
+void        Get(HTTP_message &inbound, HTTP_message &outbound);
+void        composeHeader(const std::string &filename, std::map<std::string, std::string> &result);
 std::string getFile(const std::string &file);
 
 void setupContentTypes();
 
 void getContentType(const std::string &filetype, std::string &result);
 
-int main() {
+int main(int argc, char *argv[]) {
 
+	// readArgs();
 	readIni();
 	setupContentTypes();
 	// initialize winsock and the server options
@@ -72,14 +73,13 @@ int main() {
 	return 0;
 }
 
-
 /**
  * Actively wait for clients, if one is received spawn a thread and continue
  */
 void acceptRequests(TCP_conn *tcpConnection, bool *threadStop) {
 
 	// used for controlling
-	Socket		client = 0;
+	Socket      client = 0;
 	std::string request;
 
 	std::vector<std::thread> threads;
@@ -108,7 +108,7 @@ void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadSt
 	int bytesReceived;
 	int bytesSent;
 
-	std::string	 request;
+	std::string  request;
 	HTTP_message response;
 
 	while (!(*threadStop)) {
@@ -136,7 +136,7 @@ void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadSt
 			response.compileMessage();
 
 			std::cout << "Received request " << mex.filename
-					  << ".\n  Responded with " << response.filename << std::endl;
+			          << "\n  Responded with " << response.filename << std::endl;
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
@@ -151,7 +151,7 @@ void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadSt
 		}
 
 		// received an error
-		if (bytesReceived <= 0) {
+		if (bytesReceived < 0) {
 			std::cout << "[Error]: Cannot keep on listening" << std::endl;
 
 			break;
@@ -167,8 +167,8 @@ void resolveRequest(Socket clientSocket, TCP_conn *tcpConnection, bool *threadSt
  */
 void readIni() {
 
-	std::string				 buf;
-	std::fstream			 Read(server_init_file, std::ios::in);
+	std::string              buf;
+	std::fstream             Read(server_init_file, std::ios::in);
 	std::vector<std::string> key_val;
 
 	// read props from the ini file and sets the important variables
@@ -202,7 +202,7 @@ void readIni() {
 void Head(HTTP_message &inbound, HTTP_message &outbound) {
 
 	const char *src = inbound.filename.c_str();
-	char		 *dst = new char[strlen(src) + 1];
+	char       *dst = new char[strlen(src) + 1];
 	urlDecode(dst, src);
 
 	// re set the filename as the base directory and the decoded filename
@@ -229,10 +229,10 @@ void Head(HTTP_message &inbound, HTTP_message &outbound) {
 	composeHeader(file, outbound.headerOptions);
 
 	// i know that i'm loading an entire file, if i find a better solution i'll use it
-	std::string content						 = getFile(file);
+	std::string content                      = getFile(file);
 	outbound.headerOptions["Content-Lenght"] = std::to_string(content.length());
-	outbound.headerOptions["Cache-Control"]	 = "max-age=604800";
-	outbound.filename						 = file;
+	outbound.headerOptions["Cache-Control"]  = "max-age=604800";
+	outbound.filename                        = file;
 }
 
 /**
@@ -284,16 +284,16 @@ void composeHeader(const std::string &filename, std::map<std::string, std::strin
 
 	} else {
 		// status code Not Found
-		result["HTTP/1.1"]	   = "404 Not Found";
+		result["HTTP/1.1"]     = "404 Not Found";
 		result["Content-Type"] = "text/html";
 	}
 
 	// various header options
 
-	result["Date"]		 = getUTC();
+	result["Date"]       = getUTC();
 	result["Connection"] = "close";
-	result["Vary"]		 = "Accept-Encoding";
-	result["Server"]	 = "LeonardCustom/3.2 (Ubuntu64)";
+	result["Vary"]       = "Accept-Encoding";
+	result["Server"]     = "LeonardCustom/3.2 (ArchLinux64)";
 }
 
 /**
@@ -312,7 +312,7 @@ std::string getFile(const std::string &file) {
 	// if the file does not exist i load a default 404.html
 	if (content.empty()) {
 		std::fstream ifs("404.html", std::ios::binary | std::ios::in);
-		std::string	 content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+		std::string  content((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
 	}
 
 	ifs.close();
@@ -322,85 +322,86 @@ std::string getFile(const std::string &file) {
 
 void setupContentTypes() {
 
-	contents["abw"]	   = "application/x-abiword";
-	contents["aac"]	   = "audio/aac";
-	contents["arc"]	   = "application/x-freearc";
+	contents["abw"]    = "application/x-abiword";
+	contents["aac"]    = "audio/aac";
+	contents["arc"]    = "application/x-freearc";
 	contents["avif"]   = "image/avif";
-	contents["aac"]	   = "audio/aac";
-	contents["avi"]	   = "video/x-msvideo";
-	contents["azw"]	   = "application/vnd.amazon.ebook";
-	contents["bin"]	   = "application/octet-stream";
-	contents["bmp"]	   = "image/bmp";
-	contents["bz"]	   = "application/x-bzip";
-	contents["bz2"]	   = "application/x-bzip2";
-	contents["cda"]	   = "application/x-cdf";
-	contents["csh"]	   = "application/x-csh";
-	contents["css"]	   = "text/css";
-	contents["csv"]	   = "text/csv";
-	contents["doc"]	   = "application/msword";
+	contents["aac"]    = "audio/aac";
+	contents["avi"]    = "video/x-msvideo";
+	contents["azw"]    = "application/vnd.amazon.ebook";
+	contents["bin"]    = "application/octet-stream";
+	contents["bmp"]    = "image/bmp";
+	contents["bz"]     = "application/x-bzip";
+	contents["bz2"]    = "application/x-bzip2";
+	contents["cda"]    = "application/x-cdf";
+	contents["csh"]    = "application/x-csh";
+	contents["css"]    = "text/css";
+	contents["csv"]    = "text/csv";
+	contents["doc"]    = "application/msword";
 	contents["docx"]   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-	contents["eot"]	   = "application/vnd.ms-fontobject";
+	contents["eot"]    = "application/vnd.ms-fontobject";
+	contents["exe"]    = "application/octet-stream";
 	contents["epub"]   = "application/epub+zip";
-	contents["gz"]	   = "application/gzip";
-	contents["gif"]	   = "image/gif";
-	contents["tml"]	   = "text/html";
-	contents["htm"]	   = "text/html";
+	contents["gz"]     = "application/gzip";
+	contents["gif"]    = "image/gif";
+	contents["tml"]    = "text/html";
+	contents["htm"]    = "text/html";
 	contents["html"]   = "text/html";
-	contents["ico"]	   = "image/vnd.microsoft.icon";
-	contents["ics"]	   = "text/calendar";
-	contents["jar"]	   = "application/java-archive";
+	contents["ico"]    = "image/vnd.microsoft.icon";
+	contents["ics"]    = "text/calendar";
+	contents["jar"]    = "application/java-archive";
 	contents["jpeg"]   = "image/jpeg";
-	contents["jpg"]	   = "image/jpeg";
-	contents["js"]	   = "text/javascript";
+	contents["jpg"]    = "image/jpeg";
+	contents["js"]     = "text/javascript";
 	contents["json"]   = "application/json";
 	contents["jsonld"] = "application/ld+json";
 	contents["midi"]   = "audio/midi";
-	contents["mid"]	   = "audio/midi";
-	contents["mjs"]	   = "text/javascript";
-	contents["mp3"]	   = "audio/mpeg";
-	contents["mp4"]	   = "video/mp4";
+	contents["mid"]    = "audio/midi";
+	contents["mjs"]    = "text/javascript";
+	contents["mp3"]    = "audio/mpeg";
+	contents["mp4"]    = "video/mp4";
 	contents["mpeg"]   = "video/mpeg";
 	contents["mpkg"]   = "application/vnd.apple.installer+xml";
-	contents["odp"]	   = "application/vnd.oasis.opendocument.presentation";
-	contents["ods"]	   = "application/vnd.oasis.opendocument.spreadsheet";
-	contents["odt"]	   = "application/vnd.oasis.opendocument.text";
-	contents["oga"]	   = "audio/ogg";
-	contents["ogv"]	   = "video/ogg";
-	contents["ogx"]	   = "application/ogg";
+	contents["odp"]    = "application/vnd.oasis.opendocument.presentation";
+	contents["ods"]    = "application/vnd.oasis.opendocument.spreadsheet";
+	contents["odt"]    = "application/vnd.oasis.opendocument.text";
+	contents["oga"]    = "audio/ogg";
+	contents["ogv"]    = "video/ogg";
+	contents["ogx"]    = "application/ogg";
 	contents["opus"]   = "audio/opus";
-	contents["otf"]	   = "font/otf";
-	contents["png"]	   = "image/png";
-	contents["pdf"]	   = "application/pdf";
-	contents["php"]	   = "application/x-httpd-php";
-	contents["ppt"]	   = "application/vnd.ms-powerpoint";
+	contents["otf"]    = "font/otf";
+	contents["png"]    = "image/png";
+	contents["pdf"]    = "application/pdf";
+	contents["php"]    = "application/x-httpd-php";
+	contents["ppt"]    = "application/vnd.ms-powerpoint";
 	contents["pptx"]   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-	contents["rar"]	   = "application/vnd.rar";
-	contents["rtf"]	   = "application/rtf";
-	contents["sh"]	   = "application/x-sh";
-	contents["svg"]	   = "image/svg+xml";
-	contents["swf"]	   = "application/x-shockwave-flash";
-	contents["tar"]	   = "application/x-tar";
+	contents["rar"]    = "application/vnd.rar";
+	contents["rtf"]    = "application/rtf";
+	contents["sh"]     = "application/x-sh";
+	contents["svg"]    = "image/svg+xml";
+	contents["swf"]    = "application/x-shockwave-flash";
+	contents["tar"]    = "application/x-tar";
 	contents["tiff"]   = "image/tiff";
-	contents["tif"]	   = "image/tiff";
-	contents["ts"]	   = "video/mp2t";
-	contents["ttf"]	   = "font/ttf";
-	contents["txt"]	   = "text/plain";
-	contents["vsd"]	   = "application/vnd.visio";
-	contents["wav"]	   = "audio/wav";
+	contents["tif"]    = "image/tiff";
+	contents["ts"]     = "video/mp2t";
+	contents["ttf"]    = "font/ttf";
+	contents["txt"]    = "text/plain";
+	contents["vsd"]    = "application/vnd.visio";
+	contents["wav"]    = "audio/wav";
 	contents["weba"]   = "audio/webm";
 	contents["webm"]   = "video/webm";
 	contents["webp"]   = "image/webp";
 	contents["woff"]   = "font/woff";
 	contents["woff2"]  = "font/woff2";
 	contents["xhtml"]  = "application/xhtml+xml";
-	contents["xls"]	   = "application/vnd.ms-excel";
+	contents["xls"]    = "application/vnd.ms-excel";
 	contents["xlsx"]   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-	contents["xml"]	   = "application/xml";
-	contents["xul"]	   = "application/vnd.mozilla.xul+xml";
-	contents["zip"]	   = "application/zip";
-	contents["3gp"]	   = "video/3gpp";
-	contents["3g2"]	   = "video/3gpp2";
-	contents["7z"]	   = "application/x-7z-compressed";
+	contents["xml"]    = "application/xml";
+	contents["xul"]    = "application/vnd.mozilla.xul+xml";
+	contents["zip"]    = "application/zip";
+	contents["3gp"]    = "video/3gpp";
+	contents["3g2"]    = "video/3gpp2";
+	contents["7z"]     = "application/x-7z-compressed";
 }
 
 void getContentType(const std::string &filetype, std::string &result) {

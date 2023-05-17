@@ -1,4 +1,5 @@
 #include "TCP_conn.hpp"
+
 #include "utils.hpp"
 
 #include <arpa/inet.h>
@@ -10,14 +11,13 @@
  */
 TCP_conn::TCP_conn(const std::string &port) {
 
-
 	auto int_port = std::stoi(port);
 
 	// create the server socket descriptor, return -1 on failure
 	serverSocket = socket(
-		AF_INET,					 // IPv4
-		SOCK_STREAM | SOCK_NONBLOCK, // reliable conn, multiple communication per socket, non blocking accept
-		IPPROTO_TCP);				 // Tcp protocol
+	    AF_INET,                     // IPv4
+	    SOCK_STREAM | SOCK_NONBLOCK, // reliable conn, multiple communication per socket, non blocking accept
+	    IPPROTO_TCP);                // Tcp protocol
 
 	if (serverSocket == INVALID_SOCKET) {
 		std::cout << "[Error]: Impossible to create server Socket. " << strerror(errno) << std::endl;
@@ -26,17 +26,16 @@ TCP_conn::TCP_conn(const std::string &port) {
 	int enable = 1;
 	setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
 
-
 	sockaddr_in serverAddr;
 	/*
 	type of address of this socket
 	type of inbound socket
 	port
 	*/
-	serverAddr.sin_family	   = AF_INET;		  // again IPv4
-	serverAddr.sin_addr.s_addr = INADDR_ANY;	  // accept any type of ipv4 address
-	serverAddr.sin_port		   = htons(int_port); // change to network byte order since needed internally,
-												  // network byte order is Big Endian, this machine is Little Endian
+	serverAddr.sin_family      = AF_INET;         // again IPv4
+	serverAddr.sin_addr.s_addr = INADDR_ANY;      // accept any type of ipv4 address
+	serverAddr.sin_port        = htons(int_port); // change to network byte order since needed internally,
+	                                              // network byte order is Big Endian, this machine is Little Endian
 
 	// bind the socket, "activate the socket"
 	// return -1 on failure
@@ -54,9 +53,7 @@ TCP_conn::TCP_conn(const std::string &port) {
 	}
 
 	isConnValid = true;
-
 }
-
 
 TCP_conn::~TCP_conn() {
 	shutDown(serverSocket);

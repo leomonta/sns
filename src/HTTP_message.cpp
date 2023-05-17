@@ -1,11 +1,12 @@
 #include "HTTP_message.hpp"
+
 #include "utils.hpp"
 
 #include <cstring>
 #include <iostream>
 
 HTTP_message::HTTP_message(std::string &raw_message, unsigned int dir) {
-	message	  = raw_message;
+	message   = raw_message;
 	direction = dir;
 
 	decompileMessage();
@@ -28,7 +29,7 @@ void HTTP_message::decompileHeader() {
 			parseMethod(temp[0]);
 			if (temp[1].find("?") != std::string::npos) {
 				std::vector<std::string> query = split(temp[1], "?");
-				filename					   = query[0];
+				filename                       = query[0];
 				parseQueryParameters(query[1]);
 			} else {
 				filename = temp[1];
@@ -51,7 +52,7 @@ void HTTP_message::decompileMessage() {
 	size_t pos = message.find("\r\n\r\n");
 
 	rawHeader = message.substr(0, pos);
-	rawBody	  = message.substr(pos);
+	rawBody   = message.substr(pos);
 
 	decompileHeader();
 	std::string divisor;
@@ -146,7 +147,7 @@ void HTTP_message::parseQueryParameters(std::string &params) {
 	for (size_t i = 0; i < datas.size(); i++) {
 		// temp string to store the decoded value
 		const char *src = datas[i].c_str();
-		char		 *dst = new char[strlen(src) + 1];
+		char       *dst = new char[strlen(src) + 1];
 		urlDecode(dst, src);
 
 		//  0 |  1
@@ -202,9 +203,9 @@ void HTTP_message::parseFormData(std::string &params, std::string &divisor) {
 		 * \r\n|Content-Disposition: form-data; name="field1"|\r\n\r\n|value1|\r\n|
 		 */
 		std::vector<std::string> option_value = split(datas[i], "\r\n");
-		option_value.pop_back();					  // pos 5
+		option_value.pop_back();                      // pos 5
 		option_value.erase(option_value.begin() + 2); // pos 2
-		option_value.erase(option_value.begin());	  // pos 0
+		option_value.erase(option_value.begin());     // pos 0
 
 		//                0              ||      1      ||         2
 		// Content-Disposition: form-data; name="field1"; filename="example.txt"
