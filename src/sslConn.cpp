@@ -55,19 +55,19 @@ SSL_CTX *sslConn::createContext() {
 
 	// Load the keys and cetificates
 
-	auto certUse = SSL_CTX_use_certificate_file(res, "cert.pem", SSL_FILETYPE_PEM);
+	auto certUse = SSL_CTX_use_certificate_file(res, "/usr/local/bin/cert.pem", SSL_FILETYPE_PEM);
 
 	if (certUse != 1) {
 		ERR_print_errors_fp(stderr);
-		log(LOG_FATAL, "Could not load certificate file %s\n", "./cert.pem");
+		log(LOG_FATAL, "Could not load certificate file %s\n", "cert.pem");
 		return nullptr;
 	}
 
-	auto keyUse = SSL_CTX_use_PrivateKey_file(res, "key.pem", SSL_FILETYPE_PEM);
+	auto keyUse = SSL_CTX_use_PrivateKey_file(res, "/usr/local/bin/key.pem", SSL_FILETYPE_PEM);
 
 	if (keyUse != 1) {
 		ERR_print_errors_fp(stderr);
-		log(LOG_FATAL, "Could not load private key file %s\n", "./key.pem");
+		log(LOG_FATAL, "Could not load private key file %s\n", "key.pem");
 		return nullptr;
 	}
 

@@ -4,9 +4,6 @@
 #include "sslConn.hpp"
 #include "tcpConn.hpp"
 
-void acceptRequests(bool *threadStop);
-void resolveRequest(Socket clientSocket, bool *threadStop);
-
 void acceptRequestsSecure(bool *threadStop);
 void resolveRequestSecure(SSL *sslConn, Socket clientSocket, bool *threadStop);
 

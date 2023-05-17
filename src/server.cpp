@@ -5,11 +5,11 @@
 #include "utils.hpp"
 
 #include <filesystem>
-#include <iostream>
 #include <mutex>
 #include <string.h>
 #include <sys/stat.h>
 #include <thread>
+#include <time.h>
 
 const char *methodStr[] = {
     "INVALID",
@@ -33,7 +33,7 @@ namespace Res {
 
 	// Http Server
 	std::string baseDirectory = "/";
-	short       tcpPort       = 80;
+	short       tcpPort       = 443;
 
 	// for controlling debug prints
 	std::map<std::string, std::string> mimeTypes;
@@ -43,34 +43,53 @@ namespace Res {
 	Socket   serverSocket;
 	SSL_CTX *sslContext = nullptr;
 	bool     threadStop = false;
+	time_t   startTime;
 } // namespace Res
 
 int main(const int argc, const char *argv[]) {
 
 	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
 
+	// Get port and directory, maybe
 	parseArgs(argc, argv);
 
+	// setup the tcp server socket and the ssl context
 	setup();
 
+	// start the requests accpetor secure thread
 	start();
 
 	// cli like interface
 	while (true) {
 		char line[256];
-		if (fgets(line, sizeof(line), stdin) != nullptr) {
-			trimwhitespace(line);
-
-			// simple commands
-			if (strcmp(line, "exit") == 0) {
-				stop();
-				break;
-			} else if (strcmp(line, "restart") == 0) {
-				restart();
-			}
-
-			printf("> ");
+		if (fgets(line, sizeof(line), stdin) == nullptr) {
+			continue;
 		}
+
+		// line is a valid value
+
+		trimwhitespace(line);
+
+		// simple commands
+		if (strcmp(line, "exit") == 0) {
+			stop();
+			break;
+		}
+		if (strcmp(line, "restart") == 0) {
+			restart();
+		}
+
+		if (strcmp(line, "time") == 0) {
+			time_t        now   = time(nullptr) - Res::startTime;
+			unsigned      days  = now / (60 * 60 * 24);
+			unsigned char hours = now / (60 * 60) % 24;
+			unsigned char mins  = now / 20 % 60;
+			unsigned char secs  = now % 60;
+
+			printf("Time elapsed since the 'start()' method was called is %d Days and %02d:%02d:%02d\n",days, hours, mins, secs);
+		}
+
+		printf("> ");
 	}
 
 	// Instrumentor::Get().EndSession();
@@ -126,8 +145,9 @@ void start() {
 
 	Res::threadStop = false;
 
-	// Res::requestAcceptor = std::thread(acceptRequests, &Res::threadStop);
 	Res::requestAcceptor = std::thread(acceptRequestsSecure, &Res::threadStop);
+
+	Res::startTime = time(nullptr);
 }
 
 void restart() {
@@ -152,90 +172,6 @@ void parseArgs(const int argc, const char *argv[]) {
 	case 2:
 		Res::baseDirectory = argv[1];
 	}
-}
-
-/**
- * Actively wait for clients, if one is received spawn a thread and continue
- */
-void acceptRequests(bool *threadStop) {
-
-	PROFILE_FUNCTION();
-
-	// used for controlling
-	Socket client = -1;
-
-	std::vector<std::thread> threads;
-
-	// Receive until the peer shuts down the connection
-	while (!(*threadStop)) {
-
-		client = tcpConn::acceptClientSock(Res::serverSocket);
-
-		if (client != -1) {
-			// resolveRequest(client, &http);
-			threads.push_back(std::thread(resolveRequest, client, threadStop));
-		}
-	}
-
-	for (size_t i = 0; i < threads.size(); ++i) {
-		threads[i].join();
-	}
-}
-
-/**
- * threaded, resolve the request obtained via the sockey
- */
-void resolveRequest(Socket clientSocket, bool *threadStop) {
-
-	PROFILE_FUNCTION();
-
-	int bytesReceived;
-
-	std::string request;
-	httpMessage response;
-
-	while (!(*threadStop)) {
-
-		// ---------------------------------------------------------------------- RECEIVE
-		bytesReceived = tcpConn::receiveSegment(clientSocket, request);
-
-		// received some bytes
-		if (bytesReceived > 0) {
-
-			httpMessage mex(request);
-
-			// no really used
-			switch (mex.method) {
-			case http::HTTP_HEAD:
-				Head(mex, response);
-				break;
-
-			case http::HTTP_GET:
-				Get(mex, response);
-				break;
-			}
-
-			// make the message a single formatted string
-			auto res = http::compileMessage(response.header, response.body);
-
-			log(LOG_INFO, "[Socket %d] Received request	%s \n", clientSocket, methodStr[mex.method]);
-
-			// ------------------------------------------------------------------ SEND
-			// acknowledge the segment back to the sender
-			tcpConn::sendSegment(clientSocket, res);
-
-			break;
-		}
-
-		// received an error
-		if (bytesReceived <= 0) {
-
-			break;
-		}
-	}
-
-	tcpConn::shutdownSocket(clientSocket);
-	tcpConn::closeSocket(clientSocket);
 }
 
 void acceptRequestsSecure(bool *threadStop) {
