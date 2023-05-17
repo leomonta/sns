@@ -4,7 +4,7 @@
 			"name": "gcc64",
 			"includePath": [
 				"include",
-				"ext/json/include/nlohmann"
+				"ext/"
 			],
 			"compilerArgs": [
 				"-Wconversion",
@@ -16,7 +16,6 @@
 				"UNICODE",
 				"_UNICODE"
 			],
-			"windowsSdkVersion": "10.0.18362.0",
 			"compilerPath": "/usr/bin/g++",
 			"cStandard": "c11",
 			"cppStandard": "c++20",

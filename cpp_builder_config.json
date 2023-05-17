@@ -1,19 +1,18 @@
 {
 	"projectDir": ".",
 	"exeName": "server.bin",
+	"compiler_style" : "gcc",
 	"compilerExe" : "g++",
+	"linkerExe" : "g++",
 	"Directories": {
 		"includeDir": [
 			"include",
-			"ext/json/include/nlohmann",
-			"ext/asio",
-			"ext/zlib/include"
+			"ext/"
 		],
 		"sourceDir": [
 			"src"
 		],
 		"libraryDir": [
-			"ext/zlib/lib"
 		],
 		"objectsDir": "objs",
 		"exeDir": "bin"
@@ -36,8 +35,8 @@
 			"Linker": "-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak"
 		},
 		"Release": {
-			"Compiler": "-O2 -DASIO_STANDALONE -std=c++2a",
-			"Linker": "-s"
+			"Compiler": "-O2 -g3 -std=c++2a",
+			"Linker": ""
 		}
 	}
 }
