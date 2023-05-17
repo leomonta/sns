@@ -1,4 +1,6 @@
 {
+	"scripts": {
+	},
 	"compiler": {
 		"compiler_style": "gcc",
 		"compiler_exe": "g++",
