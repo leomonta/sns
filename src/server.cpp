@@ -34,7 +34,7 @@ const unsigned char serverVersionMajor = 3;
 const unsigned char serverVersionMinor = 3;
 
 void Panico(int cos) {
-	printf("Signal %d received \n", cos);
+	printf("Signal %d received %s \n", cos, strerror(errno));
 	exit(1);
 }
 
@@ -58,6 +58,12 @@ namespace Res {
 int main(const int argc, const char *argv[]) {
 
 	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
+
+	const char *mesg = "GET /echo?dio=santo HTTP/1.1\r\n"
+	                   "Host: reqbin.com\r\n"
+	                   "Accept: text/html\r\n\r\n";
+
+	httpMessage m(mesg);
 
 	signal(SIGPIPE, Panico);
 
@@ -163,7 +169,8 @@ void start() {
 
 	Res::threadStop = false;
 
-	Res::requestAcceptor = std::thread(acceptRequestsSecure, &Res::threadStop);
+	// Res::requestAcceptor = std::thread(acceptRequestsSecure, &Res::threadStop);
+	acceptRequestsSecure(&Res::threadStop);
 	log(LOG_DEBUG, "[SERVER] ReqeustAcceptorSecure thread Started\n");
 
 	Res::startTime = time(nullptr);
@@ -221,7 +228,8 @@ void acceptRequestsSecure(bool *threadStop) {
 		}
 
 		log(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
-		std::thread(resolveRequestSecure, sslConnection, client, threadStop).detach();
+		// std::thread(resolveRequestSecure, sslConnection, client, threadStop).detach();
+		resolveRequestSecure(sslConnection, client, threadStop);
 	}
 }
 
@@ -256,13 +264,13 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 			}
 
 			// make the message a single formatted string
-			auto res = http::compileMessage(response.header, response.body);
+			//  auto res = http::compileMessage(response.header, response.body);
 
 			// log(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res.c_str());
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			sslConn::sendRecord(sslConnection, res);
+			// sslConn::sendRecord(sslConnection, res);
 
 			break;
 		}
@@ -284,84 +292,86 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
  */
 int Head(httpMessage &inbound, httpMessage &outbound) {
 
-	PROFILE_FUNCTION();
+	/*
+	    PROFILE_FUNCTION();
 
-	// info about the file requested, to not recheck later
-	int fileInfo = FILE_FOUND;
+	    // info about the file requested, to not recheck later
+	    int fileInfo = FILE_FOUND;
 
-	const char *src = inbound.url.c_str();
-	char       *dst = new char[strlen(src) + 1];
-	urlDecode(dst, src);
+	    const char *src = inbound.url.c_str();
+	    char       *dst = new char[strlen(src) + 1];
+	    urlDecode(dst, src);
 
-	// re set the filename as the base directory and the decoded filename
-	std::string file = Res::baseDirectory + dst;
+	    // re set the filename as the base directory and the decoded filename
+	    std::string file = Res::baseDirectory + dst;
 
-	log(LOG_DEBUG, "[SERVER] Decoded URL to '%s'\n", dst);
+	    log(LOG_DEBUG, "[SERVER] Decoded URL to '%s'\n", dst);
 
-	delete[] dst;
+	    delete[] dst;
 
-	// usually to request index.html browsers do not specify it, they usually use /, if that's the case I add index.html
-	// back access the last char of the string
+	    // usually to request index.html browsers do not specify it, they usually use /, if that's the case I add index.html
+	    // back access the last char of the string
 
-	struct stat fileStat;
-	auto        errCode = stat(file.c_str(), &fileStat);
+	    struct stat fileStat;
+	    auto        errCode = stat(file.c_str(), &fileStat);
 
-	if (errCode != 0) {
-		log(LOG_WARNING, "[SERVER] File requested (%s) not found\n", file.c_str());
-		log(LOG_WARNING, "[SYSTEM] %s\n", strerror(errno));
+	    if (errCode != 0) {
+	        log(LOG_WARNING, "[SERVER] File requested (%s) not found\n", file.c_str());
+	        log(LOG_WARNING, "[SYSTEM] %s\n", strerror(errno));
 
-		fileInfo = FILE_NOT_FOUND;
-	}
+	        fileInfo = FILE_NOT_FOUND;
+	    }
 
-	// check of I'm dealing with a directory
-	if (S_ISDIR(fileStat.st_mode) || file.back() == '/') {
-		auto correctedFile = file + "/index.html";
-		errCode            = stat(correctedFile.c_str(), &fileStat);
+	    // check of I'm dealing with a directory
+	    if (S_ISDIR(fileStat.st_mode) || file.back() == '/') {
+	        auto correctedFile = file + "/index.html";
+	        errCode            = stat(correctedFile.c_str(), &fileStat);
 
-		// index exists, use that
-		if (errCode == 0) {
-			log(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
-			fileInfo = FILE_IS_DIR_FOUND;
-			file     = correctedFile;
-		} else { // file does not exists use dir view
-			log(LOG_WARNING, "[SERVER] The file requested is a directory with no index.html. Fallback to dir view\n");
-			fileInfo = FILE_IS_DIR_NOT_FOUND;
-		}
-	}
+	        // index exists, use that
+	        if (errCode == 0) {
+	            log(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
+	            fileInfo = FILE_IS_DIR_FOUND;
+	            file     = correctedFile;
+	        } else { // file does not exists use dir view
+	            log(LOG_WARNING, "[SERVER] The file requested is a directory with no index.html. Fallback to dir view\n");
+	            fileInfo = FILE_IS_DIR_NOT_FOUND;
+	        }
+	    }
 
-	// insert in the outbound message the necessaire header options, filename is used to determine the response code
-	composeHeader(file, outbound.header, fileInfo);
+	    // insert in the outbound message the necessaire header options, filename is used to determine the response code
+	    composeHeader(file, outbound.header, fileInfo);
 
-	outbound.header[http::RP_Content_Length] = std::to_string(fileStat.st_size);
-	outbound.header[http::RP_Cache_Control]  = "max-age=3600";
-	outbound.url                             = file;
+	    outbound.header[http::RP_Content_Length] = std::to_string(fileStat.st_size);
+	    outbound.header[http::RP_Cache_Control]  = "max-age=3600";
+	    outbound.url                             = file;
 
-	return fileInfo;
+	    return fileInfo;*/
 }
 
 /**
  * the http method, get both the header and the body
  */
 void Get(httpMessage &inbound, httpMessage &outbound) {
+	/*
+	    PROFILE_FUNCTION();
 
-	PROFILE_FUNCTION();
+	    // I just need to add the body to the head,
+	    auto fileInfo = Head(inbound, outbound);
 
-	// I just need to add the body to the head,
-	auto fileInfo = Head(inbound, outbound);
+	    auto uncompressed = getFile(outbound.url, fileInfo);
 
-	auto uncompressed = getFile(outbound.url, fileInfo);
+	    std::string compressed = "";
+	    if (uncompressed != "") {
+	        compressGz(compressed, uncompressed.c_str(), uncompressed.length());
+	        log(LOG_DEBUG, "[SERVER] Compressing response body\n");
+	    }
 
-	std::string compressed = "";
-	if (uncompressed != "") {
-		compressGz(compressed, uncompressed.c_str(), uncompressed.length());
-		log(LOG_DEBUG, "[SERVER] Compressing response body\n");
-	}
+	    // set the content of the message
+	    outbound.body = compressed;
 
-	// set the content of the message
-	outbound.body = compressed;
-
-	outbound.header[http::RP_Content_Length]   = std::to_string(compressed.length());
-	outbound.header[http::RP_Content_Encoding] = "gzip";
+	    outbound.header[http::RP_Content_Length]   = std::to_string(compressed.length());
+	    outbound.header[http::RP_Content_Encoding] = "gzip";
+	    */
 }
 
 /**

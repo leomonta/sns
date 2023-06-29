@@ -183,3 +183,44 @@ void trimwhitespace(char *str) {
 
 	str[size] = '\0';
 }
+
+const char *strnstr(const char *haystack, const char *needle, const size_t count) {
+
+	if (count == 0) {
+		return nullptr;
+	}
+
+	auto Itr = 0;
+
+	for (size_t i = 0; i < count; ++i) {
+
+		if (haystack[i] == needle[Itr]) {
+			++Itr;
+			if (needle[Itr] == '\0') {
+				// match
+				return haystack + i - Itr + 1;
+			}
+
+		} else {
+			// reset back the search
+			i -= Itr;
+			Itr = 0;
+		}
+	}
+
+	// no match
+	return haystack;
+}
+
+const char *strnchr(const char *str, int chr, const size_t count) {
+
+	for (size_t i = 0; i < count; ++i) {
+		if (*str == chr) {
+			return str;
+		}
+
+		++str;
+	}
+
+	return nullptr;
+}

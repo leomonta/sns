@@ -15,7 +15,7 @@ void resolveRequestSecure(SSL *sslConn, Socket clientSocket, bool *threadStop);
 
 int         Head(httpMessage &inbound, httpMessage &outbound);
 void        Get(httpMessage &inbound, httpMessage &outbound);
-void        composeHeader(const std::string &filename, std::map<int, std::string> &result, const int fileInfo);
+void        composeHeader(const std::string &filename, std::unordered_map<int, std::string> &result, const int fileInfo);
 std::string getFile(const std::string &file, const int fileInfo);
 std::string getDirView(const std::string &dirname);
 

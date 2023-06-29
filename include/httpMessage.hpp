@@ -1,24 +1,73 @@
 #pragma once
 #include <fstream>
-#include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #define REQUEST_HEADERS  41
 #define RESPONSE_HEADERS 49
 
-class httpMessage;
+// express a substring by referencing another c string
+struct stringRef {
+	const char *str;
+	size_t      len;
+
+	bool operator==(const stringRef &sr) const {
+		return (sr.str == str && sr.len == len);
+	}
+};
+
+namespace std {
+	template <>
+	struct hash<stringRef> {
+
+		size_t operator()(const stringRef &k) const {
+			// Compute individual hash values for two data members and combine them using XOR and bit shifting
+
+			// #k.x 0 #k.y
+			auto ptr = reinterpret_cast<size_t>(k.str) << 2;
+			return (ptr * 10 + k.len);
+		}
+	};
+
+	template <>
+	struct equal_to<stringRef> {
+
+		bool operator()(const stringRef &rhs, const stringRef &lhs) const {
+			return rhs == lhs;
+		}
+	};
+} // namespace std
+
+class httpMessage {
+public:
+	int                                      method;        // the appropriate http method
+	int                                      version;       // the version of the http header (1.0, 1.1, 2.0, ...)
+	std::unordered_map<int, stringRef>       headerOptions; // represent the header as the collection of the single options -> value
+	char                                    *rawMessage;    // the c string containing the entire header
+	std::unordered_map<stringRef, stringRef> parameters;    // contain the data sent in the forms and query parameters
+	stringRef                                url;           // the resource asked from the client
+
+	httpMessage(){
+
+	};
+
+	httpMessage(std::string &raw_message);
+	httpMessage(const char *raw_message);
+
+	~httpMessage();
+};
 
 namespace http {
-	void        decompileHeader(const std::string &rawHeader, httpMessage &msg);
-	void        decompileMessage(const std::string &cType, std::map<std::string, std::string> &parameters, std::string &body);
-	std::string compileMessage(const std::map<int, std::string> &header, const std::string &body);
-	int         getMethodCode(const std::string &requestMethod);
-	int         getVersionCode(const std::string &httpVersion);
+	void        decompileHeader(const stringRef &rawHeader, httpMessage &msg);
+	void        decompileMessage(const std::string &cType, std::unordered_map<std::string, std::string> &parameters, std::string &body);
+	std::string compileMessage(const std::unordered_map<int, std::string> &header, const std::string &body);
+	int         getMethodCode(const stringRef &requestMethod);
+	int         getVersionCode(const stringRef &httpVersion);
 	int         getParameterCode(const std::string &parameter);
-	void        parseQueryParameters(const std::string &query, std::map<std::string, std::string> &parameters);
-	void        parsePlainParameters(const std::string &params, std::map<std::string, std::string> &parameters);
-	void        parseFormData(const std::string &params, std::string &divisor, std::map<std::string, std::string> &parameters);
+	void        parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters);
+	void        parsePlainParameters(const std::string &params, std::unordered_map<std::string, std::string> &parameters);
+	void        parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
 
 	// http method code
 	enum methods {
@@ -141,17 +190,3 @@ namespace http {
 	};
 
 } // namespace http
-
-class httpMessage {
-public:
-	int                                method;     // the appropriate http method
-	int                                version;    // the version of the http header (1.0, 1.1, 2.0, ...)
-	std::map<int, std::string>         header;     // represent the header as the collection of the single options -> value
-	std::map<std::string, std::string> parameters; // contain the data sent in the forms and query parameters
-	std::string                        body;       // represent the body as a single string
-	std::string                        url;        // the resource asked from the client
-
-	httpMessage(){};
-
-	httpMessage(std::string &raw_message);
-};

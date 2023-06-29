@@ -5,7 +5,7 @@
 			"name": "Debug",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/bin/server.bin",
+			"program": "${workspaceFolder}/bin/sns",
 			"args": ["/home/leonard/workspace/web-dev/htmlarea"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/bin/",
