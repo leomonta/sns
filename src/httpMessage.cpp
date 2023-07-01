@@ -1,9 +1,23 @@
 #include "httpMessage.hpp"
 
+#include "logger.hpp"
 #include "profiler.hpp"
 #include "utils.hpp"
 
+#include <stdio.h>
 #include <string.h>
+
+void printStringRef(const stringRef &strRef) {
+
+	const char *str = strRef.str;
+
+	for (size_t i = 0; i < strRef.len; ++i) {
+		putchar(*str);
+		++str;
+	}
+
+	putchar('\n');
+}
 
 const char *headerRqStr[] = {
     "A-IM",
@@ -336,31 +350,53 @@ void http::parseQueryParameters(const stringRef &query, std::unordered_map<strin
 
 	PROFILE_FUNCTION();
 
-	// each parameter is separeted by the '&'
-	// auto datas = split(query, "&");
+	// If i'm being called it means that an ? has been found in the url
+	// Still there mught be nothing after it -> GET /index.html? HTTP/1.1
 
-	for (size_t i = 0; i < query.len; ++i) {
-		// temp string to store the decoded value
-		/*
-		const char *src = datas[i].c_str();
-		char       *dst = new char[strlen(src) + 1];
-		urlDecode(dst, src);
+	// dio=santo&code
+	stringRef  chunk    = {query.str, query.len}; // a key=value pair ignoring the '&'
+	const auto limit    = query.str + query.len;
+	auto       limitLen = query.len; // from the start of the chunk to the end of the query params
 
-		//  0 |  1
-		// key=value
-		temp = split(dst, "=");
+	while (chunk.str < limit) {
 
-		delete[] dst;
-		*/
-
-		auto      eq    = strnchr(query.str, '=', query.len);
-		size_t    pos   = eq - query.str;
-		stringRef key   = {query.str, pos};
-		stringRef value = {eq + 1, query.len - pos};
-
-		if (eq != nullptr && strcmp(key.str, "") != 0) {
-			parameters[key] = value;
+		auto ampersand = strnchr(chunk.str, '&', limitLen);
+		if (ampersand == nullptr) {
+			chunk.len = limitLen;
+		} else {
+			chunk.len = ampersand - chunk.str;
 		}
+
+		printStringRef(chunk);
+
+		auto eq = strnchr(chunk.str, '=', chunk.len); // search for the the equal sign
+		if (eq == nullptr) {
+			// malformed parameter
+
+			char *temp = (char *)malloc(chunk.len + 1);
+			memcpy(temp, chunk.str, chunk.len);
+			temp[chunk.len] = '\0';
+			log(LOG_WARNING, "Query Parameter malformed -> '%s' \n", temp);
+			free(temp);
+
+		} else {
+
+			size_t    pos = eq - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
+			stringRef key = {chunk.str, pos};              // from the start of the chunk to before the equal
+			stringRef val = {eq + 1, chunk.len - pos - 1}; // from after the equal to the end of the chunk
+
+			printStringRef(key);
+			printStringRef(val);
+
+			if (eq != nullptr && strcmp(key.str, "") != 0) {
+				parameters[key] = val;
+			}
+		}
+
+		// at the end of the chunk
+		chunk.str = chunk.str + chunk.len + 1; // prepare at the end of the string, over the ampersandquerd
+		limitLen -= chunk.len + 1;             // recalculate the limitLen
+		chunk.len = 0;                         // just to be sure
 	}
 }
 

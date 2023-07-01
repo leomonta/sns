@@ -59,7 +59,7 @@ int main(const int argc, const char *argv[]) {
 
 	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
 
-	const char *mesg = "GET /echo?dio=santo HTTP/1.1\r\n"
+	const char *mesg = "GET /echo?stagione&caldo=si& HTTP/1.1\r\n"
 	                   "Host: reqbin.com\r\n"
 	                   "Accept: text/html\r\n\r\n";
 

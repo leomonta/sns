@@ -212,6 +212,11 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
 	return haystack;
 }
 
+/**
+ *  Finds the first occurrence of ch in the byte string pointed to by str to a max of count - 1
+ *
+ * @return pointer to the character found or nullptr if no such character is found
+ */
 const char *strnchr(const char *str, int chr, const size_t count) {
 
 	for (size_t i = 0; i < count; ++i) {
