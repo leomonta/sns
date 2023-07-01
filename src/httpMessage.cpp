@@ -23,6 +23,17 @@ void printStringRef(const stringRef &strRef) {
 	putchar('\n');
 }
 
+void logMalformedParameter(const stringRef &strRef) {
+	// malformed parameter
+
+	// make a temporary buffer to print it with a classical printf
+	char *temp = (char *)malloc(strRef.len + 1); // account for the null terminator
+	memcpy(temp, strRef.str, strRef.len);        // copy the data
+	temp[strRef.len] = '\0';                     // null terminator
+	log(LOG_WARNING, "Malformed parameter -> '%s' \n", temp);
+	free(temp); // and free
+}
+
 const char *headerRqStr[] = {
     "A-IM",
     "Accept",
@@ -201,10 +212,58 @@ void http::decompileHeader(const stringRef &rawHeader, httpMessage &msg) {
 		stringRef queryParams = {msg.url.str + qPos + 1, msg.url.len - qPos - 1};
 		parseQueryParameters(queryParams, msg.parameters);
 	}
-	/*
 
 	// parse the remaining header options
 
+	auto       startOptions      = strnchr(rawHeader.str, '\n', rawHeader.len) + 1; // the plus 1 is needed to start after the \r\n
+	size_t     lenToStartOptions = startOptions - rawHeader.str;
+	stringRef  line              = {startOptions, lenToStartOptions};
+	const auto limit             = rawHeader.str + rawHeader.len;
+	auto       limitLen          = rawHeader.len - lenToStartOptions;
+
+	while (line.str < limit) {
+
+		auto crlf = strnchr(line.str, '\n', limitLen);
+
+		if (crlf == nullptr) {
+			line.len = limitLen;
+		} else {
+			line.len = crlf - line.str - 1;
+		}
+
+		printStringRef(line);
+
+		auto sep = strnchr(line.str, ':', line.len);
+		if (sep == nullptr) {
+			logMalformedParameter(line);
+		} else {
+
+			// everything is fine here
+
+			size_t    pos = sep - line.str;                // get the pointer difference from the start of the line and the position of the '='
+			stringRef key = {line.str, pos};               // from the start of the line to before the '='
+			stringRef val = {sep + 1, line.len - pos - 1}; // from after the '=' to the end of the line
+
+			trim(key);
+			trim(val);
+
+			printStringRef(key);
+			printStringRef(val);
+
+			// check if we actually have a key, the value can be empty
+			if (strcmp(key.str, "") != 0) {
+				// finally put it in the map
+				msg.headerOptions[getParameterCode(key)] = val;
+			}
+		}
+
+		// at the end of the line
+		line.str = line.str + line.len + 2; // move at the end of the string, over the ampersand
+		limitLen -= line.len + 2;           // recalculate the limitLen (limitLen = limitLen - len - 1) -> limitLen = limitLen - (len + 1)
+		line.len = 0;                       // just to be sure
+	}
+
+	/*
 	for (size_t i = 1; i < options.size(); ++i) {
 
 	    // each header option is composed as "option: value\n"
@@ -338,14 +397,14 @@ int http::getVersionCode(const stringRef &httpVersion) {
 	return HTTP_INVALID;
 }
 
-int http::getParameterCode(const std::string &parameter) {
+int http::getParameterCode(const stringRef &parameter) {
 
 	// thi is one hell of a elif chain
 	// lickily i need to check only for the requests headers
 	// I'm becoming yan dev
 
 	for (int i = 0; i < REQUEST_HEADERS; ++i) {
-		if (parameter == headerRqStr[i]) {
+		if (strncmp(parameter.str, headerRqStr[i], parameter.len)) {
 			return i;
 		}
 	}
@@ -388,12 +447,7 @@ void http::parseQueryParameters(const stringRef &query, std::unordered_map<strin
 		if (eq == nullptr) {
 			// malformed parameter
 
-			// make a temporary buffer to print it with a classical printf
-			char *temp = (char *)malloc(chunk.len + 1); // account for the null terminator
-			memcpy(temp, chunk.str, chunk.len);         // copy the data
-			temp[chunk.len] = '\0';                     // null terminator
-			log(LOG_WARNING, "Query Parameter malformed -> '%s' \n", temp);
-			free(temp); // and free
+			logMalformedParameter(chunk);
 
 		} else {
 
@@ -444,8 +498,8 @@ void http::parsePlainParameters(const std::string &params, std::unordered_map<st
 
 /**
  * Parse the data divided by special divisor in form data and then insert them in the parameters map in the httpMessage
- * 
- * @param params the parameters encodedn in form data 
+ *
+ * @param params the parameters encodedn in form data
  * @param divisor the unique divisor string used in the data
  * @param parameters the map where to put the parameters found
  */

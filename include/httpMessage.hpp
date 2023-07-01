@@ -1,43 +1,12 @@
 #pragma once
+#include "stringRef.hpp"
+
 #include <fstream>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #define REQUEST_HEADERS  41
 #define RESPONSE_HEADERS 49
-
-// express a substring by referencing another c string
-struct stringRef {
-	const char *str;
-	size_t      len;
-
-	bool operator==(const stringRef &sr) const {
-		return (sr.str == str && sr.len == len);
-	}
-};
-
-namespace std {
-	template <>
-	struct hash<stringRef> {
-
-		size_t operator()(const stringRef &k) const {
-			// Compute individual hash values for two data members and combine them using XOR and bit shifting
-
-			// #k.x 0 #k.y
-			auto ptr = reinterpret_cast<size_t>(k.str) << 2;
-			return (ptr * 10 + k.len);
-		}
-	};
-
-	template <>
-	struct equal_to<stringRef> {
-
-		bool operator()(const stringRef &rhs, const stringRef &lhs) const {
-			return rhs == lhs;
-		}
-	};
-} // namespace std
 
 class httpMessage {
 public:
@@ -48,9 +17,7 @@ public:
 	std::unordered_map<stringRef, stringRef> parameters;    // contain the data sent in the forms and query parameters
 	stringRef                                url;           // the resource asked from the client
 
-	httpMessage(){
-
-	};
+	httpMessage(){};
 
 	httpMessage(std::string &raw_message);
 	httpMessage(const char *raw_message);
@@ -64,7 +31,7 @@ namespace http {
 	std::string compileMessage(const std::unordered_map<int, std::string> &header, const std::string &body);
 	int         getMethodCode(const stringRef &requestMethod);
 	int         getVersionCode(const stringRef &httpVersion);
-	int         getParameterCode(const std::string &parameter);
+	int         getParameterCode(const stringRef &parameter);
 	void        parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters);
 	void        parsePlainParameters(const std::string &params, std::unordered_map<std::string, std::string> &parameters);
 	void        parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);

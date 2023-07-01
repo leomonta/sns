@@ -229,3 +229,28 @@ const char *strnchr(const char *str, int chr, const size_t count) {
 
 	return nullptr;
 }
+
+/**
+ * rework the stringRef to remove unwanted whitespaces in front or at the back of the content
+ * @param strRef the stringRef to modify
+ */
+void trim(stringRef &strRef) {
+	size_t newStart;
+
+	for (newStart = 0; newStart < strRef.len; ++newStart) {
+		if (strRef.str[newStart] != ' ') {
+			break;
+		}
+	}
+
+	strRef.str += newStart;
+	strRef.len -= newStart;
+
+	size_t newEnd;
+	for (newEnd = 0; newEnd < strRef.len; ++newEnd) {
+		if (strRef.str[strRef.len - newEnd - 1] != ' ') {
+			break;
+		}
+	}
+	strRef.len -= newEnd;
+}
