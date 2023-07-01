@@ -7,15 +7,19 @@
 #include <stdio.h>
 #include <string.h>
 
+/**
+ * Quick method to print a stringRef
+ */
 void printStringRef(const stringRef &strRef) {
 
 	const char *str = strRef.str;
 
 	for (size_t i = 0; i < strRef.len; ++i) {
+		// there is no print function that print a portion of a string, so i print each character one by one
 		putchar(*str);
 		++str;
 	}
-
+	// newline is essential for flushing
 	putchar('\n');
 }
 
@@ -123,41 +127,47 @@ httpMessage::httpMessage(const char *message) {
 
 	PROFILE_FUNCTION();
 
+	// use strlen so i'm sure it's not counting the null terminator
 	auto msgLen = strlen(message);
 
-	rawMessage = new char[msgLen + 1];
-	memcpy(rawMessage, message, msgLen + 1);
+	// save the message in a local pointer so i don't rely on std::string allocation plus a null terminator
+	rawMessage_a = new char[msgLen + 1];
+	memcpy(rawMessage_a, message, msgLen + 1);
 
 	// body and header are divided by two newlines
-	auto bodyHead_meet = strstr(rawMessage, "\r\n\r\n");
+	auto msgSeparator = strstr(rawMessage_a, "\r\n\r\n");
 
-	unsigned long bodyHead_diff = bodyHead_meet - rawMessage;
+	unsigned long headerLen = msgSeparator - rawMessage_a;
 
 	stringRef header;
 	stringRef body;
 
 	// strstr return 0 if nothing is found or the given pointer if it is an empty string
-	if (bodyHead_meet == 0 || bodyHead_meet == rawMessage) {
+	if (msgSeparator == 0 || msgSeparator == rawMessage_a) {
 		header = {nullptr, 0};
 		body   = {nullptr, 0};
 	} else {
-		header = {rawMessage, bodyHead_diff};
-		body   = {rawMessage + bodyHead_diff, msgLen - bodyHead_diff};
+		header = {rawMessage_a, headerLen};
+		body   = {rawMessage_a + headerLen, msgLen - headerLen};
 	}
 
-	// the +4 is to account for the length of the string searched
+	// now i have the two stringRefs to the body and the header
 
+	// extract metadata parameters and other stuff
 	http::decompileHeader(header, *this);
 
 	// http::decompileMessage(header[http::RQ_Content_Type], parameters, body);
 }
 
 httpMessage::~httpMessage() {
-	delete[] rawMessage;
+	delete[] rawMessage_a;
 }
 
 /**
  * deconstruct the raw header in a map with key (option) -> value
+ * and fetch some Metadata such as verb, version, url, a parameters
+ * @param rawHeader the stringRef containing the header as a char* string
+ * @param msg the httpMessage to store the information extracted
  */
 void http::decompileHeader(const stringRef &rawHeader, httpMessage &msg) {
 
@@ -167,29 +177,29 @@ void http::decompileHeader(const stringRef &rawHeader, httpMessage &msg) {
 
 	//  0 |1|    2
 	// GET / HTTP/1.1\r\n
-	size_t firstSpaceLen  = strstr(rawHeader.str, " ") - rawHeader.str;                                           // gets me until the space after the verb
-	size_t secondSpaceLen = strstr(rawHeader.str + firstSpaceLen + 1, " ") - (rawHeader.str + firstSpaceLen + 1); // untile the space after the URL
-	size_t endlineLen     = strstr(rawHeader.str, "\r\n") - (rawHeader.str + firstSpaceLen + secondSpaceLen + 2); // until the first newline
+	size_t firstSpaceLen  = strnstr(rawHeader.str, " ", rawHeader.len) - rawHeader.str;                                           // gets me until the space after the method verb
+	size_t secondSpaceLen = strnstr(rawHeader.str + firstSpaceLen + 1, " ", rawHeader.len) - (rawHeader.str + firstSpaceLen + 1); // until the space after the URL
+	size_t endlineLen     = strnstr(rawHeader.str, "\r\n", rawHeader.len) - (rawHeader.str + firstSpaceLen + secondSpaceLen + 2); // until the first newline
 
+	// temporary stringRefs
 	stringRef methodRef  = {rawHeader.str, firstSpaceLen};
 	stringRef versionRef = {rawHeader.str + secondSpaceLen + firstSpaceLen + 2, endlineLen};
 
+	// actually storing the values in the object
 	msg.method  = http::getMethodCode(methodRef);
 	msg.url     = {rawHeader.str + firstSpaceLen + 1, secondSpaceLen}; // line[1];
 	msg.version = http::getVersionCode(versionRef);
 
-	// the position of the query parameter market (if present)
-	// auto   qPos = msg.url.find("?");
-	size_t qPos = strnchr(msg.url.str, '?', msg.url.len) - msg.url.str;
+	// Now checks if there are query parameters
 
-	// if '?' is in the url, it means that query parameters are used
-	if (qPos != 0) {
-		// get the entire query
+	// the position of the query parameter marker (if present)
+	auto qPos = strnchr(msg.url.str, '?', msg.url.len) - msg.url.str;
+
+	// if strnchr returns nullptr the result is negative, else is positive
+	if (qPos > 0) {
+		// confine the parameters in a single stringREf excluding the '?'
 		stringRef queryParams = {msg.url.str + qPos + 1, msg.url.len - qPos - 1};
 		parseQueryParameters(queryParams, msg.parameters);
-
-		// erase the '?' and everything after it
-		// msg.url.erase(msg.url.begin() + qPos);
 	}
 	/*
 
@@ -279,23 +289,23 @@ int http::getMethodCode(const stringRef &requestMethod) {
 	}
 
 	// Yep that's it, such logic
-	if (strncmp(rqms, "GET", rqml) == 0) {
+	if (!strncmp(rqms, "GET", rqml)) {
 		return HTTP_GET;
-	} else if (strncmp(rqms, "HEAD", rqml) == 0) {
+	} else if (!strncmp(rqms, "HEAD", rqml)) {
 		return HTTP_HEAD;
-	} else if (strncmp(rqms, "POST", rqml) == 0) {
+	} else if (!strncmp(rqms, "POST", rqml)) {
 		return HTTP_POST;
-	} else if (strncmp(rqms, "PUT", rqml) == 0) {
+	} else if (!strncmp(rqms, "PUT", rqml)) {
 		return HTTP_PUT;
-	} else if (strncmp(rqms, "DELETE", rqml) == 0) {
+	} else if (!strncmp(rqms, "DELETE", rqml)) {
 		return HTTP_DELETE;
-	} else if (strncmp(rqms, "OPTIONS", rqml) == 0) {
+	} else if (!strncmp(rqms, "OPTIONS", rqml)) {
 		return HTTP_OPTIONS;
-	} else if (strncmp(rqms, "CONNECT", rqml) == 0) {
+	} else if (!strncmp(rqms, "CONNECT", rqml)) {
 		return HTTP_CONNECT;
-	} else if (strncmp(rqms, "TRACE", rqml) == 0) {
+	} else if (!strncmp(rqms, "TRACE", rqml)) {
 		return HTTP_TRACE;
-	} else if (strncmp(rqms, "PATCH", rqml) == 0) {
+	} else if (!strncmp(rqms, "PATCH", rqml)) {
 		return HTTP_PATCH;
 	}
 
@@ -313,15 +323,15 @@ int http::getVersionCode(const stringRef &httpVersion) {
 		return HTTP_INVALID;
 	}
 
-	if (strncmp(htvs, "HTTP/0.9", htvl) == 0) {
+	if (!strncmp(htvs, "HTTP/0.9", htvl)) {
 		return HTTP_09;
-	} else if (strncmp(htvs, "HTTP/1.0", htvl) == 0) {
+	} else if (!strncmp(htvs, "HTTP/1.0", htvl)) {
 		return HTTP_10;
-	} else if (strncmp(htvs, "HTTP/1.1", htvl) == 0) {
+	} else if (!strncmp(htvs, "HTTP/1.1", htvl)) {
 		return HTTP_11;
-	} else if (strncmp(htvs, "HTTP/2", htvl) == 0) {
+	} else if (!strncmp(htvs, "HTTP/2", htvl)) {
 		return HTTP_2;
-	} else if (strncmp(htvs, "HTTP/3", htvl) == 0) {
+	} else if (!strncmp(htvs, "HTTP/3", htvl)) {
 		return HTTP_3;
 	}
 
@@ -344,64 +354,73 @@ int http::getParameterCode(const std::string &parameter) {
 }
 
 /**
- * Given a string of urlencoded parameters parse and decode them, then insert them in the parameters map in the httpMessage
+ * Given a string of url encoded parameters parse and decode them, then insert them in the parameters map in the httpMessage
+ * @param query the query parameters in the format key=value&key2=value2... as a stringRef
+ * @param parameters the std::map where to put the key, value pairs as stringRefs
  */
 void http::parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters) {
 
 	PROFILE_FUNCTION();
 
 	// If i'm being called it means that an ? has been found in the url
-	// Still there mught be nothing after it -> GET /index.html? HTTP/1.1
+	// Still there might be nothing after it -> GET /index.html? HTTP/1.1
 
-	// dio=santo&code
 	stringRef  chunk    = {query.str, query.len}; // a key=value pair ignoring the '&'
-	const auto limit    = query.str + query.len;
-	auto       limitLen = query.len; // from the start of the chunk to the end of the query params
+	const auto limit    = query.str + query.len;  // the pshysical memory address pointing to the end of the query, to not overshoot
+	auto       limitLen = query.len;              // from the start of the chunk to the end of the query params, to not overshoot
+	                                              // as the chunks porgess this gets smaller
 
+	// as long as we are in a safe space
 	while (chunk.str < limit) {
 
+		// find the chunk delimiter
 		auto ampersand = strnchr(chunk.str, '&', limitLen);
+
+		// and set the chunk length according to it
 		if (ampersand == nullptr) {
 			chunk.len = limitLen;
 		} else {
 			chunk.len = ampersand - chunk.str;
 		}
 
-		printStringRef(chunk);
-
-		auto eq = strnchr(chunk.str, '=', chunk.len); // search for the the equal sign
+		// search for the the equal sign
+		auto eq = strnchr(chunk.str, '=', chunk.len);
 		if (eq == nullptr) {
 			// malformed parameter
 
-			char *temp = (char *)malloc(chunk.len + 1);
-			memcpy(temp, chunk.str, chunk.len);
-			temp[chunk.len] = '\0';
+			// make a temporary buffer to print it with a classical printf
+			char *temp = (char *)malloc(chunk.len + 1); // account for the null terminator
+			memcpy(temp, chunk.str, chunk.len);         // copy the data
+			temp[chunk.len] = '\0';                     // null terminator
 			log(LOG_WARNING, "Query Parameter malformed -> '%s' \n", temp);
-			free(temp);
+			free(temp); // and free
 
 		} else {
 
+			// everything is fine here
+
 			size_t    pos = eq - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
-			stringRef key = {chunk.str, pos};              // from the start of the chunk to before the equal
-			stringRef val = {eq + 1, chunk.len - pos - 1}; // from after the equal to the end of the chunk
+			stringRef key = {chunk.str, pos};              // from the start of the chunk to before the '='
+			stringRef val = {eq + 1, chunk.len - pos - 1}; // from after the '=' to the end of the chunk
 
-			printStringRef(key);
-			printStringRef(val);
-
-			if (eq != nullptr && strcmp(key.str, "") != 0) {
+			// check if we actually have a key, the value can be empty
+			if (strcmp(key.str, "") != 0) {
+				// finally put it in the map
 				parameters[key] = val;
 			}
 		}
 
 		// at the end of the chunk
-		chunk.str = chunk.str + chunk.len + 1; // prepare at the end of the string, over the ampersandquerd
-		limitLen -= chunk.len + 1;             // recalculate the limitLen
+		chunk.str = chunk.str + chunk.len + 1; // move at the end of the string, over the ampersand
+		limitLen -= chunk.len + 1;             // recalculate the limitLen (limitLen = limitLen - len - 1) -> limitLen = limitLen - (len + 1)
 		chunk.len = 0;                         // just to be sure
 	}
 }
 
 /**
  * Parse the data not encoded in form data and then insert them in the parameters map in the httpMessage
+ * @param params the parameters encoded in plain form
+ * @param parameters the map where to put the key, value pairs found as stringRefs
  */
 void http::parsePlainParameters(const std::string &params, std::unordered_map<std::string, std::string> &parameters) {
 
@@ -425,6 +444,10 @@ void http::parsePlainParameters(const std::string &params, std::unordered_map<st
 
 /**
  * Parse the data divided by special divisor in form data and then insert them in the parameters map in the httpMessage
+ * 
+ * @param params the parameters encodedn in form data 
+ * @param divisor the unique divisor string used in the data
+ * @param parameters the map where to put the parameters found
  */
 void http::parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters) {
 

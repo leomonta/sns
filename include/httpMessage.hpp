@@ -44,7 +44,7 @@ public:
 	int                                      method;        // the appropriate http method
 	int                                      version;       // the version of the http header (1.0, 1.1, 2.0, ...)
 	std::unordered_map<int, stringRef>       headerOptions; // represent the header as the collection of the single options -> value
-	char                                    *rawMessage;    // the c string containing the entire header
+	char                                    *rawMessage_a;  // the c string containing the entire header, the _a means it's heap allocated
 	std::unordered_map<stringRef, stringRef> parameters;    // contain the data sent in the forms and query parameters
 	stringRef                                url;           // the resource asked from the client
 
