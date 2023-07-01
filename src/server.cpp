@@ -169,8 +169,11 @@ void start() {
 
 	Res::threadStop = false;
 
-	// Res::requestAcceptor = std::thread(acceptRequestsSecure, &Res::threadStop);
+#ifdef NO_THREADING
 	acceptRequestsSecure(&Res::threadStop);
+#else
+	Res::requestAcceptor = std::thread(acceptRequestsSecure, &Res::threadStop);
+#endif
 	log(LOG_DEBUG, "[SERVER] ReqeustAcceptorSecure thread Started\n");
 
 	Res::startTime = time(nullptr);
@@ -228,8 +231,11 @@ void acceptRequestsSecure(bool *threadStop) {
 		}
 
 		log(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
-		// std::thread(resolveRequestSecure, sslConnection, client, threadStop).detach();
+#ifdef NO_THREADING
 		resolveRequestSecure(sslConnection, client, threadStop);
+#else
+		std::thread(resolveRequestSecure, sslConnection, client, threadStop).detach();
+#endif
 	}
 }
 

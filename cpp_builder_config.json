@@ -21,9 +21,9 @@
 	},
 
 	"debug": {
-		"compiler_args_": "-g3 -std=c++2a -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra",
-		"compiler_args": "-g3 -std=c++2a -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -fsanitize=address -fsanitize=leak",
-		"linker_arg_s": "",
+		"compiler_args__": "-g3 -std=c++2a -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra",
+		"linker_arg__": "",
+		"compiler_args": "-g3 -std=c++2a -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -DNO_THREADING -Wshadow -Wextra -fsanitize=address -fsanitize=leak",
 		"linker_args": "-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak",
 		"libraries_dirs": [
 		],
