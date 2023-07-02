@@ -7,22 +7,6 @@
 #include <stdio.h>
 #include <string.h>
 
-/**
- * Quick method to print a stringRef
- */
-void printStringRef(const stringRef &strRef) {
-
-	const char *str = strRef.str;
-
-	for (size_t i = 0; i < strRef.len; ++i) {
-		// there is no print function that print a portion of a string, so i print each character one by one
-		putchar(*str);
-		++str;
-	}
-	// newline is essential for flushing
-	putchar('\n');
-}
-
 void logMalformedParameter(const stringRef &strRef) {
 	// malformed parameter
 
@@ -167,11 +151,19 @@ httpMessage::httpMessage(const char *message) {
 	// extract metadata parameters and other stuff
 	http::decompileHeader(header, *this);
 
-	// http::decompileMessage(header[http::RQ_Content_Type], parameters, body);
+	http::decompileMessage(headerOptions[http::RQ_Content_Type], parameters, body);
 }
 
 httpMessage::~httpMessage() {
 	delete[] rawMessage_a;
+}
+
+void addToOptions(stringRef key, stringRef val, httpMessage *ctx) {
+	ctx->headerOptions[http::getParameterCode(key)] = val;
+}
+
+void addToParams(stringRef key, stringRef val, httpMessage *ctx) {
+	ctx->parameters[key] = val;
 }
 
 /**
@@ -210,106 +202,61 @@ void http::decompileHeader(const stringRef &rawHeader, httpMessage &msg) {
 	if (qPos > 0) {
 		// confine the parameters in a single stringREf excluding the '?'
 		stringRef queryParams = {msg.url.str + qPos + 1, msg.url.len - qPos - 1};
-		parseQueryParameters(queryParams, msg.parameters);
+		parseOptions(queryParams, addToParams, "&", '=', &msg);
+		// parseQueryParameters(queryParams, msg.parameters);
 	}
 
-	// parse the remaining header options
+	// parseHeaderOptions(rawHeader, msg.headerOptions);
 
-	auto       startOptions      = strnchr(rawHeader.str, '\n', rawHeader.len) + 1; // the plus 1 is needed to start after the \r\n
-	size_t     lenToStartOptions = startOptions - rawHeader.str;
-	stringRef  line              = {startOptions, lenToStartOptions};
-	const auto limit             = rawHeader.str + rawHeader.len;
-	auto       limitLen          = rawHeader.len - lenToStartOptions;
-
-	while (line.str < limit) {
-
-		auto crlf = strnchr(line.str, '\n', limitLen);
-
-		if (crlf == nullptr) {
-			line.len = limitLen;
-		} else {
-			line.len = crlf - line.str - 1;
-		}
-
-		printStringRef(line);
-
-		auto sep = strnchr(line.str, ':', line.len);
-		if (sep == nullptr) {
-			logMalformedParameter(line);
-		} else {
-
-			// everything is fine here
-
-			size_t    pos = sep - line.str;                // get the pointer difference from the start of the line and the position of the '='
-			stringRef key = {line.str, pos};               // from the start of the line to before the '='
-			stringRef val = {sep + 1, line.len - pos - 1}; // from after the '=' to the end of the line
-
-			trim(key);
-			trim(val);
-
-			printStringRef(key);
-			printStringRef(val);
-
-			// check if we actually have a key, the value can be empty
-			if (strcmp(key.str, "") != 0) {
-				// finally put it in the map
-				msg.headerOptions[getParameterCode(key)] = val;
-			}
-		}
-
-		// at the end of the line
-		line.str = line.str + line.len + 2; // move at the end of the string, over the ampersand
-		limitLen -= line.len + 2;           // recalculate the limitLen (limitLen = limitLen - len - 1) -> limitLen = limitLen - (len + 1)
-		line.len = 0;                       // just to be sure
-	}
-
-	/*
-	for (size_t i = 1; i < options.size(); ++i) {
-
-	    // each header option is composed as "option: value\n"
-	    //    0      1
-	    // option: value
-	    line = split(options[i], ": ");
-
-	    auto code = http::getParameterCode(line[0]);
-	    if (code == -1) {
-	        // log the warn
-	    } else {
-	        msg.header[code] = line[1];
-	    }
-	}*/
+	parseOptions(rawHeader, addToOptions, "\r\n", ':', &msg);
 }
 
 /**
  * decompile message in header and body
  */
-void http::decompileMessage(const std::string &cType, std::unordered_map<std::string, std::string> &parameters, std::string &body) {
+void http::decompileMessage(const stringRef &cType, httpMessage *msg, stringRef &body) {
 
 	PROFILE_FUNCTION();
 
 	// the content type indicates how parameters are showed
-	if (!cType.empty()) {
+	if (isEmpty(cType)) {
+		return;
+	}
 
-		// the fields are separated from each others with a "&" and key -> value are separated with "="
-		// plus they are encoded as a URL
-		if (cType == "application/x-www-form-urlencoded") {
-			// http::parseQueryParameters(body, parameters);
-			// } else if (cType == "text/plain") {
-			// http::parsePlainParameters(body, parameters);
-		} else if (cType.find("multipart/form-data;") != std::string::npos) {
-
-			// find the divisor
-			//               0              |      1
-			// multipart/form-data; boundary=----asdwadawd
-			auto divisor = split(cType, "=")[1];
-			// sometimes the boundary is encolsed in quotes, take care of this case
-			if (divisor[0] == '"' && divisor.back() == '"') {
-				divisor.pop_back();
-				divisor.erase(divisor.begin());
-			}
-
-			http::parseFormData(body, divisor, parameters);
+	// the fields are separated from each others with a "&" and key -> value are separated with "="
+	// plus they are encoded as a URL
+	if (!strncmp("application/x-www-form-urlencoded", cType.str, cType.len)) {
+		parseOptions(body, addToParams, "&", '=', msg);
+	} else if (strncmp("text/plain", cType.str, cType.len)) {
+		// http::parsePlainParameters(body, parameters);
+		parseOptions(body, addToParams, "\r\n", '=', msg);
+	} else if (strnstr("multipart/form-data;", cType.str, cType.len) != nullptr) {
+		// find the divisor
+		//               0              |      1
+		// multipart/form-data; boundary=----asdwadawd
+		// auto divisor = split(cType, "=")[1];
+		auto eq = strnchr(cType.str, '=', cType.len);
+		// sometimes the boundary is encolsed in quotes, take care of this case
+		if (eq == nullptr) {
+			log(LOG_WARNING, "Malformed multipart form data, no '='\n");
 		}
+
+		size_t    temp    = cType.str + cType.len - eq;
+		stringRef divisor = {eq, temp};
+
+		if (*eq == '"') {
+			++divisor.str;
+			--divisor.len;
+		}
+
+		/*
+		        if (divisor[0] == '"' && divisor.back() == '"') {
+		            divisor.pop_back();
+		            divisor.erase(divisor.begin());
+		        }
+		*/
+
+		// http::parseFormData(body, divisor, parameters);
 	}
 }
 
@@ -413,61 +360,62 @@ int http::getParameterCode(const stringRef &parameter) {
 }
 
 /**
- * Given a string of url encoded parameters parse and decode them, then insert them in the parameters map in the httpMessage
- * @param query the query parameters in the format key=value&key2=value2... as a stringRef
- * @param parameters the std::map where to put the key, value pairs as stringRefs
+ * Parse the options found in the stringRef given and call the function with them
+ * @param head a stringRef pointing to the start of the options
+ * @param headerOptions the map where to put the parsed strings
  */
-void http::parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters) {
+void http::parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx) {
 
-	PROFILE_FUNCTION();
+	// parse the remaining header options
 
-	// If i'm being called it means that an ? has been found in the url
-	// Still there might be nothing after it -> GET /index.html? HTTP/1.1
+	const auto addLen = strlen(chunkSep); // the lenght to move after the string is found
 
-	stringRef  chunk    = {query.str, query.len}; // a key=value pair ignoring the '&'
-	const auto limit    = query.str + query.len;  // the pshysical memory address pointing to the end of the query, to not overshoot
-	auto       limitLen = query.len;              // from the start of the chunk to the end of the query params, to not overshoot
-	                                              // as the chunks porgess this gets smaller
+	auto       startOptions      = strnchr(head.str, *chunkSep, head.len) + addLen; // the plus 1 is needed to start after the \r\n
+	size_t     lenToStartOptions = startOptions - head.str;
+	stringRef  chunk             = {startOptions, lenToStartOptions};
+	const auto limit             = head.str + head.len;
+	auto       limitLen          = head.len - lenToStartOptions;
 
-	// as long as we are in a safe space
 	while (chunk.str < limit) {
 
-		// find the chunk delimiter
-		auto ampersand = strnchr(chunk.str, '&', limitLen);
+		auto crlf = strnchr(chunk.str, *chunkSep, limitLen);
 
-		// and set the chunk length according to it
-		if (ampersand == nullptr) {
+		if (crlf == nullptr) {
 			chunk.len = limitLen;
 		} else {
-			chunk.len = ampersand - chunk.str;
+			chunk.len = crlf - chunk.str;
 		}
 
-		// search for the the equal sign
-		auto eq = strnchr(chunk.str, '=', chunk.len);
-		if (eq == nullptr) {
-			// malformed parameter
+		printStringRef(chunk);
 
+		auto sep = strnchr(chunk.str, itemSep, chunk.len);
+		if (sep == nullptr) {
 			logMalformedParameter(chunk);
-
 		} else {
 
 			// everything is fine here
 
-			size_t    pos = eq - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
-			stringRef key = {chunk.str, pos};              // from the start of the chunk to before the '='
-			stringRef val = {eq + 1, chunk.len - pos - 1}; // from after the '=' to the end of the chunk
+			size_t    pos = sep - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
+			stringRef key = {chunk.str, pos};               // from the start of the chunk to before the '='
+			stringRef val = {sep + 1, chunk.len - pos - 1}; // from after the '=' to the end of the chunk
+
+			trim(key);
+			trim(val);
+
+			printStringRef(key);
+			printStringRef(val);
 
 			// check if we actually have a key, the value can be empty
 			if (strcmp(key.str, "") != 0) {
 				// finally put it in the map
-				parameters[key] = val;
+				fun(key, val, ctx);
 			}
 		}
 
 		// at the end of the chunk
-		chunk.str = chunk.str + chunk.len + 1; // move at the end of the string, over the ampersand
-		limitLen -= chunk.len + 1;             // recalculate the limitLen (limitLen = limitLen - len - 1) -> limitLen = limitLen - (len + 1)
-		chunk.len = 0;                         // just to be sure
+		chunk.str = chunk.str + chunk.len + addLen; // move at the end of the string, over the ampersand
+		limitLen -= chunk.len + addLen;             // recalculate the limitLen (limitLen = limitLen - len - 1) -> limitLen = limitLen - (len + 1)
+		chunk.len = 0;                              // just to be sure
 	}
 }
 
@@ -476,9 +424,9 @@ void http::parseQueryParameters(const stringRef &query, std::unordered_map<strin
  * @param params the parameters encoded in plain form
  * @param parameters the map where to put the key, value pairs found as stringRefs
  */
-void http::parsePlainParameters(const std::string &params, std::unordered_map<std::string, std::string> &parameters) {
+void parsePlainParameters(const stringRef &params, std::unordered_map<stringRef, stringRef> &parameters) {
 
-	PROFILE_FUNCTION();
+	/*PROFILE_FUNCTION();
 
 	auto datas = split(params, "\r\n");
 
@@ -488,12 +436,12 @@ void http::parsePlainParameters(const std::string &params, std::unordered_map<st
 
 	std::vector<std::string> line;
 	for (size_t i = 0; i < datas.size(); i++) {
-		line = split(datas[i], "=");
+	    line = split(datas[i], "=");
 
-		if (line.size() >= 2) {
-			parameters[line[0]] = line[1];
-		}
-	}
+	    if (line.size() >= 2) {
+	        parameters[line[0]] = line[1];
+	    }
+	}*/
 }
 
 /**

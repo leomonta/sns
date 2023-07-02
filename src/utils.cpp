@@ -209,7 +209,7 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
 	}
 
 	// no match
-	return haystack;
+	return nullptr;
 }
 
 /**
@@ -253,4 +253,38 @@ void trim(stringRef &strRef) {
 		}
 	}
 	strRef.len -= newEnd;
+}
+
+bool isEmpty(const stringRef &strRef) {
+
+	if (strRef.len == 0) {
+		return true;
+	}
+
+	for (size_t i = 0; i < strRef.len; ++i) {
+		// is space check for 
+		// space, horizontal tab, and whitespaces (\n \r \v \f)
+		if (!isspace(strRef.str[i])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+/**
+ * Quick method to print a stringRef
+ */
+void printStringRef(const stringRef &strRef) {
+
+	const char *str = strRef.str;
+
+	for (size_t i = 0; i < strRef.len; ++i) {
+		// there is no print function that print a portion of a string, so i print each character one by one
+		putchar(*str);
+		++str;
+	}
+	// newline is essential for flushing
+	putchar('\n');
 }

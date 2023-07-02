@@ -27,13 +27,15 @@ public:
 
 namespace http {
 	void        decompileHeader(const stringRef &rawHeader, httpMessage &msg);
-	void        decompileMessage(const std::string &cType, std::unordered_map<std::string, std::string> &parameters, std::string &body);
+	void        decompileMessage(const stringRef &cType, httpMessage *msg, stringRef &body);
 	std::string compileMessage(const std::unordered_map<int, std::string> &header, const std::string &body);
 	int         getMethodCode(const stringRef &requestMethod);
 	int         getVersionCode(const stringRef &httpVersion);
 	int         getParameterCode(const stringRef &parameter);
-	void        parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters);
-	void        parsePlainParameters(const std::string &params, std::unordered_map<std::string, std::string> &parameters);
+	void        parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx);
+	// void        parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters);
+	// void        parseHeaderOptions(const stringRef &head, std::unordered_map<int, stringRef> &headerOptions);
+	// void        parsePlainParameters(const stringRef &params, std::unordered_map<stringRef, stringRef> &parameters);
 	void        parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
 
 	// http method code
