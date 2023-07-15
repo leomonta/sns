@@ -151,7 +151,7 @@ httpMessage::httpMessage(const char *message) {
 	// extract metadata parameters and other stuff
 	http::decompileHeader(header, *this);
 
-	http::decompileMessage(headerOptions[http::RQ_Content_Type], parameters, body);
+	http::decompileMessage(headerOptions[http::RQ_Content_Type], this, body);
 }
 
 httpMessage::~httpMessage() {
@@ -263,7 +263,7 @@ void http::decompileMessage(const stringRef &cType, httpMessage *msg, stringRef 
 /**
  * unite the header and the body in a single message
  */
-std::string http::compileMessage(const std::unordered_map<int, std::string> &header, const std::string &body) {
+std::string http::compileMessage(const httpMessage &msg) {
 
 	PROFILE_FUNCTION();
 
@@ -276,7 +276,7 @@ std::string http::compileMessage(const std::unordered_map<int, std::string> &hea
 		// already wrote response code
 		if (key != http::RP_Status) {
 			// header option name :	header option value
-			rawHeader += std::string(headerRpStr[key]) + ": " + val + "\r\n";
+			rconst std::unordered_map<int, std::string> &header, const std::string &bodyawHeader += std::string(headerRpStr[key]) + ": " + val + "\r\n";
 		}
 	}
 

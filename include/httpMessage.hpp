@@ -28,7 +28,7 @@ public:
 namespace http {
 	void        decompileHeader(const stringRef &rawHeader, httpMessage &msg);
 	void        decompileMessage(const stringRef &cType, httpMessage *msg, stringRef &body);
-	std::string compileMessage(const std::unordered_map<int, std::string> &header, const std::string &body);
+	std::string compileMessage(const httpMessage &msg);
 	int         getMethodCode(const stringRef &requestMethod);
 	int         getVersionCode(const stringRef &httpVersion);
 	int         getParameterCode(const stringRef &parameter);

@@ -59,25 +59,25 @@ int main(const int argc, const char *argv[]) {
 
 	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
 
-	const char *mesg = "GET /static/_next/static/chunks/34608.e13d3ecf99a88fb7.js HTTP/3\r\n"
-	                   "Host: www.educative.io\r\n"
-	                   "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0\r\n"
-	                //    "Accept: */*\r\n"
-	                //    "Accept-Language: en-US,en;q=0.5\r\n"
-	                //    "Accept-Encoding: gzip, deflate, br\r\n"
-	                //    "Referer: https://www.educative.io/answers/how-to-use-the-typedef-struct-in-c\r\n"
-	                //    "DNT: 1\r\n"
-	                //    "Alt-Used: www.educative.io\r\n"
-	                //    "Connection: keep-alive\r\n"
-	                //    "Cookie: __cf_bm=kSs437ZSVMdTFBODd9w3clj1HovhzLvq0y.kcwiY0Iw-1688223881-0-AZQHh0nncRfP+HvTuiH8adqIkwy/iFFaBRATSiUXgW6tt2DT/rdlhBHnmVpttmakdbACVyxhGj+4WcLmmpakObE=; flask-session=eyJfcGVybWFuZW50Ijp0cnVlfQ.ZKA8fQ.tOzLX3NBoZKhrrlL_ySsjW_jDrQ; usprivacy=1---; OptanonConsent=isGpcEnabled=0&datestamp=Sat+Jul+01+2023+17%3A04%3A39+GMT%2B0200+(Central+European+Summer+Time)&version=202212.1.0&isIABGlobal=false&hosts=&consentId=6cfc0dca-468e-4c85-9ca9-badc59cd3751&interactionCount=1&landingPath=https%3A%2F%2Fwww.educative.io%2Fanswers%2Fhow-to-use-the-typedef-struct-in-c&groups=C0001%3A1%2CC0002%3A0%2CC0004%3A0%2CC0003%3A0\r\n"
-	                //    "Sec-Fetch-Dest: script\r\n"
-	                //    "Sec-Fetch-Mode: no-cors\r\n"
-	                //    "Sec-Fetch-Site: same-origin\r\n"
-	                //    "Pragma: no-cache\r\n"
-	                   "Cache-Control: no-cache\r\n"
-	                   "TE: trailers\r\n\r\n";
+	// const char *mesg = "GET /static/_next/static/chunks/34608.e13d3ecf99a88fb7.js HTTP/3\r\n"
+	//    "Host: www.educative.io\r\n"
+	//    "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0\r\n"
+	//    "Accept: */*\r\n"
+	//    "Accept-Language: en-US,en;q=0.5\r\n"
+	//    "Accept-Encoding: gzip, deflate, br\r\n"
+	//    "Referer: https://www.educative.io/answers/how-to-use-the-typedef-struct-in-c\r\n"
+	//    "DNT: 1\r\n"
+	//    "Alt-Used: www.educative.io\r\n"
+	//    "Connection: keep-alive\r\n"
+	//    "Cookie: __cf_bm=kSs437ZSVMdTFBODd9w3clj1HovhzLvq0y.kcwiY0Iw-1688223881-0-AZQHh0nncRfP+HvTuiH8adqIkwy/iFFaBRATSiUXgW6tt2DT/rdlhBHnmVpttmakdbACVyxhGj+4WcLmmpakObE=; flask-session=eyJfcGVybWFuZW50Ijp0cnVlfQ.ZKA8fQ.tOzLX3NBoZKhrrlL_ySsjW_jDrQ; usprivacy=1---; OptanonConsent=isGpcEnabled=0&datestamp=Sat+Jul+01+2023+17%3A04%3A39+GMT%2B0200+(Central+European+Summer+Time)&version=202212.1.0&isIABGlobal=false&hosts=&consentId=6cfc0dca-468e-4c85-9ca9-badc59cd3751&interactionCount=1&landingPath=https%3A%2F%2Fwww.educative.io%2Fanswers%2Fhow-to-use-the-typedef-struct-in-c&groups=C0001%3A1%2CC0002%3A0%2CC0004%3A0%2CC0003%3A0\r\n"
+	//    "Sec-Fetch-Dest: script\r\n"
+	//    "Sec-Fetch-Mode: no-cors\r\n"
+	//    "Sec-Fetch-Site: same-origin\r\n"
+	//    "Pragma: no-cache\r\n"
+	//    "Cache-Control: no-cache\r\n"
+	//    "TE: trailers\r\n\r\n";
 
-	httpMessage m(mesg);
+	// httpMessage m(mesg);
 
 	signal(SIGPIPE, Panico);
 
@@ -284,13 +284,13 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 			}
 
 			// make the message a single formatted string
-			//  auto res = http::compileMessage(response.header, response.body);
+			 auto res = http::compileMessage(mex);
 
-			// log(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res.c_str());
+			log(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res.c_str());
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			// sslConn::sendRecord(sslConnection, res);
+			sslConn::sendRecord(sslConnection, res);
 
 			break;
 		}
