@@ -426,10 +426,10 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
 	result[http::RP_Date]       = getUTC();
 	result[http::RP_Connection] = "close";
 	result[http::RP_Vary]       = "Accept-Encoding";
-	char srvr[]                 = "SNS/x.x (ArchLinux64)";
+	char srvr[]                 = "sns/x.x (ArchLinux64)";
 
-	srvr[14] = '0' + serverVersionMajor;
-	srvr[16] = '0' + serverVersionMinor;
+	srvr[4] = '0' + serverVersionMajor;
+	srvr[6] = '0' + serverVersionMinor;
 
 	result[http::RP_Server] = srvr;
 }
