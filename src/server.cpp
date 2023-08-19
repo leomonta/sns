@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <thread>
 #include <time.h>
+#include <poll.h>
 
 const char *methodStr[] = {
     "INVALID",
@@ -222,8 +223,16 @@ void parseArgs(const int argc, const char *argv[]) {
 void acceptRequestsSecure(bool *threadStop) {
 	Socket client = -1;
 
+		pollfd ss = {
+			.fd = Res::serverSocket,
+			.events = POLLIN,
+		};
+
 	// Receive until the peer shuts down the connection
 	while (!(*threadStop)) {
+
+		// infinetly wait for the socket to become usable
+		poll(&ss, 1, -1);
 
 		client = tcpConn::acceptClientSock(Res::serverSocket);
 
