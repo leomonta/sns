@@ -3,6 +3,8 @@
 #include <functional>
 #include <stddef.h>
 
+#define TO_STRINGREF(str) {str, strlen(str)}
+
 // express a substring by referencing another c string
 typedef struct stringRef {
 	const char *str;

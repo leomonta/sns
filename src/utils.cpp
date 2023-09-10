@@ -262,7 +262,7 @@ bool isEmpty(const stringRef &strRef) {
 	}
 
 	for (size_t i = 0; i < strRef.len; ++i) {
-		// is space check for 
+		// is space check for
 		// space, horizontal tab, and whitespaces (\n \r \v \f)
 		if (!isspace(strRef.str[i])) {
 			return false;
@@ -271,7 +271,6 @@ bool isEmpty(const stringRef &strRef) {
 
 	return true;
 }
-
 
 /**
  * Quick method to print a stringRef

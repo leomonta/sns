@@ -5,17 +5,17 @@
 #include <string>
 #include <unordered_map>
 
-#define REQUEST_HEADERS  41
-#define RESPONSE_HEADERS 49
-
 class httpMessage {
 public:
-	int                                      method;        // the appropriate http method
-	int                                      version;       // the version of the http header (1.0, 1.1, 2.0, ...)
-	std::unordered_map<int, stringRef>       headerOptions; // represent the header as the collection of the single options -> value
+	u_char                                   method;        // the appropriate http method, GET, POST, PATCH
+	u_char                                   statusCode;    // 200, 404, 500, etc etc
+	u_char                                   version;       // the version of the http header (1.0, 1.1, 2.0, ...)
+	std::unordered_map<u_char, stringRef>    headerOptions; // represent the header as the collection of the single options -> value
+	size_t                                   headerLen;     // how many bytes are there in the header
 	char                                    *rawMessage_a;  // the c string containing the entire header, the _a means it's heap allocated
 	std::unordered_map<stringRef, stringRef> parameters;    // contain the data sent in the forms and query parameters
 	stringRef                                url;           // the resource asked from the client
+	stringRef                                body;          // the content of the message, what the message is about
 
 	httpMessage(){};
 
@@ -26,20 +26,20 @@ public:
 };
 
 namespace http {
-	void        decompileHeader(const stringRef &rawHeader, httpMessage &msg);
-	void        decompileMessage(const stringRef &cType, httpMessage *msg, stringRef &body);
-	std::string compileMessage(const httpMessage &msg);
-	int         getMethodCode(const stringRef &requestMethod);
-	int         getVersionCode(const stringRef &httpVersion);
-	int         getParameterCode(const stringRef &parameter);
-	void        parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx);
+	void   decompileHeader(const stringRef &rawHeader, httpMessage &msg);
+	void   decompileMessage(const stringRef &cType, httpMessage *msg, stringRef &body);
+	char  *compileMessage(const httpMessage &msg);
+	u_char getMethodCode(const stringRef &requestMethod);
+	u_char getVersionCode(const stringRef &httpVersion);
+	u_char getParameterCode(const stringRef &parameter);
+	void   parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx);
+	void   parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
 	// void        parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters);
 	// void        parseHeaderOptions(const stringRef &head, std::unordered_map<int, stringRef> &headerOptions);
 	// void        parsePlainParameters(const stringRef &params, std::unordered_map<stringRef, stringRef> &parameters);
-	void        parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
 
 	// http method code
-	enum methods {
+	enum methods : u_char {
 		HTTP_INVALID,
 		HTTP_GET,
 		HTTP_HEAD,
@@ -52,7 +52,7 @@ namespace http {
 		HTTP_PATCH
 	};
 
-	enum versions {
+	enum versions : u_char {
 		HTTP_09,
 		HTTP_10,
 		HTTP_11,
@@ -60,7 +60,7 @@ namespace http {
 		HTTP_3
 	};
 
-	enum headerOptionRq {
+	enum headerOptionRq : u_char {
 		// ReQuest options
 		RQ_A_IM,
 		RQ_Accept,
@@ -103,9 +103,10 @@ namespace http {
 		RQ_Upgrade,
 		RQ_Via,
 		RQ_Warning,
+		RQ_ENUM_LEN,
 	};
 
-	enum headerOptionRp {
+	enum headerOptionRp : u_char {
 		// ResPonse Options
 		RP_Accept_CH,
 		RP_Access_Control_Allow_Origin,
@@ -155,7 +156,7 @@ namespace http {
 		RP_Warning,
 		RP_WWW_Authenticate,
 		RP_X_Frame_Options,
-		RP_Status
+		RP_ENUM_LEN,
 	};
 
 } // namespace http

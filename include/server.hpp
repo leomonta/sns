@@ -1,8 +1,8 @@
 #pragma once
 
 #include "httpMessage.hpp"
-#include "sslConn.hpp"
-#include "tcpConn.hpp"
+#include <sslConn.hpp>
+#include <tcpConn.hpp>
 
 // requested file possible states
 #define FILE_FOUND            0
