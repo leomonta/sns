@@ -16,3 +16,4 @@ const char *strnchr(const char *str, int chr, const size_t count);
 void        trim(stringRef &strRef);
 bool        isEmpty(const stringRef &strRef);
 void        printStringRef(const stringRef &strRef);
+const char *makeCopy(const stringRef &str);

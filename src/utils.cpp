@@ -287,3 +287,9 @@ void printStringRef(const stringRef &strRef) {
 	// newline is essential for flushing
 	putchar('\n');
 }
+
+const char *makeCopy(const stringRef &str) {
+	auto cpy = static_cast<char *>(malloc(str.len));
+	memcpy(cpy, str.str, str.len);
+	return cpy;
+}

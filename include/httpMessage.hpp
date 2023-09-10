@@ -34,9 +34,10 @@ namespace http {
 	u_char getParameterCode(const stringRef &parameter);
 	void   parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx);
 	void   parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
+	void   addHeaderOption(const u_char option, const stringRef &value, httpMessage &msg);
+	void   setUrl(const stringRef &val, httpMessage &msg);
 	// void        parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters);
 	// void        parseHeaderOptions(const stringRef &head, std::unordered_map<int, stringRef> &headerOptions);
-	// void        parsePlainParameters(const stringRef &params, std::unordered_map<stringRef, stringRef> &parameters);
 
 	// http method code
 	enum methods : u_char {

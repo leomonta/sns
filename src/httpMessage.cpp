@@ -141,7 +141,7 @@ httpMessage::httpMessage(const char *message) {
 		header = {nullptr, 0};
 		body   = {nullptr, 0};
 	} else {
-		header = {rawMessage_a, headerLen};
+		header = {rawMessage_a, hLen};
 		body   = {rawMessage_a + hLen, msgLen - hLen};
 	}
 
@@ -256,18 +256,18 @@ char *http::compileMessage(const httpMessage &msg) {
 
 	PROFILE_FUNCTION();
 
-	const int STATUS_LINE_LEN = 16;
+	const int STATUS_LINE_LEN = 15;
 
 	// The value to modify are at       0123456789
-	char statusLine[STATUS_LINE_LEN] = "HTTP/1.0 XXX \r\n";
+	char statusLine[STATUS_LINE_LEN + 1] = "HTTP/1.0 XXX \r\n";
 
-	char *res = new char[STATUS_LINE_LEN - 1 + msg.headerLen + msg.body.len];
+	char *res = new char[STATUS_LINE_LEN + msg.headerLen + msg.body.len];
 
 	memcpy(res, statusLine, STATUS_LINE_LEN);
 
-	res[11] = '0' + (msg.statusCode) % 10;
-	res[10] = '0' + (msg.statusCode / 10) % 10;
-	res[9]  = '0' + (msg.statusCode / 100) % 10;
+	res[11] = '0' + (char)((msg.statusCode) % 10);
+	res[10] = '0' + (char)((msg.statusCode / 10) % 10);
+	res[9]  = '0' + (char)((msg.statusCode / 100) % 10);
 
 	char *writer = res + STATUS_LINE_LEN;
 
@@ -410,8 +410,8 @@ void http::parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRe
 			trim(key);
 			trim(val);
 
-			printStringRef(key);
-			printStringRef(val);
+			// printStringRef(key);
+			// printStringRef(val);
 
 			// check if we actually have a key, the value can be empty
 			if (strcmp(key.str, "") != 0) {
@@ -425,31 +425,6 @@ void http::parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRe
 		limitLen -= chunk.len + addLen;             // recalculate the limitLen (limitLen = limitLen - len - 1) -> limitLen = limitLen - (len + 1)
 		chunk.len = 0;                              // just to be sure
 	}
-}
-
-/**
- * Parse the data not encoded in form data and then insert them in the parameters map in the httpMessage
- * @param params the parameters encoded in plain form
- * @param parameters the map where to put the key, value pairs found as stringRefs
- */
-void parsePlainParameters(const stringRef &params, std::unordered_map<stringRef, stringRef> &parameters) {
-
-	/*PROFILE_FUNCTION();
-
-	auto datas = split(params, "\r\n");
-
-	// the last place always contains "--", no real data in here
-	datas.pop_back();
-	datas.erase(datas.begin());
-
-	std::vector<std::string> line;
-	for (size_t i = 0; i < datas.size(); i++) {
-	    line = split(datas[i], "=");
-
-	    if (line.size() >= 2) {
-	        parameters[line[0]] = line[1];
-	    }
-	}*/
 }
 
 /**
@@ -492,4 +467,21 @@ void http::parseFormData(const std::string &params, std::string &divisor, std::u
 
 		parameters[name] = option_value[1];
 	}
+}
+
+void http::addHeaderOption(const u_char option, const stringRef &value, httpMessage &msg) {
+	auto opt = headerRpStr[option];
+
+	stringRef cpy;
+	cpy.str                   = makeCopy(value);
+	cpy.len                   = value.len;
+	msg.headerOptions[option] = cpy;
+
+	// account the added data
+	//                 name     ': ' value '\r\n'
+	msg.headerLen += (opt.len + 2 + cpy.len + 2);
+}
+
+void http::setUrl(const stringRef &val, httpMessage &msg) {
+	msg.url = {makeCopy(val), val.len};
 }

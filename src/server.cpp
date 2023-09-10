@@ -78,7 +78,14 @@ int main(const int argc, const char *argv[]) {
 	//    "Cache-Control: no-cache\r\n"
 	//    "TE: trailers\r\n\r\n";
 
-	// httpMessage m(mesg);
+	const char *msg = "HEAD / HTTP/1.0\r\n"
+	                  "Host: poopoocaca\r\n"
+	                  "\r\n\r\n";
+
+	httpMessage m(msg);
+	httpMessage response;
+	Head(m, response);
+	auto res = http::compileMessage(response);
 
 	signal(SIGPIPE, Panico);
 
@@ -299,7 +306,7 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			// sslConn::sendRecord(sslConnection, res);
+			sslConn::sendRecordC(sslConnection, res);
 
 			break;
 		}
@@ -326,14 +333,17 @@ int Head(httpMessage &inbound, httpMessage &outbound) {
 	// info about the file requested, to not recheck later
 	int fileInfo = FILE_FOUND;
 
-	const char *src = inbound.url.str;
-	char       *dst = new char[inbound.url.len + 1];
-	urlDecode(dst, src);
+	char *dst = new char[inbound.url.len + 1];
+	memcpy(dst, inbound.url.str, inbound.url.len);
+	dst[inbound.url.len] = '\0';
+
+	// sinc the source is always longer or the same length of the output i can decode in-place
+	urlDecode(dst, dst);
 
 	// re set the filename as the base directory and the decoded filename
 	std::string file = Res::baseDirectory + dst;
 
-	log(LOG_DEBUG, "[SERVER] Decoded '%s' to '%s'\n", src, dst);
+	log(LOG_DEBUG, "[SERVER] Decoded '%s'\n", dst);
 
 	delete[] dst;
 
@@ -344,8 +354,7 @@ int Head(httpMessage &inbound, httpMessage &outbound) {
 	auto        errCode = stat(file.c_str(), &fileStat);
 
 	if (errCode != 0) {
-		log(LOG_WARNING, "[SERVER] File requested (%s) not found\n", file.c_str());
-		log(LOG_WARNING, "[SYSTEM] %s\n", strerror(errno));
+		log(LOG_WARNING, "[SERVER] File requested (%s) not found, %s\n", file.c_str(), strerror(errno));
 
 		fileInfo = FILE_NOT_FOUND;
 	}
@@ -367,11 +376,14 @@ int Head(httpMessage &inbound, httpMessage &outbound) {
 	}
 
 	// insert in the outbound message the necessaire header options, filename is used to determine the response code
-	// composeHeader(file, outbound.header, fileInfo);
+	composeHeader(file, outbound, fileInfo);
 
-	// outbound.header[http::RP_Content_Length] = std::to_string(fileStat.st_size);
-	// outbound.header[http::RP_Cache_Control]  = "max-age=3600";
-	// outbound.url                             = file;
+	auto fileSize = std::to_string(fileStat.st_size);
+
+	http::addHeaderOption(http::RP_Content_Length, {fileSize.c_str(), fileSize.size()}, outbound);
+	http::addHeaderOption(http::RP_Cache_Control, {"max-age=3600", 12}, outbound);
+
+	http::setUrl({file.c_str(), file.size()}, outbound);
 
 	return fileInfo;
 }
@@ -405,7 +417,7 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 /**
  * compose the header given the file requested
  */
-void composeHeader(const std::string &filename, std::map<int, std::string> &result, const int fileInfo) {
+void composeHeader(const std::string &filename, httpMessage &msg, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 
@@ -418,28 +430,31 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
 
 		// get the content type
 		std::string content_type = "";
-		content_type             = "text/plain"; // fallback if finds nothing
 		getContentType(filename, content_type);
+		if (content_type == "") {
+			content_type = "text/plain"; // fallback if finds nothing
+		}
 
 		// and actually add it in
-		result[http::RP_Content_Type] = content_type;
+		http::addHeaderOption(http::RP_Content_Type, {content_type.c_str(), content_type.size()}, msg);
 
 	} else {
 		// result[http::RP_Status]       = "404 Not Found";
-		result[http::RP_Content_Type] = "text/html";
+		http::addHeaderOption(http::RP_Content_Type, {"text/html", 9}, msg);
 	}
 
 	// various header options
 
-	result[http::RP_Date]       = getUTC();
-	result[http::RP_Connection] = "close";
-	result[http::RP_Vary]       = "Accept-Encoding";
-	char srvr[]                 = "sns/x.x (ArchLinux64)";
+	auto UTC = getUTC();
+	http::addHeaderOption(http::RP_Date, {UTC.c_str(), UTC.size()}, msg);
+	http::addHeaderOption(http::RP_Connection, {"close", 5}, msg);
+	http::addHeaderOption(http::RP_Vary, {"Accept-Encoding", 15}, msg);
+	char srvr[] = "sns/x.x (ArchLinux64)";
 
 	srvr[4] = '0' + serverVersionMajor;
 	srvr[6] = '0' + serverVersionMinor;
 
-	result[http::RP_Server] = srvr;
+	http::addHeaderOption(http::RP_Server, {srvr, 21}, msg);
 }
 
 /**
@@ -499,8 +514,6 @@ std::string getDirView(const std::string &dirname) {
 	}
 
 	std::string content = Dir_View_Page_Pre + dirItems + Dir_View_Page_Post;
-
-	log(LOG_FATAL, "[ASD] %s\n", content.c_str());
 
 	return content;
 }
