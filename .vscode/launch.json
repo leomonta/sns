@@ -20,7 +20,7 @@
 					"ignoreFailures": false
 				}
 			],
-			"preLaunchTask": "C/C++: g++.exe build all modified files"
+			"preLaunchTask": "Build all modified files"
 		}
 	]
 }
