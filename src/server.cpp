@@ -60,33 +60,6 @@ int main(const int argc, const char *argv[]) {
 
 	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
 
-	// const char *mesg = "GET /static/_next/static/chunks/34608.e13d3ecf99a88fb7.js HTTP/3\r\n"
-	//    "Host: www.educative.io\r\n"
-	//    "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0\r\n"
-	//    "Accept: */*\r\n"
-	//    "Accept-Language: en-US,en;q=0.5\r\n"
-	//    "Accept-Encoding: gzip, deflate, br\r\n"
-	//    "Referer: https://www.educative.io/answers/how-to-use-the-typedef-struct-in-c\r\n"
-	//    "DNT: 1\r\n"
-	//    "Alt-Used: www.educative.io\r\n"
-	//    "Connection: keep-alive\r\n"
-	//    "Cookie: __cf_bm=kSs437ZSVMdTFBODd9w3clj1HovhzLvq0y.kcwiY0Iw-1688223881-0-AZQHh0nncRfP+HvTuiH8adqIkwy/iFFaBRATSiUXgW6tt2DT/rdlhBHnmVpttmakdbACVyxhGj+4WcLmmpakObE=; flask-session=eyJfcGVybWFuZW50Ijp0cnVlfQ.ZKA8fQ.tOzLX3NBoZKhrrlL_ySsjW_jDrQ; usprivacy=1---; OptanonConsent=isGpcEnabled=0&datestamp=Sat+Jul+01+2023+17%3A04%3A39+GMT%2B0200+(Central+European+Summer+Time)&version=202212.1.0&isIABGlobal=false&hosts=&consentId=6cfc0dca-468e-4c85-9ca9-badc59cd3751&interactionCount=1&landingPath=https%3A%2F%2Fwww.educative.io%2Fanswers%2Fhow-to-use-the-typedef-struct-in-c&groups=C0001%3A1%2CC0002%3A0%2CC0004%3A0%2CC0003%3A0\r\n"
-	//    "Sec-Fetch-Dest: script\r\n"
-	//    "Sec-Fetch-Mode: no-cors\r\n"
-	//    "Sec-Fetch-Site: same-origin\r\n"
-	//    "Pragma: no-cache\r\n"
-	//    "Cache-Control: no-cache\r\n"
-	//    "TE: trailers\r\n\r\n";
-
-	const char *msg = "HEAD / HTTP/1.0\r\n"
-	                  "Host: poopoocaca\r\n"
-	                  "\r\n\r\n";
-
-	httpMessage m(msg);
-	httpMessage response;
-	Head(m, response);
-	auto res = http::compileMessage(response);
-
 	signal(SIGPIPE, Panico);
 
 	// Get port and directory, maybe
@@ -392,26 +365,25 @@ int Head(httpMessage &inbound, httpMessage &outbound) {
  * the http method, get both the header and the body
  */
 void Get(httpMessage &inbound, httpMessage &outbound) {
-	/*
-	    PROFILE_FUNCTION();
+	PROFILE_FUNCTION();
 
-	    // I just need to add the body to the head,
-	    auto fileInfo = Head(inbound, outbound);
+	// I just need to add the body to the head,
+	auto fileInfo = Head(inbound, outbound);
 
-	    auto uncompressed = getFile(outbound.url, fileInfo);
+	auto uncompressed = getFile(outbound.url, fileInfo);
 
-	    std::string compressed = "";
-	    if (uncompressed != "") {
-	        compressGz(compressed, uncompressed.c_str(), uncompressed.length());
-	        log(LOG_DEBUG, "[SERVER] Compressing response body\n");
-	    }
+	std::string compressed = "";
+	if (uncompressed != "") {
+		compressGz(compressed, uncompressed.c_str(), uncompressed.length());
+		log(LOG_DEBUG, "[SERVER] Compressing response body\n");
+	}
 
-	    // set the content of the message
-	    outbound.body = compressed;
+	// set the content of the message
+	outbound.body = {makeCopy({compressed.c_str(), compressed.size()}), compressed.size()};
 
-	    outbound.header[http::RP_Content_Length]   = std::to_string(compressed.length());
-	    outbound.header[http::RP_Content_Encoding] = "gzip";
-	    */
+	auto lenStr                              = std::to_string(compressed.length());
+	http::addHeaderOption(http::RP_Content_Length, {lenStr.c_str(), lenStr.size()}, outbound);
+	http::addHeaderOption(http::RP_Content_Length, {"gzip", 4}, outbound);
 }
 
 /**
@@ -461,7 +433,7 @@ void composeHeader(const std::string &filename, httpMessage &msg, const int file
  * get the file to a string and if its empty return the page 404.html
  * https://stackoverflow.com/questions/5840148/how-can-i-get-a-files-size-in-c maybe better
  */
-std::string getFile(const std::string &file, const int fileInfo) {
+std::string getFile(const stringRef &file, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 
@@ -470,7 +442,7 @@ std::string getFile(const std::string &file, const int fileInfo) {
 	if (fileInfo == FILE_FOUND || fileInfo == FILE_IS_DIR_FOUND) {
 
 		// get the required file
-		std::fstream ifs(file, std::ios::binary | std::ios::in);
+		std::fstream ifs(file.str, std::ios::binary | std::ios::in);
 
 		// read the file in one go to a string
 		//							start iterator							end iterator
@@ -485,7 +457,7 @@ std::string getFile(const std::string &file, const int fileInfo) {
 		// Load the internal 404 error page
 		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
 			log(LOG_WARNING, "[SERVER] File not found. Loading the dir view\n");
-			content = getDirView(file);
+			content = getDirView(file.str);
 		} else {
 			log(LOG_WARNING, "[SERVER] File not found. Loading deafult Error 404 page\n");
 			content = Not_Found_Page;

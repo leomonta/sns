@@ -17,7 +17,7 @@ void resolveRequestSecure(SSL *sslConn, Socket clientSocket, bool *threadStop);
 int         Head(httpMessage &inbound, httpMessage &outbound);
 void        Get(httpMessage &inbound, httpMessage &outbound);
 void        composeHeader(const std::string &filename, httpMessage &msg, const int fileInfo);
-std::string getFile(const std::string &file, const int fileInfo);
+std::string getFile(const stringRef &file, const int fileInfo);
 std::string getDirView(const std::string &dirname);
 
 void parseArgs(const int argc, const char *argv[]);

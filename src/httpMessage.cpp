@@ -337,7 +337,9 @@ u_char http::getVersionCode(const stringRef &httpVersion) {
 		return HTTP_INVALID;
 	}
 
-	if (!strncmp(htvs, "HTTP/0.9", htvl)) {
+	if (!strncmp(htvs, "undefined", htvl)) {
+		return HTTP_10;
+	} else if (!strncmp(htvs, "HTTP/0.9", htvl)) {
 		return HTTP_09;
 	} else if (!strncmp(htvs, "HTTP/1.0", htvl)) {
 		return HTTP_10;
@@ -394,7 +396,7 @@ void http::parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRe
 			chunk.len = crlf - chunk.str;
 		}
 
-		printStringRef(chunk);
+		// printStringRef(chunk);
 
 		auto sep = strnchr(chunk.str, itemSep, chunk.len);
 		if (sep == nullptr) {
