@@ -183,3 +183,113 @@ void trimwhitespace(char *str) {
 
 	str[size] = '\0';
 }
+
+const char *strnstr(const char *haystack, const char *needle, const size_t count) {
+
+	if (count == 0) {
+		return nullptr;
+	}
+
+	auto Itr = 0;
+
+	for (size_t i = 0; i < count; ++i) {
+
+		if (haystack[i] == needle[Itr]) {
+			++Itr;
+			if (needle[Itr] == '\0') {
+				// match
+				return haystack + i - Itr + 1;
+			}
+
+		} else {
+			// reset back the search
+			i -= Itr;
+			Itr = 0;
+		}
+	}
+
+	// no match
+	return nullptr;
+}
+
+/**
+ *  Finds the first occurrence of ch in the byte string pointed to by str to a max of count - 1
+ *
+ * @return pointer to the character found or nullptr if no such character is found
+ */
+const char *strnchr(const char *str, int chr, const size_t count) {
+
+	for (size_t i = 0; i < count; ++i) {
+		if (*str == chr) {
+			return str;
+		}
+
+		++str;
+	}
+
+	return nullptr;
+}
+
+/**
+ * rework the stringRef to remove unwanted whitespaces in front or at the back of the content
+ * @param strRef the stringRef to modify
+ */
+void trim(stringRef &strRef) {
+	size_t newStart;
+
+	for (newStart = 0; newStart < strRef.len; ++newStart) {
+		if (strRef.str[newStart] != ' ') {
+			break;
+		}
+	}
+
+	strRef.str += newStart;
+	strRef.len -= newStart;
+
+	size_t newEnd;
+	for (newEnd = 0; newEnd < strRef.len; ++newEnd) {
+		if (strRef.str[strRef.len - newEnd - 1] != ' ') {
+			break;
+		}
+	}
+	strRef.len -= newEnd;
+}
+
+bool isEmpty(const stringRef &strRef) {
+
+	if (strRef.len == 0) {
+		return true;
+	}
+
+	for (size_t i = 0; i < strRef.len; ++i) {
+		// is space check for
+		// space, horizontal tab, and whitespaces (\n \r \v \f)
+		if (!isspace(strRef.str[i])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Quick method to print a stringRef
+ */
+void printStringRef(const stringRef &strRef) {
+
+	const char *str = strRef.str;
+
+	for (size_t i = 0; i < strRef.len; ++i) {
+		// there is no print function that print a portion of a string, so i print each character one by one
+		putchar(*str);
+		++str;
+	}
+	// newline is essential for flushing
+	putchar('\n');
+}
+
+const char *makeCopy(const stringRef &str) {
+	auto cpy = static_cast<char *>(malloc(str.len));
+	memcpy(cpy, str.str, str.len);
+	return cpy;
+}

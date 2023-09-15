@@ -1,6 +1,5 @@
 #include "server.hpp"
 
-#include "logger.hpp"
 #include "pages.hpp"
 #include "profiler.hpp"
 #include "utils.hpp"
@@ -8,7 +7,9 @@
 #include <poll.h>
 #include <chrono>
 #include <filesystem>
+#include <logger.hpp>
 #include <mutex>
+#include <poll.h>
 #include <regex>
 #include <signal.h>
 #include <string.h>
@@ -35,7 +36,7 @@ const unsigned char serverVersionMajor = 3;
 const unsigned char serverVersionMinor = 3;
 
 void Panico(int cos) {
-	printf("Signal %d received \n", cos);
+	printf("Signal %d received %s \n", cos, strerror(errno));
 	exit(1);
 }
 
@@ -164,7 +165,11 @@ void start() {
 
 	Res::threadStop = false;
 
+#ifdef NO_THREADING
+	acceptRequestsSecure(&Res::threadStop);
+#else
 	Res::requestAcceptor = std::thread(acceptRequestsSecure, &Res::threadStop);
+#endif
 	log(LOG_DEBUG, "[SERVER] ReqeustAcceptorSecure thread Started\n");
 
 	Res::startTime = time(nullptr);
@@ -200,8 +205,8 @@ void acceptRequestsSecure(bool *threadStop) {
 	Socket client = -1;
 
 	pollfd ss = {
-		.fd = Res::serverSocket,
-		.events = POLLIN,
+	    .fd     = Res::serverSocket,
+	    .events = POLLIN,
 	};
 
 	// Receive until the peer shuts down the connection
@@ -230,7 +235,11 @@ void acceptRequestsSecure(bool *threadStop) {
 		}
 
 		log(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
+#ifdef NO_THREADING
+		resolveRequestSecure(sslConnection, client, threadStop);
+#else
 		std::thread(resolveRequestSecure, sslConnection, client, threadStop).detach();
+#endif
 	}
 }
 
@@ -238,13 +247,13 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 
 	int bytesReceived;
 
-	std::string request;
+	char       *request;
 	httpMessage response;
 
 	while (!(*threadStop)) {
 
 		// ---------------------------------------------------------------------- RECEIVE
-		bytesReceived = sslConn::receiveRecord(sslConnection, request);
+		bytesReceived = sslConn::receiveRecordC(sslConnection, &request);
 
 		// received some bytes
 		if (bytesReceived > 0) {
@@ -265,13 +274,13 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 			}
 
 			// make the message a single formatted string
-			auto res = http::compileMessage(response.header, response.body);
+			auto res = http::compileMessage(response);
 
 			// log(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res.c_str());
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			sslConn::sendRecord(sslConnection, res);
+			sslConn::sendRecordC(sslConnection, res.str, res.len);
 
 			break;
 		}
@@ -298,14 +307,17 @@ int Head(httpMessage &inbound, httpMessage &outbound) {
 	// info about the file requested, to not recheck later
 	int fileInfo = FILE_FOUND;
 
-	const char *src = inbound.url.c_str();
-	char       *dst = new char[strlen(src) + 1];
-	urlDecode(dst, src);
+	char *dst = new char[inbound.url.len + 1];
+	memcpy(dst, inbound.url.str, inbound.url.len);
+	dst[inbound.url.len] = '\0';
+
+	// sinc the source is always longer or the same length of the output i can decode in-place
+	urlDecode(dst, dst);
 
 	// re set the filename as the base directory and the decoded filename
 	std::string file = Res::baseDirectory + dst;
 
-	log(LOG_DEBUG, "[SERVER] Decoded URL to '%s'\n", dst);
+	log(LOG_DEBUG, "[SERVER] Decoded '%s'\n", dst);
 
 	delete[] dst;
 
@@ -316,8 +328,7 @@ int Head(httpMessage &inbound, httpMessage &outbound) {
 	auto        errCode = stat(file.c_str(), &fileStat);
 
 	if (errCode != 0) {
-		log(LOG_WARNING, "[SERVER] File requested (%s) not found\n", file.c_str());
-		log(LOG_WARNING, "[SYSTEM] %s\n", strerror(errno));
+		log(LOG_WARNING, "[SERVER] File requested (%s) not found, %s\n", file.c_str(), strerror(errno));
 
 		fileInfo = FILE_NOT_FOUND;
 	}
@@ -339,11 +350,14 @@ int Head(httpMessage &inbound, httpMessage &outbound) {
 	}
 
 	// insert in the outbound message the necessaire header options, filename is used to determine the response code
-	composeHeader(file, outbound.header, fileInfo);
+	composeHeader(file, outbound, fileInfo);
 
-	outbound.header[http::RP_Content_Length] = std::to_string(fileStat.st_size);
-	outbound.header[http::RP_Cache_Control]  = "max-age=3600";
-	outbound.url                             = file;
+	auto fileSize = std::to_string(fileStat.st_size);
+
+	http::addHeaderOption(http::RP_Content_Length, {fileSize.c_str(), fileSize.size()}, outbound);
+	http::addHeaderOption(http::RP_Cache_Control, {"max-age=3600", 12}, outbound);
+
+	http::setUrl({file.c_str(), file.size()}, outbound);
 
 	return fileInfo;
 }
@@ -352,7 +366,6 @@ int Head(httpMessage &inbound, httpMessage &outbound) {
  * the http method, get both the header and the body
  */
 void Get(httpMessage &inbound, httpMessage &outbound) {
-
 	PROFILE_FUNCTION();
 
 	// I just need to add the body to the head,
@@ -364,19 +377,24 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 	if (uncompressed != "") {
 		compressGz(compressed, uncompressed.c_str(), uncompressed.length());
 		log(LOG_DEBUG, "[SERVER] Compressing response body\n");
+
+		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
+			http::addHeaderOption(http::RP_Content_Type, {"text/html", 9}, outbound);
+		}
 	}
 
 	// set the content of the message
-	outbound.body = compressed;
+	outbound.body = {makeCopy({compressed.c_str(), compressed.size()}), compressed.size()};
 
-	outbound.header[http::RP_Content_Length]   = std::to_string(compressed.length());
-	outbound.header[http::RP_Content_Encoding] = "gzip";
+	auto lenStr = std::to_string(compressed.length());
+	http::addHeaderOption(http::RP_Content_Length, {lenStr.c_str(), lenStr.size()}, outbound);
+	http::addHeaderOption(http::RP_Content_Encoding, {"gzip", 4}, outbound);
 }
 
 /**
  * compose the header given the file requested
  */
-void composeHeader(const std::string &filename, std::map<int, std::string> &result, const int fileInfo) {
+void composeHeader(const std::string &filename, httpMessage &msg, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 
@@ -385,48 +403,52 @@ void composeHeader(const std::string &filename, std::map<int, std::string> &resu
 	if (fileInfo != FILE_NOT_FOUND) {
 
 		// status code OK
-		result[http::RP_Status] = "200 OK";
+		// result[http::RP_Status] = "200 OK";
 
 		// get the content type
 		std::string content_type = "";
-		content_type             = "text/plain"; // fallback if finds nothing
 		getContentType(filename, content_type);
+		if (content_type == "") {
+			content_type = "text/plain"; // fallback if finds nothing
+		}
 
 		// and actually add it in
-		result[http::RP_Content_Type] = content_type;
+		http::addHeaderOption(http::RP_Content_Type, {content_type.c_str(), content_type.size()}, msg);
 
 	} else {
-		result[http::RP_Status]       = "404 Not Found";
-		result[http::RP_Content_Type] = "text/html";
+		// result[http::RP_Status]       = "404 Not Found";
+		http::addHeaderOption(http::RP_Content_Type, {"text/html", 9}, msg);
 	}
 
 	// various header options
 
-	result[http::RP_Date]       = getUTC();
-	result[http::RP_Connection] = "close";
-	result[http::RP_Vary]       = "Accept-Encoding";
-	char srvr[]                 = "SNS/x.x (ArchLinux64)";
+	auto UTC = getUTC();
+	http::addHeaderOption(http::RP_Date, {UTC.c_str(), UTC.size()}, msg);
+	http::addHeaderOption(http::RP_Connection, {"close", 5}, msg);
+	http::addHeaderOption(http::RP_Vary, {"Accept-Encoding", 15}, msg);
+	char srvr[] = "sns/x.x (ArchLinux64)";
 
-	srvr[14] = '0' + serverVersionMajor;
-	srvr[16] = '0' + serverVersionMinor;
+	srvr[4] = '0' + serverVersionMajor;
+	srvr[6] = '0' + serverVersionMinor;
 
-	result[http::RP_Server] = srvr;
+	http::addHeaderOption(http::RP_Server, {srvr, 21}, msg);
 }
 
 /**
  * get the file to a string and if its empty return the page 404.html
  * https://stackoverflow.com/questions/5840148/how-can-i-get-a-files-size-in-c maybe better
  */
-std::string getFile(const std::string &file, const int fileInfo) {
+std::string getFile(const stringRef &file, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 
 	std::string content;
+	std::string fileStr(file.str, file.len);
 
 	if (fileInfo == FILE_FOUND || fileInfo == FILE_IS_DIR_FOUND) {
 
 		// get the required file
-		std::fstream ifs(file, std::ios::binary | std::ios::in);
+		std::fstream ifs(fileStr, std::ios::binary | std::ios::in);
 
 		// read the file in one go to a string
 		//							start iterator							end iterator
@@ -441,7 +463,7 @@ std::string getFile(const std::string &file, const int fileInfo) {
 		// Load the internal 404 error page
 		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
 			log(LOG_WARNING, "[SERVER] File not found. Loading the dir view\n");
-			content = getDirView(file);
+			content = getDirView(fileStr);
 		} else {
 			log(LOG_WARNING, "[SERVER] File not found. Loading deafult Error 404 page\n");
 			content = Not_Found_Page;
@@ -470,8 +492,6 @@ std::string getDirView(const std::string &dirname) {
 	}
 
 	std::string content = Dir_View_Page_Pre + dirItems + Dir_View_Page_Post;
-
-	log(LOG_FATAL, "[ASD] %s\n", content.c_str());
 
 	return content;
 }

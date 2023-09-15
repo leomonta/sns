@@ -109,7 +109,10 @@
 		"source_location": "cpp",
 		"numbers": "cpp",
 		"semaphore": "cpp",
-		"netfwd": "cpp"
+		"netfwd": "cpp",
+		"*.inc": "cpp",
+		"format": "cpp",
+		"stdfloat": "cpp"
 	},
 	"python.pythonPath": "c:\\Program Files\\Python39\\python.exe"
 }

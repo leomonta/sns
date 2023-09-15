@@ -5,8 +5,8 @@
 			"name": "Debug",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/bin/server.bin",
-			"args": ["/home/leonard/workspace/web-dev/htmlarea"],
+			"program": "${workspaceFolder}/bin/sns",
+			"args": [".", "1024"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/bin/",
 			"environment": [],
@@ -20,7 +20,7 @@
 					"ignoreFailures": false
 				}
 			],
-			"preLaunchTask": "C/C++: g++.exe build all modified files"
+			"preLaunchTask": "Build all modified files"
 		}
 	]
 }

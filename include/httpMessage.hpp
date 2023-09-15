@@ -1,27 +1,46 @@
 #pragma once
+#include "stringRef.hpp"
+
 #include <fstream>
-#include <map>
 #include <string>
-#include <vector>
+#include <unordered_map>
 
-#define REQUEST_HEADERS  41
-#define RESPONSE_HEADERS 49
+class httpMessage {
+public:
+	u_char                                   method;        // the appropriate http method, GET, POST, PATCH
+	u_char                                   statusCode;    // 200, 404, 500, etc etc
+	u_char                                   version;       // the version of the http header (1.0, 1.1, 2.0, ...)
+	std::unordered_map<u_char, stringRef>    headerOptions; // represent the header as the collection of the single options -> value
+	size_t                                   headerLen;     // how many bytes are there in the header
+	char                                    *rawMessage_a;  // the c string containing the entire header, the _a means it's heap allocated
+	std::unordered_map<stringRef, stringRef> parameters;    // contain the data sent in the forms and query parameters
+	stringRef                                url;           // the resource asked from the client
+	stringRef                                body;          // the content of the message, what the message is about
 
-class httpMessage;
+	httpMessage(){};
+
+	httpMessage(std::string &raw_message);
+	httpMessage(const char *raw_message);
+
+	~httpMessage();
+};
 
 namespace http {
-	void        decompileHeader(const std::string &rawHeader, httpMessage &msg);
-	void        decompileMessage(const std::string &cType, std::map<std::string, std::string> &parameters, std::string &body);
-	std::string compileMessage(const std::map<int, std::string> &header, const std::string &body);
-	int         getMethodCode(const std::string &requestMethod);
-	int         getVersionCode(const std::string &httpVersion);
-	int         getParameterCode(const std::string &parameter);
-	void        parseQueryParameters(const std::string &query, std::map<std::string, std::string> &parameters);
-	void        parsePlainParameters(const std::string &params, std::map<std::string, std::string> &parameters);
-	void        parseFormData(const std::string &params, std::string &divisor, std::map<std::string, std::string> &parameters);
+	void      decompileHeader(const stringRef &rawHeader, httpMessage &msg);
+	void      decompileMessage(const stringRef &cType, httpMessage *msg, stringRef &body);
+	stringRef compileMessage(const httpMessage &msg);
+	u_char    getMethodCode(const stringRef &requestMethod);
+	u_char    getVersionCode(const stringRef &httpVersion);
+	u_char    getParameterCode(const stringRef &parameter);
+	void      parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx);
+	void      parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
+	void      addHeaderOption(const u_char option, const stringRef &value, httpMessage &msg);
+	void      setUrl(const stringRef &val, httpMessage &msg);
+	// void        parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters);
+	// void        parseHeaderOptions(const stringRef &head, std::unordered_map<int, stringRef> &headerOptions);
 
 	// http method code
-	enum methods {
+	enum methods : u_char {
 		HTTP_INVALID,
 		HTTP_GET,
 		HTTP_HEAD,
@@ -34,7 +53,7 @@ namespace http {
 		HTTP_PATCH
 	};
 
-	enum versions {
+	enum versions : u_char {
 		HTTP_09,
 		HTTP_10,
 		HTTP_11,
@@ -42,7 +61,7 @@ namespace http {
 		HTTP_3
 	};
 
-	enum headerOptionRq {
+	enum headerOptionRq : u_char {
 		// ReQuest options
 		RQ_A_IM,
 		RQ_Accept,
@@ -85,9 +104,10 @@ namespace http {
 		RQ_Upgrade,
 		RQ_Via,
 		RQ_Warning,
+		RQ_ENUM_LEN,
 	};
 
-	enum headerOptionRp {
+	enum headerOptionRp : u_char {
 		// ResPonse Options
 		RP_Accept_CH,
 		RP_Access_Control_Allow_Origin,
@@ -137,21 +157,7 @@ namespace http {
 		RP_Warning,
 		RP_WWW_Authenticate,
 		RP_X_Frame_Options,
-		RP_Status
+		RP_ENUM_LEN,
 	};
 
 } // namespace http
-
-class httpMessage {
-public:
-	int                                method;     // the appropriate http method
-	int                                version;    // the version of the http header (1.0, 1.1, 2.0, ...)
-	std::map<int, std::string>         header;     // represent the header as the collection of the single options -> value
-	std::map<std::string, std::string> parameters; // contain the data sent in the forms and query parameters
-	std::string                        body;       // represent the body as a single string
-	std::string                        url;        // the resource asked from the client
-
-	httpMessage(){};
-
-	httpMessage(std::string &raw_message);
-};
