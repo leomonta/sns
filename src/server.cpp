@@ -376,6 +376,10 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 	if (uncompressed != "") {
 		compressGz(compressed, uncompressed.c_str(), uncompressed.length());
 		log(LOG_DEBUG, "[SERVER] Compressing response body\n");
+
+		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
+			http::addHeaderOption(http::RP_Content_Type, {"text/html", 9}, outbound);
+		}
 	}
 
 	// set the content of the message
