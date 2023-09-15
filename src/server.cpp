@@ -246,13 +246,13 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 
 	int bytesReceived;
 
-	std::string request;
+	char       *request;
 	httpMessage response;
 
 	while (!(*threadStop)) {
 
 		// ---------------------------------------------------------------------- RECEIVE
-		bytesReceived = sslConn::receiveRecord(sslConnection, request);
+		bytesReceived = sslConn::receiveRecordC(sslConnection, &request);
 
 		// received some bytes
 		if (bytesReceived > 0) {
@@ -279,7 +279,7 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
-			sslConn::sendRecordC(sslConnection, res);
+			sslConn::sendRecordC(sslConnection, res.str, res.len);
 
 			break;
 		}
@@ -381,9 +381,9 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 	// set the content of the message
 	outbound.body = {makeCopy({compressed.c_str(), compressed.size()}), compressed.size()};
 
-	auto lenStr                              = std::to_string(compressed.length());
+	auto lenStr = std::to_string(compressed.length());
 	http::addHeaderOption(http::RP_Content_Length, {lenStr.c_str(), lenStr.size()}, outbound);
-	http::addHeaderOption(http::RP_Content_Length, {"gzip", 4}, outbound);
+	http::addHeaderOption(http::RP_Content_Encoding, {"gzip", 4}, outbound);
 }
 
 /**
@@ -438,11 +438,12 @@ std::string getFile(const stringRef &file, const int fileInfo) {
 	PROFILE_FUNCTION();
 
 	std::string content;
+	std::string fileStr(file.str, file.len);
 
 	if (fileInfo == FILE_FOUND || fileInfo == FILE_IS_DIR_FOUND) {
 
 		// get the required file
-		std::fstream ifs(file.str, std::ios::binary | std::ios::in);
+		std::fstream ifs(fileStr, std::ios::binary | std::ios::in);
 
 		// read the file in one go to a string
 		//							start iterator							end iterator
@@ -457,7 +458,7 @@ std::string getFile(const stringRef &file, const int fileInfo) {
 		// Load the internal 404 error page
 		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
 			log(LOG_WARNING, "[SERVER] File not found. Loading the dir view\n");
-			content = getDirView(file.str);
+			content = getDirView(fileStr);
 		} else {
 			log(LOG_WARNING, "[SERVER] File not found. Loading deafult Error 404 page\n");
 			content = Not_Found_Page;

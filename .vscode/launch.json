@@ -6,7 +6,7 @@
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/bin/sns",
-			"args": ["/home/leonard/workspace/web-dev/htmlarea"],
+			"args": [".", "1024"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/bin/",
 			"environment": [],

@@ -252,7 +252,7 @@ void http::decompileMessage(const stringRef &cType, httpMessage *msg, stringRef 
 /**
  * unite the header and the body in a single message
  */
-char *http::compileMessage(const httpMessage &msg) {
+stringRef http::compileMessage(const httpMessage &msg) {
 
 	PROFILE_FUNCTION();
 
@@ -261,7 +261,10 @@ char *http::compileMessage(const httpMessage &msg) {
 	// The value to modify are at       0123456789
 	char statusLine[STATUS_LINE_LEN + 1] = "HTTP/1.0 XXX \r\n";
 
-	char *res = new char[STATUS_LINE_LEN + msg.headerLen + msg.body.len];
+	// the 2 is for the \r\n separator
+	auto msgLen = STATUS_LINE_LEN + msg.headerLen + 2 + msg.body.len;
+
+	char *res = new char[msgLen];
 
 	memcpy(res, statusLine, STATUS_LINE_LEN);
 
@@ -271,6 +274,7 @@ char *http::compileMessage(const httpMessage &msg) {
 
 	char *writer = res + STATUS_LINE_LEN;
 
+	// add all headers
 	for (auto const &[key, val] : msg.headerOptions) {
 
 		// the format is
@@ -288,7 +292,15 @@ char *http::compileMessage(const httpMessage &msg) {
 		writer += 2;
 	}
 
-	return res;
+	// headr body separator
+	memcpy(writer, "\r\n", 2);
+	writer += 2;
+
+	memcpy(writer, msg.body.str, msg.body.len);
+	writer += msg.body.len;
+
+
+	return {res, msgLen};
 }
 
 u_char http::getMethodCode(const stringRef &requestMethod) {

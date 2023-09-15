@@ -1,5 +1,6 @@
 {
 	"scripts": {
+		"post": "move"
 	},
 	"compiler": {
 		"compiler_style": "gcc",
@@ -31,7 +32,7 @@
 			"z",
 			"crypto",
 			"ssl",
-			"netTcpSsl"
+			"netTcpSslDebug"
 		]
 	},
 

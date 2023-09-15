@@ -26,16 +26,16 @@ public:
 };
 
 namespace http {
-	void   decompileHeader(const stringRef &rawHeader, httpMessage &msg);
-	void   decompileMessage(const stringRef &cType, httpMessage *msg, stringRef &body);
-	char  *compileMessage(const httpMessage &msg);
-	u_char getMethodCode(const stringRef &requestMethod);
-	u_char getVersionCode(const stringRef &httpVersion);
-	u_char getParameterCode(const stringRef &parameter);
-	void   parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx);
-	void   parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
-	void   addHeaderOption(const u_char option, const stringRef &value, httpMessage &msg);
-	void   setUrl(const stringRef &val, httpMessage &msg);
+	void      decompileHeader(const stringRef &rawHeader, httpMessage &msg);
+	void      decompileMessage(const stringRef &cType, httpMessage *msg, stringRef &body);
+	stringRef compileMessage(const httpMessage &msg);
+	u_char    getMethodCode(const stringRef &requestMethod);
+	u_char    getVersionCode(const stringRef &httpVersion);
+	u_char    getParameterCode(const stringRef &parameter);
+	void      parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx);
+	void      parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
+	void      addHeaderOption(const u_char option, const stringRef &value, httpMessage &msg);
+	void      setUrl(const stringRef &val, httpMessage &msg);
 	// void        parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters);
 	// void        parseHeaderOptions(const stringRef &head, std::unordered_map<int, stringRef> &headerOptions);
 
