@@ -304,9 +304,9 @@ int Head(const httpMessage &request, httpMessage &response) {
 	// info about the file requested, to not recheck later
 	int fileInfo = FILE_FOUND;
 
-	char *dst = new char[inbound.url.len + 1];
-	memcpy(dst, inbound.url.str, inbound.url.len);
-	dst[inbound.url.len] = '\0';
+	char *dst = new char[request.url.len + 1];
+	memcpy(dst, request.url.str, request.url.len);
+	dst[request.url.len] = '\0';
 
 	// sinc the source is always longer or the same length of the output i can decode in-place
 	urlDecode(dst, dst);
@@ -346,15 +346,15 @@ int Head(const httpMessage &request, httpMessage &response) {
 		}
 	}
 
-	// insert in the outbound message the necessaire header options, filename is used to determine the response code
-	composeHeader(file, outbound, fileInfo);
+	// insert in the response message the necessaire header options, filename is used to determine the response code
+	composeHeader(file, response, fileInfo);
 
 	auto fileSize = std::to_string(fileStat.st_size);
 
-	http::addHeaderOption(http::RP_Content_Length, {fileSize.c_str(), fileSize.size()}, outbound);
-	http::addHeaderOption(http::RP_Cache_Control, {"max-age=3600", 12}, outbound);
+	http::addHeaderOption(http::RP_Content_Length, {fileSize.c_str(), fileSize.size()}, response);
+	http::addHeaderOption(http::RP_Cache_Control, {"max-age=3600", 12}, response);
 
-	http::setUrl({file.c_str(), file.size()}, outbound);
+	http::setUrl({file.c_str(), file.size()}, response);
 
 	return fileInfo;
 }
@@ -363,26 +363,26 @@ void Get(const httpMessage &request, httpMessage &response) {
 	PROFILE_FUNCTION();
 
 	// I just need to add the body to the head,
-	auto fileInfo = Head(inbound, outbound);
+	auto fileInfo = Head(request, response);
 
-	auto uncompressed = getFile(outbound.url, fileInfo);
+	auto uncompressed = getContent(response.url, fileInfo);
 
 	std::string compressed = "";
 	if (uncompressed != "") {
-		compressGz(compressed, uncompressed.c_str(), uncompressed.length());
+		compressGz({uncompressed.c_str(), uncompressed.length()}, compressed);
 		log(LOG_DEBUG, "[SERVER] Compressing response body\n");
 
 		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
-			http::addHeaderOption(http::RP_Content_Type, {"text/html", 9}, outbound);
+			http::addHeaderOption(http::RP_Content_Type, {"text/html", 9}, response);
 		}
 	}
 
 	// set the content of the message
-	outbound.body = {makeCopy({compressed.c_str(), compressed.size()}), compressed.size()};
+	response.body = {makeCopy({compressed.c_str(), compressed.size()}), compressed.size()};
 
 	auto lenStr = std::to_string(compressed.length());
-	http::addHeaderOption(http::RP_Content_Length, {lenStr.c_str(), lenStr.size()}, outbound);
-	http::addHeaderOption(http::RP_Content_Encoding, {"gzip", 4}, outbound);
+	http::addHeaderOption(http::RP_Content_Length, {lenStr.c_str(), lenStr.size()}, response);
+	http::addHeaderOption(http::RP_Content_Encoding, {"gzip", 4}, response);
 }
 
 void composeHeader(const std::string &filename, httpMessage &msg, const int fileInfo) {
@@ -430,7 +430,7 @@ std::string getContent(const stringRef &path, const int fileInfo) {
 	PROFILE_FUNCTION();
 
 	std::string content;
-	std::string fileStr(file.str, file.len);
+	std::string fileStr(path.str, path.len);
 
 	if (fileInfo == FILE_FOUND || fileInfo == FILE_IS_DIR_FOUND) {
 
@@ -464,7 +464,7 @@ std::string getDirView(const std::string &path) {
 
 	std::string dirItems;
 
-	for (const auto &entry : std::filesystem::directory_iterator(dirname)) {
+	for (const auto &entry : std::filesystem::directory_iterator(path)) {
 		auto        filename  = static_cast<std::string>(entry.path().filename());
 		auto        url       = "./" + filename;
 		auto        cftime    = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(entry.last_write_time()));

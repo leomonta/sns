@@ -8,12 +8,7 @@
 #include <vector>
 #include <zlib.h>
 
-/**
- * split the given string with a single token, and return the vector of the splitted strings
- */
-std::vector<std::string> split(const std::string &source, const std::string &find) {
-
-	PROFILE_FUNCTION();
+std::vector<std::string> split(const std::string &source, const std::string &sep) {
 
 	std::vector<std::string> res;
 	std::string              haystack(source);
@@ -21,13 +16,13 @@ std::vector<std::string> split(const std::string &source, const std::string &fin
 	size_t      pos = 0;
 	std::string token;
 	// find where the token is in the source
-	while ((pos = haystack.find(find)) != std::string::npos) {
+	while ((pos = haystack.find(sep)) != std::string::npos) {
 		// retrive the string before it
 		token = haystack.substr(0, pos);
 		// insert it in the result
 		res.push_back(token);
 		// remove it from the source
-		haystack.erase(0, pos + find.length());
+		haystack.erase(0, pos + sep.length());
 	}
 	// insert the last substring
 	res.push_back(haystack);
@@ -35,9 +30,6 @@ std::vector<std::string> split(const std::string &source, const std::string &fin
 	return res;
 }
 
-/**
- * Simply get the time formetted following RFC822 regulation on GMT time
- */
 std::string getUTC() {
 
 	// Get the date in UTC/GMT
@@ -55,14 +47,7 @@ std::string getUTC() {
 	return std::string(buffer);
 }
 
-/**
- * Decode url character (%20 => " ") to ascii character, NOT MINE, JUST COPY PASTED
- * copied from https://stackoverflow.com/questions/2673207/c-c-url-decode-library/2766963,
- * @author Thank you ThomasH, https://stackoverflow.com/users/2012498/thomash
- */
 void urlDecode(char *dst, const char *src) {
-
-	PROFILE_FUNCTION();
 
 	char a, b;
 	while (*src) {
@@ -91,11 +76,7 @@ void urlDecode(char *dst, const char *src) {
 	*dst++ = '\0';
 }
 
-/**
- * compress data to gzip
- * used this (https://github.com/mapbox/gzip-hpp/blob/master/include/gzip/compress.hpp) as a reference
- */
-void compressGz(std::string &output, const char *data, std::size_t size) {
+void compressGz(const stringRef data, std::string &output) {
 
 	PROFILE_FUNCTION();
 
@@ -114,12 +95,12 @@ void compressGz(std::string &output, const char *data, std::size_t size) {
 		throw std::runtime_error("deflate init failed");
 	}
 
-	deflate_s.next_in  = (Bytef *)data;
-	deflate_s.avail_in = (uInt)size;
+	deflate_s.next_in  = (Bytef *)data.str;
+	deflate_s.avail_in = (uInt)data.len;
 
 	std::size_t size_compressed = 0;
 	do {
-		size_t increase = size / 2 + 1024;
+		size_t increase = data.len / 2 + 1024;
 		if (output.size() < (size_compressed + increase)) {
 			output.resize(size_compressed + increase);
 		}
@@ -145,12 +126,6 @@ void simpleMemcpy(char *src, char *dst, size_t size) {
 	}
 }
 
-/**
- * Thaks to https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
- * @author https://stackoverflow.com/users/9530/adam-rosenfield
- * plus some modification
- *
- */
 void trimwhitespace(char *str) {
 
 	PROFILE_FUNCTION();
@@ -212,11 +187,6 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
 	return nullptr;
 }
 
-/**
- *  Finds the first occurrence of ch in the byte string pointed to by str to a max of count - 1
- *
- * @return pointer to the character found or nullptr if no such character is found
- */
 const char *strnchr(const char *str, int chr, const size_t count) {
 
 	for (size_t i = 0; i < count; ++i) {
@@ -230,10 +200,6 @@ const char *strnchr(const char *str, int chr, const size_t count) {
 	return nullptr;
 }
 
-/**
- * rework the stringRef to remove unwanted whitespaces in front or at the back of the content
- * @param strRef the stringRef to modify
- */
 void trim(stringRef &strRef) {
 	size_t newStart;
 
@@ -272,9 +238,6 @@ bool isEmpty(const stringRef &strRef) {
 	return true;
 }
 
-/**
- * Quick method to print a stringRef
- */
 void printStringRef(const stringRef &strRef) {
 
 	const char *str = strRef.str;
