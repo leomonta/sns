@@ -243,7 +243,7 @@ void acceptRequestsSecure(bool *threadStop) {
 	}
 }
 
-void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadStop) {
+void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *threadStop) {
 
 	int bytesReceived;
 
@@ -297,10 +297,7 @@ void resolveRequestSecure(SSL *sslConnection, Socket clientSocket, bool *threadS
 	sslConn::destroyConnection(sslConnection);
 }
 
-/**
- * the http method, set the value of result as the header that would have been sent in a GET response
- */
-int Head(httpMessage &inbound, httpMessage &outbound) {
+int Head(const httpMessage &request, httpMessage &response) {
 
 	PROFILE_FUNCTION();
 
@@ -362,10 +359,7 @@ int Head(httpMessage &inbound, httpMessage &outbound) {
 	return fileInfo;
 }
 
-/**
- * the http method, get both the header and the body
- */
-void Get(httpMessage &inbound, httpMessage &outbound) {
+void Get(const httpMessage &request, httpMessage &response) {
 	PROFILE_FUNCTION();
 
 	// I just need to add the body to the head,
@@ -391,9 +385,6 @@ void Get(httpMessage &inbound, httpMessage &outbound) {
 	http::addHeaderOption(http::RP_Content_Encoding, {"gzip", 4}, outbound);
 }
 
-/**
- * compose the header given the file requested
- */
 void composeHeader(const std::string &filename, httpMessage &msg, const int fileInfo) {
 
 	PROFILE_FUNCTION();
@@ -434,11 +425,7 @@ void composeHeader(const std::string &filename, httpMessage &msg, const int file
 	http::addHeaderOption(http::RP_Server, {srvr, 21}, msg);
 }
 
-/**
- * get the file to a string and if its empty return the page 404.html
- * https://stackoverflow.com/questions/5840148/how-can-i-get-a-files-size-in-c maybe better
- */
-std::string getFile(const stringRef &file, const int fileInfo) {
+std::string getContent(const stringRef &path, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 
@@ -473,7 +460,7 @@ std::string getFile(const stringRef &file, const int fileInfo) {
 	return content;
 }
 
-std::string getDirView(const std::string &dirname) {
+std::string getDirView(const std::string &path) {
 
 	std::string dirItems;
 
