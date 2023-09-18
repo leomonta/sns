@@ -218,7 +218,9 @@ void http::decompileHeader(const stringRef &rawHeader, httpMessage &msg) {
 		// confine the parameters in a single stringREf excluding the '?'
 		stringRef queryParams = {msg.url.str + qPos + 1, msg.url.len - qPos - 1};
 		parseOptions(queryParams, addToParams, "&", '=', &msg);
-		// parseQueryParameters(queryParams, msg.parameters);
+	
+		// limit thw url to before the '?'
+		msg.url.len -= msg.url.len - qPos;
 	}
 
 	parseOptions(rawHeader, addToOptions, "\r\n", ':', &msg);
