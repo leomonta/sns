@@ -159,7 +159,7 @@ void trimwhitespace(char *str) {
 	str[size] = '\0';
 }
 
-char *strnstr(char *haystack, const char *needle, const size_t count) {
+const char *strnstr(const char *haystack, const char *needle, const size_t count) {
 
 	if (count == 0) {
 		return nullptr;
@@ -200,7 +200,7 @@ char *strnchr(char *str, int chr, const size_t count) {
 	return nullptr;
 }
 
-void trim(stringRef &strRef) {
+void trim(stringRefConst &strRef) {
 	size_t newStart;
 
 	for (newStart = 0; newStart < strRef.len; ++newStart) {

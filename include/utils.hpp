@@ -66,7 +66,7 @@ void trimwhitespace(char *str);
  *
  * @return a pointer to the first character of the occurence of needl in haystack, nullptr if not found or if count == 0
  */
-char *strnstr(char *haystack, const char *needle, const size_t count);
+const char *strnstr(const char *haystack, const char *needle, const size_t count);
 
 /**
  * finds the first occurrence of chr in the byte string pointed to by str to a max of count - 1

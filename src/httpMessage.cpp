@@ -18,7 +18,7 @@ void logMalformedParameter(const stringRef &strRef) {
 	free(temp); // and free
 }
 
-const stringRef headerRqStr[] = {
+const stringRefConst headerRqStr[] = {
     TO_STRINGREF("A-IM"),
     TO_STRINGREF("Accept"),
     TO_STRINGREF("Accept-Charset"),
@@ -62,7 +62,7 @@ const stringRef headerRqStr[] = {
     TO_STRINGREF("Warning"),
 };
 
-const stringRef headerRpStr[] = {
+const stringRefConst headerRpStr[] = {
     TO_STRINGREF("Accept-CH"),
     TO_STRINGREF("Access-Control-Allow-Origin"),
     TO_STRINGREF("Access-Control-Allow-Credentials"),
@@ -169,8 +169,6 @@ httpMessage::~httpMessage() {
 
 	free(url.str);
 	free(body.str);
-
-
 }
 
 void addToOptions(stringRef key, stringRef val, httpMessage *ctx) {
@@ -218,7 +216,7 @@ void http::decompileHeader(const stringRef &rawHeader, httpMessage &msg) {
 		// confine the parameters in a single stringREf excluding the '?'
 		stringRef queryParams = {msg.url.str + qPos + 1, msg.url.len - qPos - 1};
 		parseOptions(queryParams, addToParams, "&", '=', &msg);
-	
+
 		// limit thw url to before the '?'
 		msg.url.len -= msg.url.len - qPos;
 	}
@@ -255,8 +253,8 @@ void http::decompileMessage(const stringRef &cType, httpMessage *msg, stringRef 
 			log(LOG_WARNING, "Malformed multipart form data, no '='\n");
 		}
 
-		size_t    temp    = cType.str + cType.len - eq;
-		stringRef divisor = {eq, temp};
+		size_t         temp    = cType.str + cType.len - eq;
+		stringRefConst divisor = {eq, temp};
 
 		if (*eq == '"') {
 			++divisor.str;

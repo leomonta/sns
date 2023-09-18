@@ -18,7 +18,7 @@ typedef struct stringRef {
 
 typedef struct stringRefConst {
 	const char  *str;
-	const size_t len;
+	size_t len;
 
 	bool operator==(const stringRef &sr) const {
 		return (sr.str == str && sr.len == len);
