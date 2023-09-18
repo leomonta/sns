@@ -5,8 +5,20 @@
 #include <string>
 #include <unordered_map>
 
+enum direction : bool {
+	DIR_OUTBOUND,
+	DIR_INBOUND
+};
+
 class httpMessage {
 public:
+ 
+	// this message changes how the message should be treated
+	// If dir is INBOUND the message is based upon rawMessage_a a null-terminated heap-allocated string containing the entire message, every string ref of the message
+	// references that message
+	// If dir is OUTBOUND rawMessage_a is left as nullptr and every other stringRef is allocated via the specific method in the namespace http the allocation are then freed on
+	// the message destruction
+	direction                                dir;
 	u_char                                   method;        // the appropriate http method, GET, POST, PATCH
 	u_char                                   statusCode;    // 200, 404, 500, etc etc
 	u_char                                   version;       // the version of the http header (1.0, 1.1, 2.0, ...)
@@ -34,8 +46,8 @@ namespace http {
 	u_char    getParameterCode(const stringRef &parameter);
 	void      parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx);
 	void      parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
-	void      addHeaderOption(const u_char option, const stringRef &value, httpMessage &msg);
-	void      setUrl(const stringRef &val, httpMessage &msg);
+	void      addHeaderOption(const u_char option, const stringRefConst &value, httpMessage &msg);
+	void      setUrl(const stringRefConst &val, httpMessage &msg);
 	// void        parseQueryParameters(const stringRef &query, std::unordered_map<stringRef, stringRef> &parameters);
 	// void        parseHeaderOptions(const stringRef &head, std::unordered_map<int, stringRef> &headerOptions);
 

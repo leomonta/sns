@@ -126,7 +126,7 @@ httpMessage::httpMessage(const char *message) {
 	auto msgLen = strlen(message);
 
 	// save the message in a local pointer so i don't rely on std::string allocation plus a null terminator
-	rawMessage_a = new char[msgLen + 1];
+	rawMessage_a = static_cast<char *>(malloc(msgLen + 1));
 	memcpy(rawMessage_a, message, msgLen + 1);
 
 	// body and header are divided by two newlines
@@ -154,7 +154,23 @@ httpMessage::httpMessage(const char *message) {
 }
 
 httpMessage::~httpMessage() {
-	delete[] rawMessage_a;
+	if (rawMessage_a != nullptr) {
+		free(rawMessage_a);
+	}
+
+	if (dir == DIR_INBOUND) {
+		// that's all folks
+		return;
+	}
+
+	for (const auto &[key, val] : headerOptions) {
+		free(val.str);
+	}
+
+	free(url.str);
+	free(body.str);
+
+
 }
 
 void addToOptions(stringRef key, stringRef val, httpMessage *ctx) {
@@ -298,7 +314,6 @@ stringRef http::compileMessage(const httpMessage &msg) {
 
 	memcpy(writer, msg.body.str, msg.body.len);
 	writer += msg.body.len;
-
 
 	return {res, msgLen};
 }
@@ -483,11 +498,11 @@ void http::parseFormData(const std::string &params, std::string &divisor, std::u
 	}
 }
 
-void http::addHeaderOption(const u_char option, const stringRef &value, httpMessage &msg) {
+void http::addHeaderOption(const u_char option, const stringRefConst &value, httpMessage &msg) {
 	auto opt = headerRpStr[option];
 
 	stringRef cpy;
-	cpy.str                   = makeCopy(value);
+	cpy.str                   = makeCopyConst(value);
 	cpy.len                   = value.len;
 	msg.headerOptions[option] = cpy;
 
@@ -496,6 +511,6 @@ void http::addHeaderOption(const u_char option, const stringRef &value, httpMess
 	msg.headerLen += (opt.len + 2 + cpy.len + 2);
 }
 
-void http::setUrl(const stringRef &val, httpMessage &msg) {
-	msg.url = {makeCopy(val), val.len};
+void http::setUrl(const stringRefConst &val, httpMessage &msg) {
+	msg.url = {makeCopyConst(val), val.len};
 }

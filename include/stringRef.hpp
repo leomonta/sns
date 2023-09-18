@@ -3,18 +3,27 @@
 #include <functional>
 #include <stddef.h>
 
-#define TO_STRINGREF(str) {str, strlen(str)}
+#define TO_STRINGREF(str) \
+	{ str, strlen(str) }
 
 // express a substring by referencing another c string
 typedef struct stringRef {
-	const char *str;
-	size_t      len;
+	char  *str;
+	size_t len;
 
 	bool operator==(const stringRef &sr) const {
 		return (sr.str == str && sr.len == len);
 	}
 } stringRef;
 
+typedef struct stringRefConst {
+	const char  *str;
+	const size_t len;
+
+	bool operator==(const stringRef &sr) const {
+		return (sr.str == str && sr.len == len);
+	}
+} stringRefConst;
 
 namespace std {
 	template <>

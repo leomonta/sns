@@ -76,7 +76,7 @@ void urlDecode(char *dst, const char *src) {
 	*dst++ = '\0';
 }
 
-void compressGz(const stringRef data, std::string &output) {
+void compressGz(const stringRefConst data, std::string &output) {
 
 	PROFILE_FUNCTION();
 
@@ -159,7 +159,7 @@ void trimwhitespace(char *str) {
 	str[size] = '\0';
 }
 
-const char *strnstr(const char *haystack, const char *needle, const size_t count) {
+char *strnstr(char *haystack, const char *needle, const size_t count) {
 
 	if (count == 0) {
 		return nullptr;
@@ -187,7 +187,7 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
 	return nullptr;
 }
 
-const char *strnchr(const char *str, int chr, const size_t count) {
+char *strnchr(char *str, int chr, const size_t count) {
 
 	for (size_t i = 0; i < count; ++i) {
 		if (*str == chr) {
@@ -251,7 +251,13 @@ void printStringRef(const stringRef &strRef) {
 	putchar('\n');
 }
 
-const char *makeCopy(const stringRef &str) {
+char *makeCopy(const stringRef &str) {
+	auto cpy = static_cast<char *>(malloc(str.len));
+	memcpy(cpy, str.str, str.len);
+	return cpy;
+}
+
+char *makeCopyConst(const stringRefConst &str) {
 	auto cpy = static_cast<char *>(malloc(str.len));
 	memcpy(cpy, str.str, str.len);
 	return cpy;

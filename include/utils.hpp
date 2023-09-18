@@ -43,7 +43,7 @@ void urlDecode(char *dst, const char *src);
  * @param data the string reference pointing to the data to compress
  * @param output where to put the result
  */
-void compressGz(const stringRef data, std::string &output);
+void compressGz(const stringRefConst data, std::string &output);
 
 /**
  * Thaks to https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
@@ -66,7 +66,7 @@ void trimwhitespace(char *str);
  *
  * @return a pointer to the first character of the occurence of needl in haystack, nullptr if not found or if count == 0
  */
-const char *strnstr(const char *haystack, const char *needle, const size_t count);
+char *strnstr(char *haystack, const char *needle, const size_t count);
 
 /**
  * finds the first occurrence of chr in the byte string pointed to by str to a max of count - 1
@@ -77,7 +77,7 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
  *
  * @return pointer to the character found or nullptr if no such character is found
  */
-const char *strnchr(const char *str, int chr, const size_t count);
+char *strnchr(char *str, int chr, const size_t count);
 
 /**
  * rework the stringRef to remove unwanted whitespaces in front or at the back of the content
@@ -105,5 +105,17 @@ void printStringRef(const stringRef &strRef);
  * given a sringref mallocs a copy of the string and returns it
  * 
  * @param str the string to copy
+ * 
+ * @return the mallocated string
  */
-const char *makeCopy(const stringRef &str);
+char *makeCopy(const stringRef &str);
+
+/**
+ * given a string and its size mallocs a copy of the string and returns it
+ * 
+ * @param str the string to copy
+ * @param size the size of the string
+ * 
+ * @return the mallocated string
+ */
+char *makeCopyConst(const stringRefConst &str);

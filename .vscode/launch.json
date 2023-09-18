@@ -20,7 +20,7 @@
 					"ignoreFailures": false
 				}
 			],
-			"preLaunchTask": "Build all modified files"
+			"preLaunchTask": "build modified files, Debug"
 		}
 	]
 }

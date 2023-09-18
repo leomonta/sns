@@ -378,7 +378,8 @@ void Get(const httpMessage &request, httpMessage &response) {
 	}
 
 	// set the content of the message
-	response.body = {makeCopy({compressed.c_str(), compressed.size()}), compressed.size()};
+	char *temp = makeCopyConst({compressed.c_str(), compressed.size()});
+	response.body = {temp, compressed.size()};
 
 	auto lenStr = std::to_string(compressed.length());
 	http::addHeaderOption(http::RP_Content_Length, {lenStr.c_str(), lenStr.size()}, response);
