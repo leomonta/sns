@@ -5,7 +5,7 @@
 			"type": "shell",
 			"label": "build modified files, Debug",
 			"command": "cpp_builder.py",
-			"args": ["-p", "debug"],
+			"args": ["-p", "no-threads"],
 			"options": {
 				"cwd": "${workspaceFolder}"
 			},
@@ -29,7 +29,7 @@
 			"type": "shell",
 			"label": "build all files, Debug",
 			"command": "cpp_builder.py",
-			"args": ["-p", "debug", "-a"],
+			"args": ["-p", "no-threads", "-a"],
 			"options": {
 				"cwd": "${workspaceFolder}"
 			},

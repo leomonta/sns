@@ -388,7 +388,7 @@ u_char http::getParameterCode(const stringRef &parameter) {
 	// I'm becoming yan dev
 
 	for (u_char i = 0; i < RQ_ENUM_LEN; ++i) {
-		if (strncmp(parameter.str, headerRqStr[i].str, parameter.len)) {
+		if (strncmp(parameter.str, headerRqStr[i].str, parameter.len) == 0) {
 			return i;
 		}
 	}

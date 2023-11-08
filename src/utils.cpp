@@ -200,7 +200,7 @@ char *strnchr(char *str, int chr, const size_t count) {
 	return nullptr;
 }
 
-void trim(stringRefConst &strRef) {
+void trim(stringRef &strRef) {
 	size_t newStart;
 
 	for (newStart = 0; newStart < strRef.len; ++newStart) {

@@ -259,6 +259,7 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 		if (bytesReceived > 0) {
 
 			httpMessage mex(request);
+			mex.dir = DIR_INBOUND;
 
 			log(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.method]);
 
