@@ -2,3 +2,5 @@ obj/
 bin/
 files_hash
 move
+compile_commands.json
+.cache

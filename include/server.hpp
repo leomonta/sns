@@ -1,6 +1,7 @@
 #pragma once
 
 #include "httpMessage.hpp"
+#include "stringRef.hpp"
 
 #include <sslConn.hpp>
 #include <tcpConn.hpp>
@@ -60,7 +61,7 @@ void composeHeader(const std::string &filename, outboundHttpMessage &msg, const 
  *
  * @return the plain text string of the path
  */
-std::string getContent(const stringRefConst &path, const int fileInfo);
+std::string getContent(const stringRef &path, const int fileInfo);
 
 /**
  * Given a path of a directory return its dirview in html

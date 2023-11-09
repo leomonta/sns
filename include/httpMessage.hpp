@@ -6,10 +6,10 @@
 #include <unordered_map>
 
 /*
-I use two representation of an http message for 2 reasons, 
+I use two representation of an http message for 2 reasons,
 1. the inbound include the entire raw message allocated, message used by every stringRef in the struct,
  the outbound message does not contain the raw message, the parameters (form or query), the requested url and the request method,
- but makes use of a numeric status code, these differences make the outbound one much smaller 
+ but makes use of a numeric status code, these differences make the outbound one much smaller
 
 2. the inbound can make use of a lot of const strings, the outbound cannot
 */
@@ -27,14 +27,15 @@ struct inboundHttpMessage {
 
 struct outboundHttpMessage {
 
-	u_char                                   m_statusCode;    // 200, 404, 500, etc etc
-	u_char                                   m_version;       // the version of the http header (1.0, 1.1, 2.0, ...)
-	std::unordered_map<u_char, stringRef>    m_headerOptions; // represent the header as the collection of the single options -> value
-	size_t                                   m_headerLen;     // how many bytes are there in the header
-	stringRef                                m_body;          // the content of the message, what the message is about
+	u_char                                m_statusCode;    // 200, 404, 500, etc etc
+	u_char                                m_version;       // the version of the http header (1.0, 1.1, 2.0, ...)
+	std::unordered_map<u_char, stringRef> m_headerOptions; // represent the header as the collection of the single options -> value
+	size_t                                m_headerLen;     // how many bytes are there in the header
+	stringRef                             m_body;          // the content of the message, what the message is about
+	stringRef                             m_filename;      // the internal complete filename for the resource present in the body
 };
 
-inboundHttpMessage  makeInboundMessage(const char *str);
+inboundHttpMessage makeInboundMessage(const char *str);
 // outboundHttpMessage makeOutboundMessage();
 
 void destroyInboundHttpMessage(const inboundHttpMessage *mex);
@@ -60,8 +61,8 @@ namespace http {
 
 	/**
 	 * Unite the header and the body in a single message and returns it
-	 * the compiled message does not have a null terminator 
-	 * 
+	 * the compiled message does not have a null terminator
+	 *
 	 * @param msg the message containing the header options and, eventually, the body
 	 * @return the 'compiled' message
 	 */
@@ -110,20 +111,20 @@ namespace http {
 	 * Given the header option code and the relative values copies it in the httpMessage
 	 * This function should always be used instead of directly accessing the header options of the message since this also keeps track of the amount
 	 * of bytes stored
-	 * 
+	 *
 	 * @param option the header option code
 	 * @param value the string value to assign to the option
-	 * @param msg the httpMessage that contains the header options map 
+	 * @param msg the httpMessage that contains the header options map
 	 */
 	void addHeaderOption(const u_char option, const stringRefConst &value, outboundHttpMessage &msg);
 
 	/**
 	 * Simple makes sure that a copy of the passed stringRef is inserted in the url of the http message
-	 * 
+	 *
 	 * @param val the value to copy and insert
 	 * @param msg the message to insert it in
 	 */
-	void setUrl(const stringRefConst &val, inboundHttpMessage &msg);
+	void setFilename(const stringRefConst &val, outboundHttpMessage &msg);
 
 	// http method code
 	enum methods : u_char {

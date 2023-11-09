@@ -170,6 +170,7 @@ void destroyOutboundHttpMessage(const outboundHttpMessage *mex) {
 	}
 
 	free(mex->m_body.str);
+	free(mex->m_filename.str);
 }
 
 void addToOptions(stringRefConst key, stringRefConst val, inboundHttpMessage *ctx) {
@@ -509,8 +510,7 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, out
 
 	stringRef cpy{
 	    makeCopyConst(value),
-	    value.len
-	};
+	    value.len};
 	msg.m_headerOptions[option] = cpy;
 
 	// account the bytes that will be added later
@@ -518,6 +518,6 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, out
 	msg.m_headerLen += (opt.len + 2 + cpy.len + 2);
 }
 
-void http::setUrl(const stringRefConst &val, inboundHttpMessage &msg) {
-	msg.m_url = {makeCopyConst(val), val.len};
+void http::setFilename(const stringRefConst &val, outboundHttpMessage &msg) {
+	msg.m_filename = {makeCopyConst(val), val.len};
 }

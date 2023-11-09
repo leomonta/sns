@@ -59,7 +59,7 @@ namespace Res {
 
 int main(const int argc, const char *argv[]) {
 
-	// Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
+	Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
 
 	signal(SIGPIPE, Panico);
 
@@ -108,7 +108,7 @@ int main(const int argc, const char *argv[]) {
 		printf("> ");
 	}
 
-	// Instrumentor::Get().EndSession();
+	Instrumentor::Get().EndSession();
 
 	return 0;
 }
@@ -354,7 +354,7 @@ int Head(const inboundHttpMessage &request, outboundHttpMessage &response) {
 	http::addHeaderOption(http::RP_Content_Length, {fileSize.c_str(), fileSize.size()}, response);
 	http::addHeaderOption(http::RP_Cache_Control, {"max-age=3600", 12}, response);
 
-	// http::setUrl({file.c_str(), file.size()}, request);
+	http::setFilename({file.c_str(), file.size()}, response);
 
 	return fileInfo;
 }
@@ -365,7 +365,7 @@ void Get(const inboundHttpMessage &request, outboundHttpMessage &response) {
 	// I just need to add the body to the head,
 	auto fileInfo = Head(request, response);
 
-	auto uncompressed = getContent(request.m_url, fileInfo);
+	auto uncompressed = getContent(response.m_filename, fileInfo);
 
 	std::string compressed = "";
 	if (uncompressed != "") {
@@ -426,7 +426,7 @@ void composeHeader(const std::string &filename, outboundHttpMessage &msg, const 
 	http::addHeaderOption(http::RP_Server, {srvr, 21}, msg);
 }
 
-std::string getContent(const stringRefConst &path, const int fileInfo) {
+std::string getContent(const stringRef &path, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 

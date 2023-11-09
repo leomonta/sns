@@ -1,8 +1,6 @@
 # simple Http server from socket library
 
-## this was previuosly my graduation project -> [Tesi_matura_2021](https://github.com/leomonta/Tesi_Matura_2021)
-
-### Here are some features
+## Here are some features
 
 * Head http method
 * Get http method

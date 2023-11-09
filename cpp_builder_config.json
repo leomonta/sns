@@ -65,6 +65,7 @@
 			"netTcpSsl"
 		]
 	},
+
 	"release": {
 		"compiler_args": "-Ofast -std=c++2a -fsanitize=address -fsanitize=leak",
 		"linker_args": "-fsanitize=address -fsanitize=leak",
