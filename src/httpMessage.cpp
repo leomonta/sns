@@ -115,11 +115,11 @@ const stringRefConst headerRpStr[] = {
     TO_STRINGREF("Status"),
 };
 
-inboundHttpMessage makeInboundMessage(const char *str) {
-
-	inboundHttpMessage res;
+inboundHttpMessage http::makeInboundMessage(const char *str) {
 
 	PROFILE_FUNCTION();
+
+	inboundHttpMessage res;
 
 	// use strlen so i'm sure it's not counting the null terminator
 	auto msgLen = strlen(str);
@@ -156,14 +156,14 @@ inboundHttpMessage makeInboundMessage(const char *str) {
 	return res;
 }
 
-void destroyInboundHttpMessage(const inboundHttpMessage *mex) {
+void http::destroyInboundHttpMessage(inboundHttpMessage *mex) {
 
 	if (mex->m_rawMessage_a != nullptr) {
 		free(const_cast<char *>(mex->m_rawMessage_a));
 	}
 }
 
-void destroyOutboundHttpMessage(const outboundHttpMessage *mex) {
+void http::destroyOutboundHttpMessage(outboundHttpMessage *mex) {
 
 	for (const auto &[key, val] : mex->m_headerOptions) {
 		free(val.str);
@@ -366,6 +366,7 @@ u_char http::getMethodCode(const stringRefConst &requestMethod) {
 u_char http::getVersionCode(const stringRefConst &httpVersion) {
 
 	// Yep that's it, such logic pt 2.0
+	PROFILE_FUNCTION();
 
 	auto htvs = httpVersion.str;
 	auto htvl = httpVersion.len;
@@ -398,6 +399,8 @@ u_char http::getVersionCode(const stringRefConst &httpVersion) {
 
 u_char http::getParameterCode(const stringRefConst &parameter) {
 
+	PROFILE_FUNCTION();
+
 	for (u_char i = 0; i < RQ_ENUM_LEN; ++i) {
 		if (strncmp(parameter.str, headerRqStr[i].str, parameter.len) == 0) {
 			return i;
@@ -408,6 +411,8 @@ u_char http::getParameterCode(const stringRefConst &parameter) {
 }
 
 void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefConst a, stringRefConst b, inboundHttpMessage *ctx), const char *chunkSep, const char itemSep, inboundHttpMessage *ctx) {
+
+	PROFILE_FUNCTION();
 
 	// parse the remaining header options
 

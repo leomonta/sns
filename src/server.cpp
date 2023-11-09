@@ -1,5 +1,6 @@
 #include "server.hpp"
 
+#include "httpMessage.hpp"
 #include "pages.hpp"
 #include "profiler.hpp"
 #include "utils.hpp"
@@ -59,7 +60,7 @@ namespace Res {
 
 int main(const int argc, const char *argv[]) {
 
-	Instrumentor::Get().BeginSession("Leonard server", "benchmarks/results.json");
+	Instrumentor::Get().BeginSession("Leonard server");
 
 	signal(SIGPIPE, Panico);
 
@@ -258,7 +259,7 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 		// received some bytes
 		if (bytesReceived > 0) {
 
-			inboundHttpMessage mex = makeInboundMessage(request);
+			inboundHttpMessage mex = http::makeInboundMessage(request);
 
 			log(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
 
@@ -281,6 +282,10 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
 			sslConn::sendRecordC(sslConnection, res.str, res.len);
+			
+			http::destroyOutboundHttpMessage(&response);
+			http::destroyInboundHttpMessage(&mex);
+			free(request);
 
 			break;
 		}

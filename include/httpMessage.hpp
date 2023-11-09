@@ -35,13 +35,11 @@ struct outboundHttpMessage {
 	stringRef                             m_filename;      // the internal complete filename for the resource present in the body
 };
 
-inboundHttpMessage makeInboundMessage(const char *str);
-// outboundHttpMessage makeOutboundMessage();
-
-void destroyInboundHttpMessage(const inboundHttpMessage *mex);
-void destroyOutboundHttpMessage(const outboundHttpMessage *mex);
-
 namespace http {
+	inboundHttpMessage makeInboundMessage(const char *str);
+
+	void destroyInboundHttpMessage(inboundHttpMessage *mex);
+	void destroyOutboundHttpMessage(outboundHttpMessage *mex);
 
 	/**
 	 * deconstruct the raw header in a map with key (option) -> value
