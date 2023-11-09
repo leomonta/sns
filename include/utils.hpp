@@ -64,7 +64,7 @@ void trimwhitespace(char *str);
  * @param needle the string to search for
  * @param count the max amount of chars to check for in haystack
  *
- * @return a pointer to the first character of the occurence of needl in haystack, nullptr if not found or if count == 0
+ * @return a pointer to the first character of the occurence of needle in haystack, nullptr if not found or if count == 0
  */
 const char *strnstr(const char *haystack, const char *needle, const size_t count);
 
@@ -77,14 +77,15 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
  *
  * @return pointer to the character found or nullptr if no such character is found
  */
-char *strnchr(char *str, int chr, const size_t count);
+const char *strnchr(const char *str, int chr, const size_t count);
 
 /**
  * rework the stringRef to remove unwanted whitespaces in front or at the back of the content
  *
- * @param strRef the stringRef to modify
+ * @param strRef the stringRef to trim
+ * @return the trimmed stringRef
  */
-void trim(stringRef &strRef);
+stringRefConst trim(stringRefConst &strRef);
 
 /**
  * check if every character in the stringref is a space
@@ -92,7 +93,7 @@ void trim(stringRef &strRef);
  *
  * @param strRef the stringref to check
  */
-bool isEmpty(const stringRef &strRef);
+bool isEmpty(const stringRefConst &strRef);
 
 /**
  * print a string ref to stdout

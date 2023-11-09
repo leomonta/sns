@@ -187,7 +187,7 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
 	return nullptr;
 }
 
-char *strnchr(char *str, int chr, const size_t count) {
+const char *strnchr(const char *str, int chr, const size_t count) {
 
 	for (size_t i = 0; i < count; ++i) {
 		if (*str == chr) {
@@ -200,7 +200,7 @@ char *strnchr(char *str, int chr, const size_t count) {
 	return nullptr;
 }
 
-void trim(stringRef &strRef) {
+stringRefConst trim(stringRefConst &strRef) {
 	size_t newStart;
 
 	for (newStart = 0; newStart < strRef.len; ++newStart) {
@@ -209,19 +209,23 @@ void trim(stringRef &strRef) {
 		}
 	}
 
-	strRef.str += newStart;
-	strRef.len -= newStart;
+	stringRefConst res = {
+	    strRef.str + newStart,
+	    strRef.len - newStart
+	};
 
 	size_t newEnd;
-	for (newEnd = 0; newEnd < strRef.len; ++newEnd) {
-		if (strRef.str[strRef.len - newEnd - 1] != ' ') {
+	for (newEnd = 0; newEnd < res.len; ++newEnd) {
+		if (res.str[res.len - newEnd - 1] != ' ') {
 			break;
 		}
 	}
-	strRef.len -= newEnd;
+	res.len -= newEnd;
+
+	return res;
 }
 
-bool isEmpty(const stringRef &strRef) {
+bool isEmpty(const stringRefConst &strRef) {
 
 	if (strRef.len == 0) {
 		return true;

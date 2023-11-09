@@ -248,7 +248,7 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 	int bytesReceived;
 
 	char       *request;
-	httpMessage response;
+	outboundHttpMessage response;
 
 	while (!(*threadStop)) {
 
@@ -258,13 +258,12 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 		// received some bytes
 		if (bytesReceived > 0) {
 
-			httpMessage mex(request);
-			mex.dir = DIR_INBOUND;
+			inboundHttpMessage mex = makeInboundMessage(request);
 
-			log(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.method]);
+			log(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
 
 			// no really used
-			switch (mex.method) {
+			switch (mex.m_method) {
 			case http::HTTP_HEAD:
 				Head(mex, response);
 				break;
@@ -298,16 +297,16 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 	sslConn::destroyConnection(sslConnection);
 }
 
-int Head(const httpMessage &request, httpMessage &response) {
+int Head(const inboundHttpMessage &request, outboundHttpMessage &response) {
 
 	PROFILE_FUNCTION();
 
 	// info about the file requested, to not recheck later
 	int fileInfo = FILE_FOUND;
 
-	char *dst = new char[request.url.len + 1];
-	memcpy(dst, request.url.str, request.url.len);
-	dst[request.url.len] = '\0';
+	char *dst = new char[request.m_url.len + 1];
+	memcpy(dst, request.m_url.str, request.m_url.len);
+	dst[request.m_url.len] = '\0';
 
 	// sinc the source is always longer or the same length of the output i can decode in-place
 	urlDecode(dst, dst);
@@ -355,18 +354,18 @@ int Head(const httpMessage &request, httpMessage &response) {
 	http::addHeaderOption(http::RP_Content_Length, {fileSize.c_str(), fileSize.size()}, response);
 	http::addHeaderOption(http::RP_Cache_Control, {"max-age=3600", 12}, response);
 
-	http::setUrl({file.c_str(), file.size()}, response);
+	// http::setUrl({file.c_str(), file.size()}, request);
 
 	return fileInfo;
 }
 
-void Get(const httpMessage &request, httpMessage &response) {
+void Get(const inboundHttpMessage &request, outboundHttpMessage &response) {
 	PROFILE_FUNCTION();
 
 	// I just need to add the body to the head,
 	auto fileInfo = Head(request, response);
 
-	auto uncompressed = getContent(response.url, fileInfo);
+	auto uncompressed = getContent(request.m_url, fileInfo);
 
 	std::string compressed = "";
 	if (uncompressed != "") {
@@ -380,14 +379,14 @@ void Get(const httpMessage &request, httpMessage &response) {
 
 	// set the content of the message
 	char *temp = makeCopyConst({compressed.c_str(), compressed.size()});
-	response.body = {temp, compressed.size()};
+	response.m_body = {temp, compressed.size()};
 
 	auto lenStr = std::to_string(compressed.length());
 	http::addHeaderOption(http::RP_Content_Length, {lenStr.c_str(), lenStr.size()}, response);
 	http::addHeaderOption(http::RP_Content_Encoding, {"gzip", 4}, response);
 }
 
-void composeHeader(const std::string &filename, httpMessage &msg, const int fileInfo) {
+void composeHeader(const std::string &filename, outboundHttpMessage &msg, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 
@@ -427,7 +426,7 @@ void composeHeader(const std::string &filename, httpMessage &msg, const int file
 	http::addHeaderOption(http::RP_Server, {srvr, 21}, msg);
 }
 
-std::string getContent(const stringRef &path, const int fileInfo) {
+std::string getContent(const stringRefConst &path, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 

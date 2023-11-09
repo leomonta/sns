@@ -33,7 +33,7 @@ void resolveRequestSecure(SSL *sslConn, const Socket clientSocket, bool *threadS
  * @param request the request message received from the client
  * @param response what will be communicated to the client
  */
-int Head(const httpMessage &request, httpMessage &response);
+int Head(const inboundHttpMessage &request, outboundHttpMessage &response);
 
 /**
  * Fill the outbounf httpMessage with the correct headers and body info for the Get method
@@ -41,7 +41,7 @@ int Head(const httpMessage &request, httpMessage &response);
  * @param request the request message received from the client
  * @param response what will be communicated to the client
  */
-void Get(const httpMessage &request, httpMessage &response);
+void Get(const inboundHttpMessage &request, outboundHttpMessage &response);
 
 /**
  * Given the name of a file, retrives all of the info to put in the http header
@@ -50,7 +50,7 @@ void Get(const httpMessage &request, httpMessage &response);
  * @param msg httpMessage where to put the data
  * @param fileInfo additional fileinfo presence in the filesystem
  */
-void composeHeader(const std::string &filename, httpMessage &msg, const int fileInfo);
+void composeHeader(const std::string &filename, outboundHttpMessage &msg, const int fileInfo);
 
 /**
  * given a path returns the file as a string if it is present, a dir view if it's a directory
@@ -60,7 +60,7 @@ void composeHeader(const std::string &filename, httpMessage &msg, const int file
  *
  * @return the plain text string of the path
  */
-std::string getContent(const stringRef &path, const int fileInfo);
+std::string getContent(const stringRefConst &path, const int fileInfo);
 
 /**
  * Given a path of a directory return its dirview in html

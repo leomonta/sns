@@ -20,7 +20,7 @@ typedef struct stringRefConst {
 	const char  *str;
 	size_t len;
 
-	bool operator==(const stringRef &sr) const {
+	bool operator==(const stringRefConst &sr) const {
 		return (sr.str == str && sr.len == len);
 	}
 } stringRefConst;
@@ -39,9 +39,29 @@ namespace std {
 	};
 
 	template <>
+	struct hash<stringRefConst> {
+
+		size_t operator()(const stringRefConst &k) const {
+			// Compute individual hash values for two data members and combine them using XOR and bit shifting
+
+			// #k.x 0 #k.y
+			auto ptr = reinterpret_cast<size_t>(k.str) << 2;
+			return (ptr * 10 + k.len);
+		}
+	};
+
+	template <>
 	struct equal_to<stringRef> {
 
 		bool operator()(const stringRef &rhs, const stringRef &lhs) const {
+			return rhs == lhs;
+		}
+	};
+
+	template <>
+	struct equal_to<stringRefConst> {
+
+		bool operator()(const stringRefConst &rhs, const stringRefConst &lhs) const {
 			return rhs == lhs;
 		}
 	};

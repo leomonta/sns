@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void logMalformedParameter(const stringRef &strRef) {
+void logMalformedParameter(const stringRefConst &strRef) {
 	// malformed parameter
 
 	// make a temporary buffer to print it with a classical printf
@@ -18,6 +18,7 @@ void logMalformedParameter(const stringRef &strRef) {
 	free(temp); // and free
 }
 
+// Beautifully compile-time evaluated lookup tables for header options
 const stringRefConst headerRqStr[] = {
     TO_STRINGREF("A-IM"),
     TO_STRINGREF("Accept"),
@@ -114,78 +115,72 @@ const stringRefConst headerRpStr[] = {
     TO_STRINGREF("Status"),
 };
 
-httpMessage::httpMessage(std::string &message) {
-	httpMessage(message.c_str());
-}
+inboundHttpMessage makeInboundMessage(const char *str) {
 
-httpMessage::httpMessage(const char *message) {
+	inboundHttpMessage res;
 
 	PROFILE_FUNCTION();
 
 	// use strlen so i'm sure it's not counting the null terminator
-	auto msgLen = strlen(message);
+	auto msgLen = strlen(str);
 
 	// save the message in a local pointer so i don't rely on std::string allocation plus a null terminator
-	rawMessage_a = static_cast<char *>(malloc(msgLen + 1));
-	memcpy(rawMessage_a, message, msgLen + 1);
+	auto temp = static_cast<char *>(malloc(msgLen + 1));
+	memcpy(temp, str, msgLen + 1);
+
+	res.m_rawMessage_a = temp;
 
 	// body and header are divided by two newlines
-	auto msgSeparator = strstr(rawMessage_a, "\r\n\r\n");
+	auto msgSeparator = strstr(res.m_rawMessage_a, "\r\n\r\n");
 
-	unsigned long hLen = msgSeparator - rawMessage_a;
+	unsigned long hLen = msgSeparator - res.m_rawMessage_a;
 
-	stringRef header;
+	stringRefConst header;
 
 	// strstr return 0 if nothing is found or the given pointer if it is an empty string
-	if (msgSeparator == 0 || msgSeparator == rawMessage_a) {
-		header = {nullptr, 0};
-		body   = {nullptr, 0};
+	if (msgSeparator == 0 || msgSeparator == res.m_rawMessage_a) {
+		header     = {nullptr, 0};
+		res.m_body = {nullptr, 0};
 	} else {
-		header = {rawMessage_a, hLen};
-		body   = {rawMessage_a + hLen, msgLen - hLen};
+		header     = {res.m_rawMessage_a, hLen};
+		res.m_body = {res.m_rawMessage_a + hLen, msgLen - hLen};
 	}
 
 	// now i have the two stringRefs to the body and the header
 
 	// extract metadata parameters and other stuff
-	http::decompileHeader(header, *this);
+	http::decompileHeader(header, res);
 
-	http::decompileMessage(headerOptions[http::RQ_Content_Type], this, body);
+	http::decompileMessage(res);
+
+	return res;
 }
 
-httpMessage::~httpMessage() {
-	if (rawMessage_a != nullptr) {
-		free(rawMessage_a);
-	}
+void destroyInboundHttpMessage(const inboundHttpMessage *mex) {
 
-	if (dir == DIR_INBOUND) {
-		// that's all folks
-		return;
+	if (mex->m_rawMessage_a != nullptr) {
+		free(const_cast<char *>(mex->m_rawMessage_a));
 	}
+}
 
-	for (const auto &[key, val] : headerOptions) {
+void destroyOutboundHttpMessage(const outboundHttpMessage *mex) {
+
+	for (const auto &[key, val] : mex->m_headerOptions) {
 		free(val.str);
 	}
 
-	free(url.str);
-	free(body.str);
+	free(mex->m_body.str);
 }
 
-void addToOptions(stringRef key, stringRef val, httpMessage *ctx) {
-	ctx->headerOptions[http::getParameterCode(key)] = val;
+void addToOptions(stringRefConst key, stringRefConst val, inboundHttpMessage *ctx) {
+	ctx->m_headerOptions[http::getParameterCode(key)] = val;
 }
 
-void addToParams(stringRef key, stringRef val, httpMessage *ctx) {
-	ctx->parameters[key] = val;
+void addToParams(stringRefConst key, stringRefConst val, inboundHttpMessage *ctx) {
+	ctx->m_parameters[key] = val;
 }
 
-/**
- * deconstruct the raw header in a map with key (option) -> value
- * and fetch some Metadata such as verb, version, url, a parameters
- * @param rawHeader the stringRef containing the header as a char* string
- * @param msg the httpMessage to store the information extracted
- */
-void http::decompileHeader(const stringRef &rawHeader, httpMessage &msg) {
+void http::decompileHeader(const stringRefConst &rawHeader, inboundHttpMessage &msg) {
 
 	PROFILE_FUNCTION();
 
@@ -198,50 +193,54 @@ void http::decompileHeader(const stringRef &rawHeader, httpMessage &msg) {
 	size_t endlineLen     = strnstr(rawHeader.str, "\r\n", rawHeader.len) - (rawHeader.str + firstSpaceLen + secondSpaceLen + 2); // until the first newline
 
 	// temporary stringRefs
-	stringRef methodRef  = {rawHeader.str, firstSpaceLen};
-	stringRef versionRef = {rawHeader.str + secondSpaceLen + firstSpaceLen + 2, endlineLen};
+	stringRefConst methodRef  = {rawHeader.str, firstSpaceLen};
+	stringRefConst versionRef = {rawHeader.str + secondSpaceLen + firstSpaceLen + 2, endlineLen};
 
 	// actually storing the values in the object
-	msg.method  = http::getMethodCode(methodRef);
-	msg.url     = {rawHeader.str + firstSpaceLen + 1, secondSpaceLen}; // line[1];
-	msg.version = http::getVersionCode(versionRef);
+	msg.m_method  = http::getMethodCode(methodRef);
+	msg.m_url     = {rawHeader.str + firstSpaceLen + 1, secondSpaceLen}; // line[1];
+	msg.m_version = http::getVersionCode(versionRef);
 
 	// Now checks if there are query parameters
 
 	// the position of the query parameter marker (if present)
-	auto qPos = strnchr(msg.url.str, '?', msg.url.len) - msg.url.str;
+	auto qPos = strnchr(msg.m_url.str, '?', msg.m_url.len) - msg.m_url.str;
 
 	// if strnchr returns nullptr the result is negative, else is positive
 	if (qPos > 0) {
 		// confine the parameters in a single stringREf excluding the '?'
-		stringRef queryParams = {msg.url.str + qPos + 1, msg.url.len - qPos - 1};
+		stringRefConst queryParams = {msg.m_url.str + qPos + 1, msg.m_url.len - qPos - 1};
 		parseOptions(queryParams, addToParams, "&", '=', &msg);
 
 		// limit thw url to before the '?'
-		msg.url.len -= msg.url.len - qPos;
+		msg.m_url.len -= msg.m_url.len - qPos;
 	}
 
 	parseOptions(rawHeader, addToOptions, "\r\n", ':', &msg);
 }
 
-/**
- * decompile message in header and body
- */
-void http::decompileMessage(const stringRef &cType, httpMessage *msg, stringRef &body) {
+void http::decompileMessage(inboundHttpMessage &msg) {
 
 	PROFILE_FUNCTION();
+
+	auto cType = msg.m_headerOptions[http::RQ_Content_Type];
 
 	// the content type indicates how parameters are showed
 	if (isEmpty(cType)) {
 		return;
 	}
 
-	// the fields are separated from each others with a "&" and key -> value are separated with "="
-	// plus they are encoded as a URL
-	if (!strncmp("application/x-www-form-urlencoded", cType.str, cType.len)) {
-		parseOptions(body, addToParams, "&", '=', msg);
-	} else if (strncmp("text/plain", cType.str, cType.len)) {
-		parseOptions(body, addToParams, "\r\n", '=', msg);
+	// type one, url encoded
+	if (strncmp("application/x-www-form-urlencoded", cType.str, cType.len) == 0) {
+		// the fields are separated from each others with a "&" and key -> value are separated with "="
+		// plus they are encoded as a URL
+		parseOptions(msg.m_body, addToParams, "&", '=', &msg);
+
+		// type two plain text
+	} else if (strncmp("text/plain", cType.str, cType.len) == 0) {
+		parseOptions(msg.m_body, addToParams, "\r\n", '=', &msg);
+
+		// part three multipart form-data
 	} else if (strnstr("multipart/form-data;", cType.str, cType.len) != nullptr) {
 		// find the divisor
 		//               0              |      1
@@ -265,33 +264,35 @@ void http::decompileMessage(const stringRef &cType, httpMessage *msg, stringRef 
 	}
 }
 
-/**
- * unite the header and the body in a single message
- */
-stringRef http::compileMessage(const httpMessage &msg) {
+stringRef http::compileMessage(const outboundHttpMessage &msg) {
 
 	PROFILE_FUNCTION();
 
+	// I preconstruct the status line so i don't have to do multiple allocations and string concatenations
+	// The value to modify are at
+	//                   0123456789
+	char statusLine[] = "HTTP/1.0 XXX \r\n";
+
+	// A symbolic name for how long the status line is
 	const int STATUS_LINE_LEN = 15;
 
-	// The value to modify are at       0123456789
-	char statusLine[STATUS_LINE_LEN + 1] = "HTTP/1.0 XXX \r\n";
-
 	// the 2 is for the \r\n separator
-	auto msgLen = STATUS_LINE_LEN + msg.headerLen + 2 + msg.body.len;
+	auto msgLen = STATUS_LINE_LEN + msg.m_headerLen + 2 + msg.m_body.len;
 
-	char *res = new char[msgLen];
+	// the entire message length
+	char *res = static_cast<char *>(malloc(msgLen));
 
 	memcpy(res, statusLine, STATUS_LINE_LEN);
 
-	res[11] = '0' + (char)((msg.statusCode) % 10);
-	res[10] = '0' + (char)((msg.statusCode / 10) % 10);
-	res[9]  = '0' + (char)((msg.statusCode / 100) % 10);
+	// set the status code digit by digit
+	res[11] = '0' + (char)((msg.m_statusCode) % 10);
+	res[10] = '0' + (char)((msg.m_statusCode / 10) % 10);
+	res[9]  = '0' + (char)((msg.m_statusCode / 100) % 10);
 
 	char *writer = res + STATUS_LINE_LEN;
 
 	// add all headers
-	for (auto const &[key, val] : msg.headerOptions) {
+	for (auto const &[key, val] : msg.m_headerOptions) {
 
 		// the format is
 		// name: value\r\n
@@ -312,13 +313,13 @@ stringRef http::compileMessage(const httpMessage &msg) {
 	memcpy(writer, "\r\n", 2);
 	writer += 2;
 
-	memcpy(writer, msg.body.str, msg.body.len);
-	writer += msg.body.len;
+	memcpy(writer, msg.m_body.str, msg.m_body.len);
+	writer += msg.m_body.len;
 
 	return {res, msgLen};
 }
 
-u_char http::getMethodCode(const stringRef &requestMethod) {
+u_char http::getMethodCode(const stringRefConst &requestMethod) {
 
 	PROFILE_FUNCTION();
 
@@ -332,28 +333,36 @@ u_char http::getMethodCode(const stringRef &requestMethod) {
 	// Yep that's it, such logic
 	if (!strncmp(rqms, "GET", rqml)) {
 		return HTTP_GET;
-	} else if (!strncmp(rqms, "HEAD", rqml)) {
+	}
+	if (!strncmp(rqms, "HEAD", rqml)) {
 		return HTTP_HEAD;
-	} else if (!strncmp(rqms, "POST", rqml)) {
+	}
+	if (!strncmp(rqms, "POST", rqml)) {
 		return HTTP_POST;
-	} else if (!strncmp(rqms, "PUT", rqml)) {
+	}
+	if (!strncmp(rqms, "PUT", rqml)) {
 		return HTTP_PUT;
-	} else if (!strncmp(rqms, "DELETE", rqml)) {
+	}
+	if (!strncmp(rqms, "DELETE", rqml)) {
 		return HTTP_DELETE;
-	} else if (!strncmp(rqms, "OPTIONS", rqml)) {
+	}
+	if (!strncmp(rqms, "OPTIONS", rqml)) {
 		return HTTP_OPTIONS;
-	} else if (!strncmp(rqms, "CONNECT", rqml)) {
+	}
+	if (!strncmp(rqms, "CONNECT", rqml)) {
 		return HTTP_CONNECT;
-	} else if (!strncmp(rqms, "TRACE", rqml)) {
+	}
+	if (!strncmp(rqms, "TRACE", rqml)) {
 		return HTTP_TRACE;
-	} else if (!strncmp(rqms, "PATCH", rqml)) {
+	}
+	if (!strncmp(rqms, "PATCH", rqml)) {
 		return HTTP_PATCH;
 	}
 
 	return HTTP_INVALID;
 }
 
-u_char http::getVersionCode(const stringRef &httpVersion) {
+u_char http::getVersionCode(const stringRefConst &httpVersion) {
 
 	// Yep that's it, such logic pt 2.0
 
@@ -365,27 +374,28 @@ u_char http::getVersionCode(const stringRef &httpVersion) {
 	}
 
 	if (!strncmp(htvs, "undefined", htvl)) {
-		return HTTP_10;
-	} else if (!strncmp(htvs, "HTTP/0.9", htvl)) {
+		return HTTP_INVALID;
+	}
+	if (!strncmp(htvs, "HTTP/0.9", htvl)) {
 		return HTTP_09;
-	} else if (!strncmp(htvs, "HTTP/1.0", htvl)) {
+	}
+	if (!strncmp(htvs, "HTTP/1.0", htvl)) {
 		return HTTP_10;
-	} else if (!strncmp(htvs, "HTTP/1.1", htvl)) {
+	}
+	if (!strncmp(htvs, "HTTP/1.1", htvl)) {
 		return HTTP_11;
-	} else if (!strncmp(htvs, "HTTP/2", htvl)) {
+	}
+	if (!strncmp(htvs, "HTTP/2", htvl)) {
 		return HTTP_2;
-	} else if (!strncmp(htvs, "HTTP/3", htvl)) {
+	}
+	if (!strncmp(htvs, "HTTP/3", htvl)) {
 		return HTTP_3;
 	}
 
 	return HTTP_INVALID;
 }
 
-u_char http::getParameterCode(const stringRef &parameter) {
-
-	// thi is one hell of a elif chain
-	// lickily i need to check only for the requests headers
-	// I'm becoming yan dev
+u_char http::getParameterCode(const stringRefConst &parameter) {
 
 	for (u_char i = 0; i < RQ_ENUM_LEN; ++i) {
 		if (strncmp(parameter.str, headerRqStr[i].str, parameter.len) == 0) {
@@ -396,22 +406,17 @@ u_char http::getParameterCode(const stringRef &parameter) {
 	return -1;
 }
 
-/**
- * Parse the options found in the stringRef given and call the function with them
- * @param head a stringRef pointing to the start of the options
- * @param headerOptions the map where to put the parsed strings
- */
-void http::parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRef b, httpMessage *ctx), const char *chunkSep, const char itemSep, httpMessage *ctx) {
+void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefConst a, stringRefConst b, inboundHttpMessage *ctx), const char *chunkSep, const char itemSep, inboundHttpMessage *ctx) {
 
 	// parse the remaining header options
 
 	const auto addLen = strlen(chunkSep); // the lenght to move after the string is found
 
-	auto       startOptions      = strnchr(head.str, *chunkSep, head.len) + addLen; // the plus 1 is needed to start after the \r\n
-	size_t     lenToStartOptions = startOptions - head.str;
-	stringRef  chunk             = {startOptions, lenToStartOptions};
-	const auto limit             = head.str + head.len;
-	auto       limitLen          = head.len - lenToStartOptions;
+	auto           startOptions      = strnchr(segment.str, *chunkSep, segment.len) + addLen; // the plus 1 is needed to start after the \r\n
+	size_t         lenToStartOptions = startOptions - segment.str;
+	stringRefConst chunk             = {startOptions, lenToStartOptions};
+	const auto     limit             = segment.str + segment.len;
+	auto           limitLen          = segment.len - lenToStartOptions;
 
 	while (chunk.str < limit) {
 
@@ -432,12 +437,12 @@ void http::parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRe
 
 			// everything is fine here
 
-			size_t    pos = sep - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
-			stringRef key = {chunk.str, pos};               // from the start of the chunk to before the '='
-			stringRef val = {sep + 1, chunk.len - pos - 1}; // from after the '=' to the end of the chunk
+			size_t         pos = sep - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
+			stringRefConst key = {chunk.str, pos};               // from the start of the chunk to before the '='
+			stringRefConst val = {sep + 1, chunk.len - pos - 1}; // from after the '=' to the end of the chunk
 
-			trim(key);
-			trim(val);
+			key = trim(key);
+			val = trim(val);
 
 			// printStringRef(key);
 			// printStringRef(val);
@@ -462,55 +467,57 @@ void http::parseOptions(const stringRef &head, void (*fun)(stringRef a, stringRe
  * @param params the parameters encodedn in form data
  * @param divisor the unique divisor string used in the data
  * @param parameters the map where to put the parameters found
- */
+ *
 void http::parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters) {
 
-	PROFILE_FUNCTION();
+    PROFILE_FUNCTION();
 
-	std::vector<std::string> temp;
+    std::vector<std::string> temp;
 
-	auto datas = split(params, divisor);
+    auto datas = split(params, divisor);
 
-	// the last place always contains "--", no real data in here
-	datas.pop_back();
-	datas.erase(datas.begin());
+    // the last place always contains "--", no real data in here
+    datas.pop_back();
+    datas.erase(datas.begin());
 
-	for (size_t i = 0; i < datas.size(); i++) {
-		// 0 |||||                    1                        ||||||2|||||  3   | 4  |
-		//   \r\n|Content-Disposition: form-data; name="field1"|\r\n| \r\n|value1|\r\n|
-		//                            0                                      1
-		std::vector<std::string> option_value = split(datas[i], "\r\n");
-		option_value.pop_back();                      // pos 4
-		option_value.erase(option_value.begin() + 2); // pos 2
-		option_value.erase(option_value.begin());     // pos 0
+    for (size_t i = 0; i < datas.size(); i++) {
+        // 0 |||||                    1                        ||||||2|||||  3   | 4  |
+        //   \r\n|Content-Disposition: form-data; name="field1"|\r\n| \r\n|value1|\r\n|
+        //                            0                                      1
+        std::vector<std::string> option_value = split(datas[i], "\r\n");
+        option_value.pop_back();                      // pos 4
+        option_value.erase(option_value.begin() + 2); // pos 2
+        option_value.erase(option_value.begin());     // pos 0
 
-		//                0              ||      1      ||         2
-		// Content-Disposition: form-data; name="field1"; filename="example.txt"
-		std::vector<std::string> options = split(option_value[0], "; ");
+        //                0              ||      1      ||         2
+        // Content-Disposition: form-data; name="field1"; filename="example.txt"
+        std::vector<std::string> options = split(option_value[0], "; ");
 
-		// jump directly to "name="
-		std::string name = options[1].substr(5);
-		// remove heading and trailing double quotes "
-		name.pop_back();
-		name.erase(name.begin());
+        // jump directly to "name="
+        std::string name = options[1].substr(5);
+        // remove heading and trailing double quotes "
+        name.pop_back();
+        name.erase(name.begin());
 
-		parameters[name] = option_value[1];
-	}
+        parameters[name] = option_value[1];
+    }
 }
+*/
 
-void http::addHeaderOption(const u_char option, const stringRefConst &value, httpMessage &msg) {
+void http::addHeaderOption(const u_char option, const stringRefConst &value, outboundHttpMessage &msg) {
 	auto opt = headerRpStr[option];
 
-	stringRef cpy;
-	cpy.str                   = makeCopyConst(value);
-	cpy.len                   = value.len;
-	msg.headerOptions[option] = cpy;
+	stringRef cpy{
+	    makeCopyConst(value),
+	    value.len
+	};
+	msg.m_headerOptions[option] = cpy;
 
-	// account the added data
+	// account the bytes that will be added later
 	//                 name     ': ' value '\r\n'
-	msg.headerLen += (opt.len + 2 + cpy.len + 2);
+	msg.m_headerLen += (opt.len + 2 + cpy.len + 2);
 }
 
-void http::setUrl(const stringRefConst &val, httpMessage &msg) {
-	msg.url = {makeCopyConst(val), val.len};
+void http::setUrl(const stringRefConst &val, inboundHttpMessage &msg) {
+	msg.m_url = {makeCopyConst(val), val.len};
 }
