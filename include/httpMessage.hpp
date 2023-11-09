@@ -59,7 +59,7 @@ namespace http {
 
 	/**
 	 * Unite the header and the body in a single message and returns it
-	 * the compiled message does not have a null terminator
+	 * the compiled message does not have a null terminator and must be freed
 	 *
 	 * @param msg the message containing the header options and, eventually, the body
 	 * @return the 'compiled' message

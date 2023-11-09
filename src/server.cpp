@@ -286,6 +286,7 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 			http::destroyOutboundHttpMessage(&response);
 			http::destroyInboundHttpMessage(&mex);
 			free(request);
+			free(res.str);
 
 			break;
 		}

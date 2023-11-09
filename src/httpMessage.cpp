@@ -4,6 +4,7 @@
 #include "utils.hpp"
 
 #include <logger.hpp>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -513,9 +514,16 @@ void http::parseFormData(const std::string &params, std::string &divisor, std::u
 void http::addHeaderOption(const u_char option, const stringRefConst &value, outboundHttpMessage &msg) {
 	auto opt = headerRpStr[option];
 
-	stringRef cpy{
+	stringRef cpy {
 	    makeCopyConst(value),
 	    value.len};
+
+	// if something is already present at the requested position
+	auto old = msg.m_headerOptions[option];
+	if (old.str != nullptr) {
+		// free it
+		free(old.str);
+	}
 	msg.m_headerOptions[option] = cpy;
 
 	// account the bytes that will be added later

@@ -8,8 +8,8 @@
 
 // express a substring by referencing another c string
 typedef struct stringRef {
-	char  *str;
-	size_t len;
+	char  *str = nullptr;
+	size_t len = 0;
 
 	bool operator==(const stringRef &sr) const {
 		return (sr.str == str && sr.len == len);
@@ -17,8 +17,8 @@ typedef struct stringRef {
 } stringRef;
 
 typedef struct stringRefConst {
-	const char  *str;
-	size_t len;
+	const char  *str = nullptr;
+	size_t len = 0;
 
 	bool operator==(const stringRefConst &sr) const {
 		return (sr.str == str && sr.len == len);
