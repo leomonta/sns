@@ -403,7 +403,8 @@ u_char http::getParameterCode(const stringRefConst &parameter) {
 	PROFILE_FUNCTION();
 
 	for (u_char i = 0; i < RQ_ENUM_LEN; ++i) {
-		if (strncmp(parameter.str, headerRqStr[i].str, parameter.len) == 0) {
+		if (streq(parameter, headerRqStr[i]) == 0) {
+		//if (strncmp(parameter.str, headerRqStr[i].str, parameter.len) == 0) {
 			return i;
 		}
 	}

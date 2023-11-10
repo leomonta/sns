@@ -49,6 +49,8 @@ std::string getUTC() {
 
 void urlDecode(char *dst, const char *src) {
 
+	PROFILE_FUNCTION();
+
 	char a, b;
 	while (*src) {
 		if ((*src == '%') && ((a = src[1]) && (b = src[2])) && (isxdigit(a) && isxdigit(b))) {
@@ -118,8 +120,6 @@ void compressGz(const stringRefConst data, std::string &output) {
 
 void simpleMemcpy(char *src, char *dst, size_t size) {
 
-	PROFILE_FUNCTION();
-
 	while (size > 0) {
 		*dst++ = *src++;
 		--size;
@@ -161,6 +161,8 @@ void trimwhitespace(char *str) {
 
 const char *strnstr(const char *haystack, const char *needle, const size_t count) {
 
+	PROFILE_FUNCTION();
+
 	if (count == 0) {
 		return nullptr;
 	}
@@ -188,6 +190,8 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
 }
 
 const char *strnchr(const char *str, int chr, const size_t count) {
+
+	PROFILE_FUNCTION();
 
 	for (size_t i = 0; i < count; ++i) {
 		if (*str == chr) {
@@ -265,4 +269,18 @@ char *makeCopyConst(const stringRefConst &str) {
 	auto cpy = static_cast<char *>(malloc(str.len));
 	memcpy(cpy, str.str, str.len);
 	return cpy;
+}
+
+bool streq(const stringRefConst &lhs, const stringRefConst &rhs) {
+	if (lhs.len != rhs.len) {
+		return false;
+	}
+
+	for (size_t i = 0; i < lhs.len; ++i) {
+		if (lhs.str[i] != rhs.str[i]) {
+			return false;
+		}
+	}
+
+	return true;
 }
