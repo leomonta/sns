@@ -1,12 +1,14 @@
 #include "httpMessage.hpp"
 
 #include "profiler.hpp"
+#include "stringRef.hpp"
 #include "utils.hpp"
 
 #include <logger.hpp>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 void logMalformedParameter(const stringRefConst &strRef) {
 	// malformed parameter
@@ -325,77 +327,58 @@ u_char http::getMethodCode(const stringRefConst &requestMethod) {
 
 	PROFILE_FUNCTION();
 
-	auto rqms = requestMethod.str;
-	auto rqml = requestMethod.len;
+	static stringRefConst methods_strR[] = {
+		TO_STRINGREF("HTTP_INVALID"),
+		TO_STRINGREF("GET"),
+		TO_STRINGREF("HEAD"),
+		TO_STRINGREF("POST"),
+		TO_STRINGREF("PUT"),
+		TO_STRINGREF("DELETE"),
+		TO_STRINGREF("OPTIONS"),
+		TO_STRINGREF("CONNECT"),
+		TO_STRINGREF("TRACE"),
+		TO_STRINGREF("PATCH"),
+	};
 
-	if (rqml == 0) {
-		return HTTP_INVALID;
-	}
-
-	// Yep that's it, such logic
-	if (!strncmp(rqms, "GET", rqml)) {
-		return HTTP_GET;
-	}
-	if (!strncmp(rqms, "HEAD", rqml)) {
-		return HTTP_HEAD;
-	}
-	if (!strncmp(rqms, "POST", rqml)) {
-		return HTTP_POST;
-	}
-	if (!strncmp(rqms, "PUT", rqml)) {
-		return HTTP_PUT;
-	}
-	if (!strncmp(rqms, "DELETE", rqml)) {
-		return HTTP_DELETE;
-	}
-	if (!strncmp(rqms, "OPTIONS", rqml)) {
-		return HTTP_OPTIONS;
-	}
-	if (!strncmp(rqms, "CONNECT", rqml)) {
-		return HTTP_CONNECT;
-	}
-	if (!strncmp(rqms, "TRACE", rqml)) {
-		return HTTP_TRACE;
-	}
-	if (!strncmp(rqms, "PATCH", rqml)) {
-		return HTTP_PATCH;
+	if (requestMethod.len == 0) {
+		return HTTP_INVALID_METHOD;
 	}
 
-	return HTTP_INVALID;
+	// since the codes are sequential starting from 1
+	// the 0 is for an invalid http method / verb
+	for (u_char i = 1; i < methods::HTTP_ENUM_LEN; ++i) {
+		if (streq(requestMethod, methods_strR[i])) {
+			return i;
+		}
+	}
+
+	return HTTP_INVALID_METHOD;
 }
 
 u_char http::getVersionCode(const stringRefConst &httpVersion) {
 
-	// Yep that's it, such logic pt 2.0
 	PROFILE_FUNCTION();
 
-	auto htvs = httpVersion.str;
-	auto htvl = httpVersion.len;
-
-	if (htvl == 0) {
-		return HTTP_INVALID;
+	if (httpVersion.len == 0) {
+		return HTTP_VER_UNKN;
 	}
 
-	if (!strncmp(htvs, "undefined", htvl)) {
-		return HTTP_INVALID;
-	}
-	if (!strncmp(htvs, "HTTP/0.9", htvl)) {
-		return HTTP_09;
-	}
-	if (!strncmp(htvs, "HTTP/1.0", htvl)) {
-		return HTTP_10;
-	}
-	if (!strncmp(htvs, "HTTP/1.1", htvl)) {
-		return HTTP_11;
-	}
-	if (!strncmp(htvs, "HTTP/2", htvl)) {
-		return HTTP_2;
-	}
-	if (!strncmp(htvs, "HTTP/3", htvl)) {
-		return HTTP_3;
+	static stringRefConst versions_strR[] = {
+		TO_STRINGREF("undefined"),
+		TO_STRINGREF("HTTP/0.9"),
+		TO_STRINGREF("HTTP/1.0"),
+		TO_STRINGREF("HTTP/1.1"),
+		TO_STRINGREF("HTTP/2"),
+		TO_STRINGREF("HTTP/3"),
+	};
+
+	for (u_char i = 1; i < versions::HTTP_VER_ENUM_LEN; ++i) {
+		if (streq(httpVersion, versions_strR[i])) {
+			return i;
+		}
 	}
 
-	return HTTP_INVALID;
+	return HTTP_VER_UNKN;
 }
 
 u_char http::getParameterCode(const stringRefConst &parameter) {
@@ -404,7 +387,6 @@ u_char http::getParameterCode(const stringRefConst &parameter) {
 
 	for (u_char i = 0; i < RQ_ENUM_LEN; ++i) {
 		if (streq(parameter, headerRqStr[i]) == 0) {
-		//if (strncmp(parameter.str, headerRqStr[i].str, parameter.len) == 0) {
 			return i;
 		}
 	}
@@ -436,24 +418,20 @@ void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefCons
 			chunk.len = crlf - chunk.str;
 		}
 
-		// printStringRef(chunk);
-
 		auto sep = strnchr(chunk.str, itemSep, chunk.len);
 		if (sep == nullptr) {
 			logMalformedParameter(chunk);
 		} else {
 
-			// everything is fine here
+			PROFILING_SCOPE("fun_param");
 
+			// everything is fine here
 			size_t         pos = sep - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
 			stringRefConst key = {chunk.str, pos};               // from the start of the chunk to before the '='
 			stringRefConst val = {sep + 1, chunk.len - pos - 1}; // from after the '=' to the end of the chunk
 
 			key = trim(key);
 			val = trim(val);
-
-			// printStringRef(key);
-			// printStringRef(val);
 
 			// check if we actually have a key, the value can be empty
 			if (strcmp(key.str, "") != 0) {

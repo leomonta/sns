@@ -126,7 +126,7 @@ namespace http {
 
 	// http method code
 	enum methods : u_char {
-		HTTP_INVALID,
+		HTTP_INVALID_METHOD,
 		HTTP_GET,
 		HTTP_HEAD,
 		HTTP_POST,
@@ -135,15 +135,18 @@ namespace http {
 		HTTP_OPTIONS,
 		HTTP_CONNECT,
 		HTTP_TRACE,
-		HTTP_PATCH
+		HTTP_PATCH,
+		HTTP_ENUM_LEN,
 	};
 
 	enum versions : u_char {
-		HTTP_09,
-		HTTP_10,
-		HTTP_11,
-		HTTP_2,
-		HTTP_3
+		HTTP_VER_UNKN,
+		HTTP_VER_09,
+		HTTP_VER_10,
+		HTTP_VER_11,
+		HTTP_VER_2,
+		HTTP_VER_3,
+		HTTP_VER_ENUM_LEN,
 	};
 
 	enum headerOptionRq : u_char {
