@@ -5,7 +5,6 @@
 #include "profiler.hpp"
 #include "utils.hpp"
 
-#include <poll.h>
 #include <chrono>
 #include <filesystem>
 #include <logger.hpp>
@@ -14,7 +13,9 @@
 #include <regex>
 #include <signal.h>
 #include <string.h>
+#include <sys/poll.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <thread>
 #include <time.h>
 
@@ -60,7 +61,7 @@ namespace Res {
 
 int main(const int argc, const char *argv[]) {
 
-	Instrumentor::Get().BeginSession("Leonard server");
+	// Instrumentor::Get().BeginSession("Leonard server");
 
 	signal(SIGPIPE, Panico);
 
@@ -87,16 +88,16 @@ int main(const int argc, const char *argv[]) {
 		trimwhitespace(line);
 
 		// simple commands
-		if (strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
+		if (streq_str(line, "exit") == 0 || streq_str(line, "quit") == 0) {
 			stop();
 			break;
 		}
 
-		if (strcmp(line, "restart") == 0) {
+		if (streq_str(line, "restart") == 0) {
 			restart();
 		}
 
-		if (strcmp(line, "time") == 0) {
+		if (streq_str(line, "time") == 0) {
 			time_t now   = time(nullptr) - Res::startTime;
 			long   days  = now / (60 * 60 * 24);
 			long   hours = now / (60 * 60) % 24;
@@ -109,7 +110,7 @@ int main(const int argc, const char *argv[]) {
 		printf("> ");
 	}
 
-	Instrumentor::Get().EndSession();
+	// Instrumentor::Get().EndSession();
 
 	return 0;
 }
@@ -248,7 +249,7 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 
 	int bytesReceived;
 
-	char       *request;
+	char               *request;
 	outboundHttpMessage response;
 
 	while (!(*threadStop)) {
@@ -282,7 +283,7 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 			// ------------------------------------------------------------------ SEND
 			// acknowledge the segment back to the sender
 			sslConn::sendRecordC(sslConnection, res.str, res.len);
-			
+
 			http::destroyOutboundHttpMessage(&response);
 			http::destroyInboundHttpMessage(&mex);
 			free(request);
@@ -301,6 +302,9 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *t
 	tcpConn::shutdownSocket(clientSocket);
 	tcpConn::closeSocket(clientSocket);
 	sslConn::destroyConnection(sslConnection);
+
+	// wait for a new connection
+	wait(nullptr);
 }
 
 int Head(const inboundHttpMessage &request, outboundHttpMessage &response) {
@@ -384,7 +388,7 @@ void Get(const inboundHttpMessage &request, outboundHttpMessage &response) {
 	}
 
 	// set the content of the message
-	char *temp = makeCopyConst({compressed.c_str(), compressed.size()});
+	char *temp      = makeCopyConst({compressed.c_str(), compressed.size()});
 	response.m_body = {temp, compressed.size()};
 
 	auto lenStr = std::to_string(compressed.length());

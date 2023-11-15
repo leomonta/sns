@@ -125,3 +125,4 @@ char *makeCopyConst(const stringRefConst &str);
  * Given two strings return true if and only if they have the same content
  */
 bool streq(const stringRefConst &lhs, const stringRefConst &rhs);
+bool streq_str(const char *lhs, const char *rhs);

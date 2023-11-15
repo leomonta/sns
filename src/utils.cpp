@@ -284,3 +284,14 @@ bool streq(const stringRefConst &lhs, const stringRefConst &rhs) {
 
 	return true;
 }
+
+bool streq_str(const char *lhs, const char *rhs) {
+
+	for (; *lhs != '\0' && *rhs != '\0'; ++lhs, ++rhs) {
+		if (*lhs != *rhs) {
+			return false;
+		}
+	}
+
+	return true;
+}

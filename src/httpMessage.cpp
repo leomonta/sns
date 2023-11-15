@@ -328,16 +328,16 @@ u_char http::getMethodCode(const stringRefConst &requestMethod) {
 	PROFILE_FUNCTION();
 
 	static stringRefConst methods_strR[] = {
-		TO_STRINGREF("HTTP_INVALID"),
-		TO_STRINGREF("GET"),
-		TO_STRINGREF("HEAD"),
-		TO_STRINGREF("POST"),
-		TO_STRINGREF("PUT"),
-		TO_STRINGREF("DELETE"),
-		TO_STRINGREF("OPTIONS"),
-		TO_STRINGREF("CONNECT"),
-		TO_STRINGREF("TRACE"),
-		TO_STRINGREF("PATCH"),
+	    TO_STRINGREF("HTTP_INVALID"),
+	    TO_STRINGREF("GET"),
+	    TO_STRINGREF("HEAD"),
+	    TO_STRINGREF("POST"),
+	    TO_STRINGREF("PUT"),
+	    TO_STRINGREF("DELETE"),
+	    TO_STRINGREF("OPTIONS"),
+	    TO_STRINGREF("CONNECT"),
+	    TO_STRINGREF("TRACE"),
+	    TO_STRINGREF("PATCH"),
 	};
 
 	if (requestMethod.len == 0) {
@@ -364,12 +364,12 @@ u_char http::getVersionCode(const stringRefConst &httpVersion) {
 	}
 
 	static stringRefConst versions_strR[] = {
-		TO_STRINGREF("undefined"),
-		TO_STRINGREF("HTTP/0.9"),
-		TO_STRINGREF("HTTP/1.0"),
-		TO_STRINGREF("HTTP/1.1"),
-		TO_STRINGREF("HTTP/2"),
-		TO_STRINGREF("HTTP/3"),
+	    TO_STRINGREF("undefined"),
+	    TO_STRINGREF("HTTP/0.9"),
+	    TO_STRINGREF("HTTP/1.0"),
+	    TO_STRINGREF("HTTP/1.1"),
+	    TO_STRINGREF("HTTP/2"),
+	    TO_STRINGREF("HTTP/3"),
 	};
 
 	for (u_char i = 1; i < versions::HTTP_VER_ENUM_LEN; ++i) {
@@ -434,7 +434,7 @@ void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefCons
 			val = trim(val);
 
 			// check if we actually have a key, the value can be empty
-			if (strcmp(key.str, "") != 0) {
+			if (streq_str(key.str, "")) {
 				// finally put it in the map
 				fun(key, val, ctx);
 			}
@@ -493,7 +493,7 @@ void http::parseFormData(const std::string &params, std::string &divisor, std::u
 void http::addHeaderOption(const u_char option, const stringRefConst &value, outboundHttpMessage &msg) {
 	auto opt = headerRpStr[option];
 
-	stringRef cpy {
+	stringRef cpy{
 	    makeCopyConst(value),
 	    value.len};
 
