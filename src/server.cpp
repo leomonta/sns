@@ -8,15 +8,14 @@
 #include <chrono>
 #include <filesystem>
 #include <logger.hpp>
-#include <mutex>
 #include <poll.h>
+#include <pthread.h>
 #include <regex>
 #include <signal.h>
 #include <string.h>
 #include <sys/poll.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <thread>
 #include <time.h>
 
 const char *methodStr[] = {
@@ -42,16 +41,34 @@ void Panico(int cos) {
 	exit(1);
 }
 
+struct proxy_resolver_data {
+	SSL   *ssl;
+	Socket clientSocket;
+	bool  *tstop;
+};
+
+void *proxy_accReq(void *ptr) {
+	acceptRequestsSecure((bool *)(ptr));
+	return nullptr;
+}
+
+void *proxy_reqRes(void *ptr) {
+	proxy_resolver_data temp = *(proxy_resolver_data *)(ptr);
+	free(ptr);
+	resolveRequestSecure(temp.ssl, temp.clientSocket, temp.tstop);
+	return nullptr;
+}
+
 namespace Res {
 
 	// Http Server
-	std::string baseDirectory = "/";
-	short       tcpPort       = 443;
+	std::string    baseDirectory = "/";
+	unsigned short tcpPort       = 443;
 
 	// for controlling debug prints
 	std::map<std::string, std::string> mimeTypes;
 
-	std::thread requestAcceptor;
+	pthread_t requestAcceptor;
 
 	Socket   serverSocket;
 	SSL_CTX *sslContext = nullptr;
@@ -151,7 +168,7 @@ void stop() {
 	Res::threadStop = true;
 	log(LOG_INFO, "[SERVER] Sent stop message to all threads\n");
 
-	Res::requestAcceptor.join();
+	pthread_join(Res::requestAcceptor, NULL);
 	log(LOG_INFO, "[SERVER] Request acceptor stopped\n");
 
 	sslConn::destroyContext(Res::sslContext);
@@ -168,10 +185,11 @@ void start() {
 	Res::threadStop = false;
 
 #ifdef NO_THREADING
-	acceptRequestsSecure(&Res::threadStop);
+	proxy_accReq(&Res::threadStop);
 #else
-	Res::requestAcceptor = std::thread(acceptRequestsSecure, &Res::threadStop);
+	pthread_create(&Res::requestAcceptor, NULL, proxy_accReq, &Res::threadStop);
 #endif
+
 	log(LOG_DEBUG, "[SERVER] ReqeustAcceptorSecure thread Started\n");
 
 	Res::startTime = time(nullptr);
@@ -193,7 +211,7 @@ void parseArgs(const int argc, const char *argv[]) {
 
 	switch (argc) {
 	case 3:
-		Res::tcpPort = static_cast<short>(std::atoi(argv[2]));
+		Res::tcpPort = static_cast<unsigned short>(std::atoi(argv[2]));
 		log(LOG_DEBUG, "[SERVER] Read port %d from cli args\n", Res::tcpPort);
 		[[fallthrough]];
 
@@ -212,7 +230,8 @@ void acceptRequestsSecure(bool *threadStop) {
 	};
 
 	// Receive until the peer shuts down the connection
-	while (!(*threadStop)) {
+	// ! and * are at the same precedence but they right-to-left associated so this works
+	while (!*threadStop) {
 
 		// infinetly wait for the socket to become usable
 		poll(&ss, 1, -1);
@@ -237,10 +256,14 @@ void acceptRequestsSecure(bool *threadStop) {
 		}
 
 		log(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
+
+		pthread_t temp;
+		proxy_resolver_data *t_data = (proxy_resolver_data*) malloc(sizeof(proxy_resolver_data));
+		*t_data = {sslConnection, client, threadStop};
 #ifdef NO_THREADING
-		resolveRequestSecure(sslConnection, client, threadStop);
+		proxy_reqRes(t_data);
 #else
-		std::thread(resolveRequestSecure, sslConnection, client, threadStop).detach();
+		pthread_create(&temp, NULL, proxy_reqRes, t_data);
 #endif
 	}
 }

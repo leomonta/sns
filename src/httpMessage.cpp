@@ -423,8 +423,6 @@ void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefCons
 			logMalformedParameter(chunk);
 		} else {
 
-			PROFILING_SCOPE("fun_param");
-
 			// everything is fine here
 			size_t         pos = sep - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
 			stringRefConst key = {chunk.str, pos};               // from the start of the chunk to before the '='
