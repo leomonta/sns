@@ -1,5 +1,7 @@
 #include "threadpool.hpp"
 
+#include "server.hpp"
+
 #include <asm-generic/errno-base.h>
 #include <cstdlib>
 #include <cstring>
@@ -102,7 +104,7 @@ void ThreadPool::destroy(tpool *tp) {
 	free(tp);
 }
 
-resolver_data ThreadPool::dequeue(tpool *tpool) {
+Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {
 
 	sem_wait(&tpool->sempahore);
 	// this is not a problem, the request resolver will deal with n null return value
@@ -110,12 +112,12 @@ resolver_data ThreadPool::dequeue(tpool *tpool) {
 
 	// I'm sure there is a job for a thread
 
-	resolver_data res;
+	Methods::resolver_data res;
 
 	if (tpool->head == nullptr) {
 		res = {nullptr, 0};
 	} else {
-		res         = tpool->head->data;
+		res = tpool->head->data;
 		if (tpool->head->next == nullptr) {
 			tpool->tail = nullptr;
 		}
@@ -130,7 +132,7 @@ resolver_data ThreadPool::dequeue(tpool *tpool) {
 	return res;
 }
 
-void ThreadPool::enque(tpool *tpool, resolver_data *data) {
+void ThreadPool::enque(tpool *tpool, Methods::resolver_data *data) {
 
 	pthread_mutex_lock(&tpool->mutex);
 	tjob *ntail = (tjob *)(malloc(sizeof(tjob)));

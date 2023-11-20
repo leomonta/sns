@@ -1,5 +1,6 @@
 #pragma once
-#include "server.hpp"
+
+#include "methods.hpp"
 
 #include <cstddef>
 #include <pthread.h>
@@ -13,7 +14,7 @@
 namespace ThreadPool {
 
 	typedef struct tjob {
-		resolver_data data; // 12bytes
+		Methods::resolver_data data; // 12bytes
 		tjob         *next; // 8 + 4 padding
 	} tjob;
 
@@ -50,7 +51,7 @@ namespace ThreadPool {
 	 * @parama tpool the thread pool where to take the job from
 	 * @return a pointer to a resolver_data structure
 	 */
-	resolver_data dequeue(tpool *tpool);
+	Methods::resolver_data dequeue(tpool *tpool);
 
 	/**
 	 * Add the given data to the queue as a job for ay waiting thread
@@ -58,6 +59,6 @@ namespace ThreadPool {
 	 * @param tpool the thread pool where to put the job in
 	 * @param data the data that will be copied into the thread job
 	 */
-	void enque(tpool *tpool, resolver_data *data);
+	void enque(tpool *tpool, Methods::resolver_data *data);
 
 } // namespace ThreadPool
