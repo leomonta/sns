@@ -26,7 +26,22 @@ void acceptRequestsSecure(bool *threadStop);
  * @param clientSock the socket of the client
  * @param sslConn the ssl connection to communicate on
  */
-void resolveRequestSecure(SSL *sslConn, const Socket clientSocket, bool *threadStop);
+void resolveRequestSecure(SSL *sslConn, const Socket clientSocket);
+
+struct resolver_data {
+	SSL   *ssl;
+	Socket clientSocket;
+};
+
+/**
+ * Proxy function to be called by pthred that itself calls acceptRequestsSecure
+ */
+void *proxy_accReq(void *ptr);
+
+/**
+ * Proxy function to be called by pthred that itself calls resolveRequestSecure
+ */
+void *proxy_resReq(void *ptr);
 
 /**
  * Fills the outbound httpMessage with the correct headers for the Head method

@@ -3,6 +3,7 @@
 #include "httpMessage.hpp"
 #include "pages.hpp"
 #include "profiler.hpp"
+#include "threadpool.hpp"
 #include "utils.hpp"
 
 #include <chrono>
@@ -41,21 +42,26 @@ void Panico(int cos) {
 	exit(1);
 }
 
-struct proxy_resolver_data {
-	SSL   *ssl;
-	Socket clientSocket;
-	bool  *tstop;
-};
-
 void *proxy_accReq(void *ptr) {
 	acceptRequestsSecure((bool *)(ptr));
 	return nullptr;
 }
 
-void *proxy_reqRes(void *ptr) {
-	proxy_resolver_data temp = *(proxy_resolver_data *)(ptr);
-	free(ptr);
-	resolveRequestSecure(temp.ssl, temp.clientSocket, temp.tstop);
+void *proxy_resReq(void *ptr) {
+	ThreadPool::tpool *pool = (ThreadPool::tpool *)(ptr);
+
+	while (!pool->stop) {
+		auto data = ThreadPool::dequeue(pool);
+
+		// dequeue might return a null value for how it is implemented, i deal with that
+		if (data.ssl == nullptr) {
+			log(LOG_DEBUG, "DEQUEUE return null\n");
+			continue;
+		}
+
+		resolveRequestSecure(data.ssl, data.clientSocket);
+	}
+
 	return nullptr;
 }
 
@@ -70,10 +76,11 @@ namespace Res {
 
 	pthread_t requestAcceptor;
 
-	Socket   serverSocket;
-	SSL_CTX *sslContext = nullptr;
-	bool     threadStop = false;
-	time_t   startTime;
+	Socket             serverSocket;
+	SSL_CTX           *sslContext = nullptr;
+	bool               threadStop = false;
+	time_t             startTime;
+	ThreadPool::tpool *g_threadPool;
 } // namespace Res
 
 int main(const int argc, const char *argv[]) {
@@ -155,6 +162,8 @@ void setup() {
 	if (Res::sslContext == nullptr) {
 		exit(1);
 	}
+
+	Res::g_threadPool = ThreadPool::create(std::thread::hardware_concurrency());
 
 	log(LOG_INFO, "[SSL] Context created\n");
 }
@@ -257,77 +266,57 @@ void acceptRequestsSecure(bool *threadStop) {
 
 		log(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
 
-		pthread_t temp;
-		proxy_resolver_data *t_data = (proxy_resolver_data*) malloc(sizeof(proxy_resolver_data));
-		*t_data = {sslConnection, client, threadStop};
+		resolver_data t_data = {sslConnection, client};
 #ifdef NO_THREADING
 		proxy_reqRes(t_data);
 #else
-		pthread_create(&temp, NULL, proxy_reqRes, t_data);
+		ThreadPool::enque(Res::g_threadPool, &t_data);
+		// pthread_create(&temp, NULL, proxy_reqRes, t_data);
 #endif
 	}
 }
 
-void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket, bool *threadStop) {
+void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 
-	int bytesReceived;
+	// ---------------------------------------------------------------------- RECEIVE
+	char *request;
+	auto  bytesReceived = sslConn::receiveRecordC(sslConnection, &request);
 
-	char               *request;
-	outboundHttpMessage response;
+	// received some bytes
+	if (bytesReceived > 0) {
 
-	while (!(*threadStop)) {
+		inboundHttpMessage mex = http::makeInboundMessage(request);
+		log(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
 
-		// ---------------------------------------------------------------------- RECEIVE
-		bytesReceived = sslConn::receiveRecordC(sslConnection, &request);
+		outboundHttpMessage response;
+		switch (mex.m_method) {
+		case http::HTTP_HEAD:
+			Head(mex, response);
+			break;
 
-		// received some bytes
-		if (bytesReceived > 0) {
-
-			inboundHttpMessage mex = http::makeInboundMessage(request);
-
-			log(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
-
-			// no really used
-			switch (mex.m_method) {
-			case http::HTTP_HEAD:
-				Head(mex, response);
-				break;
-
-			case http::HTTP_GET:
-				Get(mex, response);
-				break;
-			}
-
-			// make the message a single formatted string
-			auto res = http::compileMessage(response);
-
-			// log(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res.c_str());
-
-			// ------------------------------------------------------------------ SEND
-			// acknowledge the segment back to the sender
-			sslConn::sendRecordC(sslConnection, res.str, res.len);
-
-			http::destroyOutboundHttpMessage(&response);
-			http::destroyInboundHttpMessage(&mex);
-			free(request);
-			free(res.str);
-
+		case http::HTTP_GET:
+			Get(mex, response);
 			break;
 		}
 
-		// received an error
-		if (bytesReceived <= 0) {
+		// make the message a single formatted string
+		auto res = http::compileMessage(response);
 
-			break;
-		}
+		// log(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res;
+
+		// ------------------------------------------------------------------ SEND
+		// acknowledge the segment back to the sender
+		sslConn::sendRecordC(sslConnection, res.str, res.len);
+
+		http::destroyOutboundHttpMessage(&response);
+		http::destroyInboundHttpMessage(&mex);
+		free(request);
+		free(res.str);
 	}
 
 	tcpConn::shutdownSocket(clientSocket);
 	tcpConn::closeSocket(clientSocket);
 	sslConn::destroyConnection(sslConnection);
-
-	// wait for a new connection
-	wait(nullptr);
 }
 
 int Head(const inboundHttpMessage &request, outboundHttpMessage &response) {
