@@ -67,16 +67,16 @@ int main(const int argc, const char *argv[]) {
 		trimwhitespace(line);
 
 		// simple commands
-		if (streq_str(line, "exit") == 0 || streq_str(line, "quit") == 0) {
+		if (streq_str(line, "exit") || streq_str(line, "quit")) {
 			stop(&runInfo);
 			break;
 		}
 
-		if (streq_str(line, "restart") == 0) {
+		if (streq_str(line, "restart")) {
 			restart(args, &runInfo);
 		}
 
-		if (streq_str(line, "time") == 0) {
+		if (streq_str(line, "time")) {
 			time_t now   = time(nullptr) - runInfo.startTime;
 			long   days  = now / (60 * 60 * 24);
 			long   hours = now / (60 * 60) % 24;
@@ -85,8 +85,6 @@ int main(const int argc, const char *argv[]) {
 
 			printf("Time elapsed since the 'start()' method was called is %ld.%02ld:%02ld:%02ld\n", days, hours, mins, secs);
 		}
-
-		printf("> ");
 	}
 
 	// Instrumentor::Get().EndSession();
