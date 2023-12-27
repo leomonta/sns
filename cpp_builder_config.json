@@ -67,8 +67,8 @@
 	},
 
 	"release": {
-		"compiler_args": "-Ofast -std=c++2a -fsanitize=address -fsanitize=leak",
-		"linker_args": "-fsanitize=address -fsanitize=leak",
+		"compiler_args": "-Ofast -g3 -std=c++2a",
+		"linker_args": "",
 		"libraries_dirs": [
 		],
 		"libraries_names": [

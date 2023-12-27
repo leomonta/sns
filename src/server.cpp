@@ -40,7 +40,7 @@ namespace Res {
 
 int main(const int argc, const char *argv[]) {
 
-	// Instrumentor::Get().BeginSession("Leonard server");
+	Instrumentor::Get().BeginSession("Leonard server");
 
 	signal(SIGPIPE, Panico);
 
@@ -87,7 +87,7 @@ int main(const int argc, const char *argv[]) {
 		}
 	}
 
-	// Instrumentor::Get().EndSession();
+	Instrumentor::Get().EndSession();
 
 	return 0;
 }

@@ -165,6 +165,8 @@ std::string Methods::getContent(const stringRef &path, const int fileInfo) {
 
 	if (fileInfo == FILE_FOUND || fileInfo == FILE_IS_DIR_FOUND) {
 
+		PROFILING_SCOPE("file read");
+
 		// get the required file
 		std::fstream ifs(fileStr, std::ios::binary | std::ios::in);
 
