@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #include <stddef.h>
 
 #define TO_STRINGREF(str) \
@@ -10,59 +9,9 @@
 typedef struct stringRef {
 	char  *str = nullptr;
 	size_t len = 0;
-
-	bool operator==(const stringRef &sr) const {
-		return (sr.str == str && sr.len == len);
-	}
 } stringRef;
 
 typedef struct stringRefConst {
-	const char  *str = nullptr;
-	size_t len = 0;
-
-	bool operator==(const stringRefConst &sr) const {
-		return (sr.str == str && sr.len == len);
-	}
+	const char *str = nullptr;
+	size_t      len = 0;
 } stringRefConst;
-
-namespace std {
-	template <>
-	struct hash<stringRef> {
-
-		size_t operator()(const stringRef &k) const {
-			// Compute individual hash values for two data members and combine them using XOR and bit shifting
-
-			// #k.x 0 #k.y
-			auto ptr = reinterpret_cast<size_t>(k.str) << 2;
-			return (ptr * 10 + k.len);
-		}
-	};
-
-	template <>
-	struct hash<stringRefConst> {
-
-		size_t operator()(const stringRefConst &k) const {
-			// Compute individual hash values for two data members and combine them using XOR and bit shifting
-
-			// #k.x 0 #k.y
-			auto ptr = reinterpret_cast<size_t>(k.str) << 2;
-			return (ptr * 10 + k.len);
-		}
-	};
-
-	template <>
-	struct equal_to<stringRef> {
-
-		bool operator()(const stringRef &rhs, const stringRef &lhs) const {
-			return rhs == lhs;
-		}
-	};
-
-	template <>
-	struct equal_to<stringRefConst> {
-
-		bool operator()(const stringRefConst &rhs, const stringRefConst &lhs) const {
-			return rhs == lhs;
-		}
-	};
-} // namespace std
