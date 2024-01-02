@@ -1,9 +1,8 @@
 #pragma once
+#include "hmap.hpp"
 #include "stringRef.hpp"
 
-#include <fstream>
-#include <string>
-#include <unordered_map>
+#include <sys/types.h>
 
 /*
 I use two representation of an http message for 2 reasons,
@@ -141,24 +140,24 @@ namespace http {
 	};
 
 	struct inboundHttpMessage {
-		u_char                                             m_method;                     // the appropriate http method, GET, POST, PATCH
-		u_char                                             m_version;                    // the version of the http header (1.0, 1.1, 2.0, ...)
-		const char                                        *m_rawMessage_a;               // the c string containing the entire header, the _a means it's heap allocated
-		size_t                                             m_headerLen;                  // how many bytes are there in the header
-		std::unordered_map<stringRefConst, stringRefConst> m_parameters;                 // contain the data sent in the forms and query parameters
-		stringRefConst                                     m_headerOptions[RQ_ENUM_LEN]; // an 'hash map' where to store the decoded header options
-		stringRefConst                                     m_url;                        // the resource asked from the client
-		stringRefConst                                     m_body;                       // the content of the message, what the message is about
+		u_char                                     m_method;                     // the appropriate http method, GET, POST, PATCH
+		u_char                                     m_version;                    // the version of the http header (1.0, 1.1, 2.0, ...)
+		const char                                *m_rawMessage_a;               // the c string containing the entire header, the _a means it's heap allocated
+		size_t                                     m_headerLen;                  // how many bytes are there in the header
+		hmap::hmap<stringRefConst, stringRefConst> m_parameters;                 // contain the data sent in the forms and query parameters
+		stringRefConst                             m_headerOptions[RQ_ENUM_LEN]; // an 'hash map' where to store the decoded header options
+		stringRefConst                             m_url;                        // the resource asked from the client
+		stringRefConst                             m_body;                       // the content of the message, what the message is about
 	};
 
 	struct outboundHttpMessage {
 
-		u_char                                m_statusCode;    // 200, 404, 500, etc etc
-		u_char                                m_version;       // the version of the http header (1.0, 1.1, 2.0, ...)
-		std::unordered_map<u_char, stringRef> m_headerOptions; // represent the header as the collection of the single options -> value
-		size_t                                m_headerLen;     // how many bytes are there in the header
-		stringRef                             m_body;          // the content of the message, what the message is about
-		stringRef                             m_filename;      // the internal complete filename for the resource present in the body
+		u_char                        m_statusCode;    // 200, 404, 500, etc etc
+		u_char                        m_version;       // the version of the http header (1.0, 1.1, 2.0, ...)
+		hmap::hmap<u_char, stringRef> m_headerOptions; // represent the header as the collection of the single options -> value
+		size_t                        m_headerLen;     // how many bytes are there in the header
+		stringRef                     m_body;          // the content of the message, what the message is about
+		stringRef                     m_filename;      // the internal complete filename for the resource present in the body
 	};
 
 	inboundHttpMessage makeInboundMessage(const char *str);

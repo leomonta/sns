@@ -118,11 +118,11 @@ const stringRefConst headerRpStr[] = {
     TO_STRINGREF("Status"),
 };
 
-inboundHttpMessage http::makeInboundMessage(const char *str) {
+http::inboundHttpMessage http::makeInboundMessage(const char *str) {
 
 	PROFILE_FUNCTION();
 
-	inboundHttpMessage res;
+	http::inboundHttpMessage res;
 
 	// use strlen so i'm sure it's not counting the null terminator
 	auto msgLen = strlen(str);
@@ -159,32 +159,34 @@ inboundHttpMessage http::makeInboundMessage(const char *str) {
 	return res;
 }
 
-void http::destroyInboundHttpMessage(inboundHttpMessage *mex) {
+void http::destroyInboundHttpMessage(http::inboundHttpMessage *mex) {
 
 	if (mex->m_rawMessage_a != nullptr) {
 		free(const_cast<char *>(mex->m_rawMessage_a));
 	}
 }
 
-void http::destroyOutboundHttpMessage(outboundHttpMessage *mex) {
+void http::destroyOutboundHttpMessage(http::outboundHttpMessage *mex) {
 
-	for (const auto &[key, val] : mex->m_headerOptions) {
-		free(val.str);
+	//for (const auto &[key, val] : mex->m_headerOptions) {
+	for (size_t i = 0; i < mex->m_headerOptions.values.count; ++i) {
+		free(mex->m_headerOptions.values.data[i].str);
 	}
 
 	free(mex->m_body.str);
 	free(mex->m_filename.str);
 }
 
-void addToOptions(stringRefConst key, stringRefConst val, inboundHttpMessage *ctx) {
+void addToOptions(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
 	ctx->m_headerOptions[http::getParameterCode(key)] = val;
 }
 
-void addToParams(stringRefConst key, stringRefConst val, inboundHttpMessage *ctx) {
-	ctx->m_parameters[key] = val;
+void addToParams(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
+	//ctx->m_parameters[key] = val;
+	hmap::insert(ctx->m_parameters, key, val);
 }
 
-void http::decompileHeader(const stringRefConst &rawHeader, inboundHttpMessage &msg) {
+void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMessage &msg) {
 
 	PROFILE_FUNCTION();
 
@@ -223,7 +225,7 @@ void http::decompileHeader(const stringRefConst &rawHeader, inboundHttpMessage &
 	parseOptions(rawHeader, addToOptions, "\r\n", ':', &msg);
 }
 
-void http::decompileMessage(inboundHttpMessage &msg) {
+void http::decompileMessage(http::inboundHttpMessage &msg) {
 
 	PROFILE_FUNCTION();
 
@@ -268,7 +270,7 @@ void http::decompileMessage(inboundHttpMessage &msg) {
 	}
 }
 
-stringRef http::compileMessage(const outboundHttpMessage &msg) {
+stringRef http::compileMessage(const http::outboundHttpMessage &msg) {
 
 	PROFILE_FUNCTION();
 
@@ -296,7 +298,11 @@ stringRef http::compileMessage(const outboundHttpMessage &msg) {
 	char *writer = res + STATUS_LINE_LEN;
 
 	// add all headers
-	for (auto const &[key, val] : msg.m_headerOptions) {
+	//for (auto const &[key, val] : msg.m_headerOptions) {
+	for (size_t i = 0; i < msg.m_headerOptions.values.count; ++i) {
+
+		auto key = msg.m_headerOptions.keys.data[i];
+		auto val = msg.m_headerOptions.values.data[i];
 
 		// the format is
 		// name: value\r\n
@@ -394,7 +400,7 @@ u_char http::getParameterCode(const stringRefConst &parameter) {
 	return -1;
 }
 
-void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefConst a, stringRefConst b, inboundHttpMessage *ctx), const char *chunkSep, const char itemSep, inboundHttpMessage *ctx) {
+void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefConst a, stringRefConst b, http::inboundHttpMessage *ctx), const char *chunkSep, const char itemSep, http::inboundHttpMessage *ctx) {
 
 	PROFILE_FUNCTION();
 
@@ -488,7 +494,7 @@ void http::parseFormData(const std::string &params, std::string &divisor, std::u
 }
 */
 
-void http::addHeaderOption(const u_char option, const stringRefConst &value, outboundHttpMessage &msg) {
+void http::addHeaderOption(const u_char option, const stringRefConst &value, http::outboundHttpMessage &msg) {
 	auto opt = headerRpStr[option];
 
 	stringRef cpy{
@@ -496,18 +502,21 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, out
 	    value.len};
 
 	// if something is already present at the requested position
-	auto old = msg.m_headerOptions[option];
+	//auto old = msg.m_headerOptions[option];
+	auto old = hmap::get(msg.m_headerOptions, option);
 	if (old.str != nullptr) {
 		// free it
 		free(old.str);
 	}
-	msg.m_headerOptions[option] = cpy;
+	// msg.m_headerOptions[option] = cpy;
+	auto temp = hmap::get(msg.m_headerOptions, option);
+	temp = cpy;
 
 	// account the bytes that will be added later
 	//                 name     ': ' value '\r\n'
 	msg.m_headerLen += (opt.len + 2 + cpy.len + 2);
 }
 
-void http::setFilename(const stringRefConst &val, outboundHttpMessage &msg) {
+void http::setFilename(const stringRefConst &val, http::outboundHttpMessage &msg) {
 	msg.m_filename = {makeCopyConst(val), val.len};
 }

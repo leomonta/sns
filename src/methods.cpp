@@ -27,7 +27,7 @@ namespace Res {
 	std::map<std::string, std::string> mimeTypes;
 } // namespace Res
 
-int Methods::Head(const inboundHttpMessage &request, outboundHttpMessage &response) {
+int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMessage &response) {
 
 	PROFILE_FUNCTION();
 
@@ -89,7 +89,7 @@ int Methods::Head(const inboundHttpMessage &request, outboundHttpMessage &respon
 	return fileInfo;
 }
 
-void Methods::Get(const inboundHttpMessage &request, outboundHttpMessage &response) {
+void Methods::Get(const http::inboundHttpMessage &request, http::outboundHttpMessage &response) {
 	PROFILE_FUNCTION();
 
 	// I just need to add the body to the head,
@@ -116,7 +116,7 @@ void Methods::Get(const inboundHttpMessage &request, outboundHttpMessage &respon
 	http::addHeaderOption(http::RP_Content_Encoding, {"gzip", 4}, response);
 }
 
-void Methods::composeHeader(const std::string &filename, outboundHttpMessage &msg, const int fileInfo) {
+void Methods::composeHeader(const std::string &filename, http::outboundHttpMessage &msg, const int fileInfo) {
 
 	PROFILE_FUNCTION();
 
@@ -164,8 +164,6 @@ std::string Methods::getContent(const stringRef &path, const int fileInfo) {
 	std::string fileStr(path.str, path.len);
 
 	if (fileInfo == FILE_FOUND || fileInfo == FILE_IS_DIR_FOUND) {
-
-		PROFILING_SCOPE("file read");
 
 		// get the required file
 		std::fstream ifs(fileStr, std::ios::binary | std::ios::in);

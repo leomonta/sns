@@ -275,10 +275,10 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 	// received some bytes
 	if (bytesReceived > 0) {
 
-		inboundHttpMessage mex = http::makeInboundMessage(request);
+		http::inboundHttpMessage mex = http::makeInboundMessage(request);
 		log(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
 
-		outboundHttpMessage response;
+		http::outboundHttpMessage response;
 		switch (mex.m_method) {
 		case http::HTTP_HEAD:
 			Methods::Head(mex, response);

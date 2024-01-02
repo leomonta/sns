@@ -20,7 +20,7 @@ namespace Methods {
 	 * @param request the request message received from the client
 	 * @param response what will be communicated to the client
 	 */
-	int Head(const inboundHttpMessage &request, outboundHttpMessage &response);
+	int Head(const http::inboundHttpMessage &request, http::outboundHttpMessage &response);
 
 	/**
 	 * Fill the outbounf httpMessage with the correct headers and body info for the Get method
@@ -28,7 +28,7 @@ namespace Methods {
 	 * @param request the request message received from the client
 	 * @param response what will be communicated to the client
 	 */
-	void Get(const inboundHttpMessage &request, outboundHttpMessage &response);
+	void Get(const http::inboundHttpMessage &request, http::outboundHttpMessage &response);
 
 	/**
 	 * Given the name of a file, retrives all of the info to put in the http header
@@ -37,7 +37,7 @@ namespace Methods {
 	 * @param msg httpMessage where to put the data
 	 * @param fileInfo additional fileinfo presence in the filesystem
 	 */
-	void composeHeader(const std::string &filename, outboundHttpMessage &msg, const int fileInfo);
+	void composeHeader(const std::string &filename, http::outboundHttpMessage &msg, const int fileInfo);
 
 	/**
 	 * given a path returns the file as a string if it is present, a dir view if it's a directory

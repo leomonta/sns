@@ -1,7 +1,5 @@
 #pragma once
 
-#include "httpMessage.hpp"
-#include "stringRef.hpp"
 #include "threadpool.hpp"
 
 #include <sslConn.hpp>
