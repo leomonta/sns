@@ -13,20 +13,21 @@
  */
 namespace ThreadPool {
 
+	// linked list node
 	typedef struct tjob {
-		Methods::resolver_data data; // 12bytes
-		tjob         *next; // 8 + 4 padding
+		Methods::resolver_data data; // data of the node. I use a copy since the data is small (12B) and trivial int + ptr
+		tjob                  *next; // next job
 	} tjob;
 
+	// linked list + other thread related data
 	typedef struct tpool {
-		tjob           *head;
-		tjob           *tail;
-		sem_t           sempahore;
-		pthread_mutex_t mutex;
-		size_t          tCount;
-		pthread_t      *threads;
-		size_t          worksCount;
-		bool            stop;
+		tjob           *head;      // head of linked list
+		tjob           *tail;      // tail of linked list
+		sem_t           sempahore; // semaphore to decide how many can get in the critical section
+		pthread_mutex_t mutex;     // mutex to enter the critical section
+		size_t          tCount;    // num of threads allocated in *threads
+		pthread_t      *threads;   // array of the pthreads started, it will not change once the tpoll is created
+		bool            stop;      // should the threads stop
 	} tpool;
 
 	/**
@@ -36,7 +37,7 @@ namespace ThreadPool {
 	 * @param tCount the number of concurrent threads to start
 	 * @return an allocated thread pool
 	 */
-	tpool *create(size_t tCount);
+	tpool *create(const size_t tCount);
 
 	/**
 	 * Free all the resource allocated in the given thrad pool and the thread pool itself
@@ -59,6 +60,6 @@ namespace ThreadPool {
 	 * @param tpool the thread pool where to put the job in
 	 * @param data the data that will be copied into the thread job
 	 */
-	void enque(tpool *tpool, Methods::resolver_data *data);
+	void enque(tpool *tpool, const Methods::resolver_data *data);
 
 } // namespace ThreadPool
