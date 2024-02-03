@@ -5,9 +5,7 @@
 #include "threadpool.hpp"
 #include "utils.hpp"
 
-#include <chrono>
 #include <logger.hpp>
-#include <map>
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
@@ -261,7 +259,6 @@ void acceptRequestsSecure(runtimeInfo *rti) {
 		proxy_reqRes(t_data);
 #else
 		ThreadPool::enque(rti->threadPool, &t_data);
-		// pthread_create(&temp, NULL, proxy_reqRes, t_data);
 #endif
 	}
 }
