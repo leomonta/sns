@@ -1,5 +1,6 @@
 #include "miniVector.hpp"
 
+#include <cstring>
 #include <stdlib.h>
 
 template <typename T>
@@ -45,4 +46,30 @@ T *miniVector::retrive(const miniVector<T> *vec, const size_t index) {
 	}
 
 	return vec->data[index];
+}
+
+template <typename T>
+void miniVector::set(const miniVector<T> *vec, const size_t index, const T *element) {
+	if (index > 0 && index > vec->count) {
+		memcpy(vec[index], element, 1 * sizeof(T));
+	}
+}
+
+template <typename T>
+void miniVector::remove(miniVector<T> *vec, const size_t index) {
+
+	// we cant just overwrite the position to erase when
+	// index is out of bound, < 0 || > count 
+	// index is on the last index (since we would run the risk of copying garbage)
+	if (index < 0 || index >= vec->count) {
+		// nothing to delete
+		return;
+	}
+
+	if (index < vec->count - 1) {
+		// just copy over it, no need to do anything else really
+		memcpy(vec[index], vec[index + 1], (vec->count - index) * sizeof(T));
+	} 
+
+	--vec->count;
 }
