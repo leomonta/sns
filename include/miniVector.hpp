@@ -5,10 +5,9 @@
 namespace miniVector {
 	template <typename T>
 	struct miniVector {
-
 		T     *data;     // data ptr
-		size_t capacity; // total allocated byte
-		size_t count;    // how many elements are stored at the moment
+		size_t capacity; // total allocated bytes
+		size_t count;    // how many elements are stored at the moment / the first index that can be used
 	};
 
 	/**
@@ -22,14 +21,12 @@ namespace miniVector {
 	miniVector<T> makeMiniVector(const size_t initialCapacity);
 
 	/**
-	 * append an element of the previously specified size at the end of the vector
-	 * the element is bytecopied in the internal array
+	 * Frees all the resource allocated by vec
 	 *
-	 * @param vec the miniVecor where to append the data
-	 * @param element a pointer to the data to be appended
+	 * @param vec the vector the destroy
 	 */
 	template <typename T>
-	void append(miniVector<T> *vec, T *element);
+	void destroyMiniVector(miniVector<T> *vec);
 
 	/**
 	 * Doubles the capacity of the given vector
@@ -40,14 +37,6 @@ namespace miniVector {
 	void grow(miniVector<T> *vec);
 
 	/**
-	 * Frees all the resource allocated by vec
-	 *
-	 * @param vec the vector the destroy
-	 */
-	template <typename T>
-	void destroyMiniVector(miniVector<T> *vec);
-
-	/**
 	 * Return the element at the specified position
 	 *
 	 * @param vec the vector to get the element from
@@ -56,7 +45,7 @@ namespace miniVector {
 	 * @return the pointer to the element at pos index
 	 */
 	template <typename T>
-	T *retrive(const miniVector<T> *vec, const size_t index);
+	T *retrieve(const miniVector<T> *vec, const size_t index);
 
 	/**
 	 * Set the element at index to the element given
@@ -67,6 +56,27 @@ namespace miniVector {
 	 */
 	template <typename T>
 	void set(const miniVector<T> *vec, const size_t index, const T *element);
+
+	/**
+	 * append an element of the previously specified size at the end of the vector
+	 * the element is bytecopied in the internal array
+	 *
+	 * @param vec the miniVecor where to append the data
+	 * @param element a pointer to the data to be appended
+	 */
+	template <typename T>
+	void append(miniVector<T> *vec, T *element);
+
+	/**
+	 * Insert the given value at the given index, shofting (and eventaully growing) the rest of the vector
+	 *
+	 * @param vec the vector to work on
+	 * @param index where to insert the given value
+	 * @param element the element to insert
+	 *
+	 */
+	template <typename T>
+	void insert(const miniVector<T> *vec, const size_t index, const T *element);
 
 	/**
 	 * Renove the elemente at the given index and moves every element after to keep the data contiguous
