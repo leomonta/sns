@@ -183,7 +183,7 @@ void addToOptions(stringRefConst key, stringRefConst val, http::inboundHttpMessa
 
 void addToParams(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
 	//ctx->m_parameters[key] = val;
-	hmap::insert(ctx->m_parameters, key, val);
+	miniMap::insert(ctx->m_parameters, key, val);
 }
 
 void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMessage &msg) {
@@ -503,13 +503,13 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, htt
 
 	// if something is already present at the requested position
 	//auto old = msg.m_headerOptions[option];
-	auto old = hmap::get(msg.m_headerOptions, option);
+	auto old = miniMap::get(msg.m_headerOptions, option);
 	if (old.str != nullptr) {
 		// free it
 		free(old.str);
 	}
 	// msg.m_headerOptions[option] = cpy;
-	auto temp = hmap::get(msg.m_headerOptions, option);
+	auto temp = miniMap::get(msg.m_headerOptions, option);
 	temp = cpy;
 
 	// account the bytes that will be added later

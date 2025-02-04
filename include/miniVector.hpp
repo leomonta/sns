@@ -45,7 +45,7 @@ namespace miniVector {
 	 * @return the pointer to the element at pos index
 	 */
 	template <typename T>
-	T *retrieve(const miniVector<T> *vec, const size_t index);
+	T *get(const miniVector<T> *vec, const size_t index);
 
 	/**
 	 * Set the element at index to the element given

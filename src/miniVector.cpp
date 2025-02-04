@@ -35,7 +35,7 @@ void miniVector::grow(miniVector<T> *vec) {
 }
 
 template <typename T>
-T *miniVector::retrieve(const miniVector<T> *vec, const size_t index) {
+T *miniVector::get(const miniVector<T> *vec, const size_t index) {
 	if (index >= vec->count) {
 		// invalid pos
 		return nullptr;
