@@ -81,7 +81,7 @@ void miniVector::insert(const miniVector<T> *vec, const size_t index, const T *e
 	}
 
 	// god bless memmove
-	memcpy(vec->data + index, vec->data + index + 1, vec->count - index);
+	memmove(vec->data + index + 1, vec->data + index, vec->count - index);
 
 	// finally write the data
 	set(vec, index, element);
