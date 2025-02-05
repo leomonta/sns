@@ -1,10 +1,11 @@
 #include "miniMap.hpp"
+
 #include "miniVector.hpp"
 
 template <typename K, typename V>
-bool miniMap::replace(miniMap<K, V> *map, K *key, V *value) {
+bool miniMap::replace(const miniMap<K, V> *map, const K *key, const V *value) {
 
-	// find it 
+	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
@@ -17,13 +18,12 @@ bool miniMap::replace(miniMap<K, V> *map, K *key, V *value) {
 	}
 
 	return false;
-
 }
 
 template <typename K, typename V>
-V miniMap::get(miniMap<K, V> *map, K *key) {
+V miniMap::get( const miniMap<K, V> *map, const K *key) {
 
-	// find it 
+	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
@@ -34,13 +34,12 @@ V miniMap::get(miniMap<K, V> *map, K *key) {
 	}
 
 	return nullptr;
-	
 }
 
 template <typename K, typename V>
-void miniMap::set(miniMap<K, V> *map, K *key, V *value) {
+void miniMap::set(const miniMap<K, V> *map, const K *key, const V *value) {
 
-	// find it 
+	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
@@ -58,7 +57,7 @@ void miniMap::set(miniMap<K, V> *map, K *key, V *value) {
 }
 
 template <typename K, typename V>
-bool miniMap::remove(miniMap<K, V> *map, K *key) {
+bool miniMap::remove(const miniMap<K, V> *map, const K *key) {
 
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
@@ -73,5 +72,4 @@ bool miniMap::remove(miniMap<K, V> *map, K *key) {
 	}
 
 	return false;
-
 }

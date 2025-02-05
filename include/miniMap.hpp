@@ -21,7 +21,7 @@ namespace miniMap {
 	 * @return true if the value at key was replaced
 	 */
 	template <typename K, typename V>
-	bool replace(miniMap<K, V> *map, K *key, V *value);
+	bool replace(const miniMap<K, V> *map, const K *key, const V *value);
 
 	/**
 	 * get the value corresponding to the giving key
@@ -32,7 +32,7 @@ namespace miniMap {
 	 * @return a pointer the value associated with the given key, or nullptr if the key is not present in the map
 	 */
 	template <typename K, typename V>
-	V get(miniMap<K, V> *map, K *key);
+	V get(const miniMap<K, V> *map, const K *key);
 
 	/**
 	 * insert a value into the hash map trhough its relative key
@@ -44,7 +44,7 @@ namespace miniMap {
 	 * @param value the value to associate to the given key
 	 */
 	template <typename K, typename V>
-	void set(miniMap<K, V> *map, K *key, V *value);
+	void set(const miniMap<K, V> *map, const K *key, const V *value);
 
 	/**
 	 * Attempts to remove the key and its relative value
@@ -55,6 +55,6 @@ namespace miniMap {
 	 * @return if the key, value pair has been removed 
 	 */
 	template <typename K, typename V>
-	bool remove(miniMap<K, V> *map, K *key);
+	bool remove(const miniMap<K, V> *map, const K *key);
 
 } // namespace miniMap

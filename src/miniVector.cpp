@@ -16,7 +16,7 @@ miniVector::miniVector<T> miniVector::makeMiniVector(const size_t initialCapacit
 }
 
 template <typename T>
-void miniVector::destroyMiniVector(miniVector<T> *vec) {
+void miniVector::destroyMiniVector(const miniVector<T> *vec) {
 	free(vec->data);
 
 	// zero everythin
@@ -26,7 +26,7 @@ void miniVector::destroyMiniVector(miniVector<T> *vec) {
 }
 
 template <typename T>
-void miniVector::grow(miniVector<T> *vec) {
+void miniVector::grow(const miniVector<T> *vec) {
 	vec->data = realloc(vec->data, vec->capacity * 2);
 	vec->capacity *= 2;
 	// for why 2 and not 1.6 or 1.5
@@ -52,7 +52,7 @@ void miniVector::set(const miniVector<T> *vec, const size_t index, const T *elem
 }
 
 template <typename T>
-void miniVector::append(miniVector<T> *vec, T *element) {
+void miniVector::append(const miniVector<T> *vec, T *element) {
 	if (vec->count == vec->capacity / sizeof(T)) {
 		grow(vec);
 	}
@@ -89,7 +89,7 @@ void miniVector::insert(const miniVector<T> *vec, const size_t index, const T *e
 }
 
 template <typename T>
-void miniVector::remove(miniVector<T> *vec, const size_t index) {
+void miniVector::remove(const miniVector<T> *vec, const size_t index) {
 
 	// we cant just overwrite the position to erase when
 	// index is out of bound, > count or

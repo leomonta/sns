@@ -26,7 +26,7 @@ namespace miniVector {
 	 * @param vec the vector the destroy
 	 */
 	template <typename T>
-	void destroyMiniVector(miniVector<T> *vec);
+	void destroyMiniVector(const miniVector<T> *vec);
 
 	/**
 	 * Doubles the capacity of the given vector
@@ -34,7 +34,7 @@ namespace miniVector {
 	 * @param vec the vector to grow
 	 */
 	template <typename T>
-	void grow(miniVector<T> *vec);
+	void grow(const miniVector<T> *vec);
 
 	/**
 	 * Return the element at the specified position
@@ -65,7 +65,7 @@ namespace miniVector {
 	 * @param element a pointer to the data to be appended
 	 */
 	template <typename T>
-	void append(miniVector<T> *vec, T *element);
+	void append(const miniVector<T> *vec, T *element);
 
 	/**
 	 * Insert the given value at the given index, shofting (and eventaully growing) the rest of the vector
@@ -85,5 +85,5 @@ namespace miniVector {
 	 * @param index the index of the element to be removed, if it is out of bounds no operation is performed
 	 */
 	template <typename T>
-	void remove(miniVector<T> *vec, const size_t index);
+	void remove(const miniVector<T> *vec, const size_t index);
 } // namespace miniVector
