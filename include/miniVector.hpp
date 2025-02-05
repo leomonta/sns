@@ -1,6 +1,7 @@
 #pragma once
 
-#include <stddef.h>
+#include <cstdlib>
+#include <cstddef>
 
 namespace miniVector {
 	template <typename T>
@@ -18,7 +19,16 @@ namespace miniVector {
 	 * @return a built miniVector
 	 */
 	template <typename T>
-	miniVector<T> makeMiniVector(const size_t initialCapacity);
+	miniVector<T> makeMiniVector(const size_t initialCapacity) {
+		miniVector<T> res = {
+		    .data     = malloc(initialCapacity * sizeof(T)),
+		    .capacity = initialCapacity * sizeof(T),
+		    .count    = 0,
+		};
+
+		// copy elision
+		return res;
+	}
 
 	/**
 	 * Frees all the resource allocated by vec
@@ -26,7 +36,15 @@ namespace miniVector {
 	 * @param vec the vector the destroy
 	 */
 	template <typename T>
-	void destroyMiniVector(const miniVector<T> *vec);
+	void destroyMiniVector(const miniVector<T> *vec) {
+
+		free(vec->data);
+
+		// zero everythin
+		vec->data     = nullptr;
+		vec->capacity = 0;
+		vec->count    = 0;
+	}
 
 	/**
 	 * Doubles the capacity of the given vector
@@ -34,7 +52,14 @@ namespace miniVector {
 	 * @param vec the vector to grow
 	 */
 	template <typename T>
-	void grow(const miniVector<T> *vec);
+	void grow(const miniVector<T> *vec) {
+
+		vec->data = realloc(vec->data, vec->capacity * 2);
+		vec->capacity *= 2;
+		// for why 2 and not 1.6 or 1.5
+		// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
+		// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 abd others
+	}
 
 	/**
 	 * Return the element at the specified position
@@ -45,7 +70,15 @@ namespace miniVector {
 	 * @return the pointer to the element at pos index
 	 */
 	template <typename T>
-	T *get(const miniVector<T> *vec, const size_t index);
+	T *get(const miniVector<T> *vec, const size_t index) {
+
+		if (index >= vec->count) {
+			// invalid pos
+			return nullptr;
+		}
+
+		return vec->data[index];
+	}
 
 	/**
 	 * Set the element at index to the element given
@@ -55,7 +88,12 @@ namespace miniVector {
 	 * @param element the element to replace that will replace the one already in the vectori
 	 */
 	template <typename T>
-	void set(const miniVector<T> *vec, const size_t index, const T *element);
+	void set(const miniVector<T> *vec, const size_t index, const T *element) {
+
+		if (index < vec->count) {
+			memcpy(vec[index], element, 1 * sizeof(T));
+		}
+	}
 
 	/**
 	 * append an element of the previously specified size at the end of the vector
@@ -65,7 +103,15 @@ namespace miniVector {
 	 * @param element a pointer to the data to be appended
 	 */
 	template <typename T>
-	void append(const miniVector<T> *vec, T *element);
+	void append(const miniVector<T> *vec, T *element) {
+		if (vec->count == vec->capacity / sizeof(T)) {
+			grow(vec);
+		}
+
+		memcpy(vec->data + vec->count, element, sizeof(T));
+
+		++(vec->count);
+	}
 
 	/**
 	 * Insert the given value at the given index, shofting (and eventaully growing) the rest of the vector
@@ -76,7 +122,29 @@ namespace miniVector {
 	 *
 	 */
 	template <typename T>
-	void insert(const miniVector<T> *vec, const size_t index, const T *element);
+	void insert(const miniVector<T> *vec, const size_t index, const T *element) {
+		if (index >= vec->count) {
+			// invalid position
+			return;
+		}
+
+		if (vec->count == vec->capacity / sizeof(T)) {
+			// i have to grow
+			// I am doing double work here (in case realloc cannot extend the given pointer)
+			// either realloc copies everything and then I move part of the array further OR
+			// I move part of the array and then realloc copies everything
+			// If I were to malloc new memory I would not incur in a double copy BUT i would miss out on a potential easy realloc
+			// So the decision lies on the distribution of good realloc vs bad realloc
+			// but I don't have the data to do this. So I'll just go with grow (realloc)
+			grow(vec);
+		}
+
+		// god bless memmove
+		memmove(vec->data + index + 1, vec->data + index, vec->count - index);
+
+		// finally write the data
+		set(vec, index, element);
+	}
 
 	/**
 	 * Renove the elemente at the given index and moves every element after to keep the data contiguous
@@ -85,5 +153,21 @@ namespace miniVector {
 	 * @param index the index of the element to be removed, if it is out of bounds no operation is performed
 	 */
 	template <typename T>
-	void remove(const miniVector<T> *vec, const size_t index);
+	void remove(const miniVector<T> *vec, const size_t index) {
+
+		// we cant just overwrite the position to erase when
+		// index is out of bound, > count or
+		// index is on the last index (since we would run the risk of copying garbage)
+		if (index >= vec->count) {
+			// nothing to delete
+			return;
+		}
+
+		if (index < vec->count - 1) {
+			// just copy over it, no need to do anything else really
+			memcpy(vec[index], vec[index + 1], (vec->count - index) * sizeof(T));
+		}
+
+		--vec->count;
+	}
 } // namespace miniVector

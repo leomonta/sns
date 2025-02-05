@@ -184,7 +184,7 @@ void addToOptions(stringRefConst key, stringRefConst val, http::inboundHttpMessa
 
 void addToParams(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
 	//ctx->m_parameters[key] = val;
-	miniMap::set(&(ctx->m_parameters), &key, &val);
+	miniMap::set(&ctx->m_parameters, &key, &val);
 }
 
 void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMessage &msg) {
@@ -510,7 +510,7 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, htt
 		free(old.str);
 	}
 	// msg.m_headerOptions[option] = cpy;
-	miniMap::set(&(msg.m_headerOptions), &option, &cpy);
+	miniMap::set(&msg.m_headerOptions, &option, &cpy);
 
 	// account the bytes that will be added later
 	//                 name     ': ' value '\r\n'
