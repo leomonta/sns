@@ -2,8 +2,8 @@
 
 #include "threadpool.hpp"
 
-#include <sslConn.hpp>
-#include <tcpConn.hpp>
+#include <sslConn.h>
+#include <tcpConn.h>
 
 struct cliArgs {
 	unsigned short tcpPort;

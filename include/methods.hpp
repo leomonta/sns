@@ -2,7 +2,9 @@
 
 #include "httpMessage.hpp"
 
-#include <sslConn.hpp>
+#include <sslConn.h>
+
+#include <string>
 
 const unsigned char serverVersionMajor = 4;
 const unsigned char serverVersionMinor = 0;

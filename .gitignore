@@ -5,3 +5,4 @@ move
 compile_commands.json
 .cache
 Makefile
+./cpp_builder_config.json

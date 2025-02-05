@@ -6,10 +6,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
-#include <logger.hpp>
+#include <logger.h>
 #include <math.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <errno.h>
 
 ThreadPool::tpool *ThreadPool::create(const size_t tCount) {
 	// TODO
@@ -25,23 +26,23 @@ ThreadPool::tpool *ThreadPool::create(const size_t tCount) {
 	// the semaphore is the one responsible for preventing race conditions
 	auto errCode = sem_init(&res->sempahore, 0, 0);
 	if (errCode != 0) {
-		log(LOG_ERROR, "[THREAD POOL] Could not initilize semphore -> %s\n", strerror(errno));
+		llog(LOG_ERROR, "[THREAD POOL] Could not initilize semphore -> %s\n", strerror(errno));
 	}
 
 	errCode = pthread_mutex_init(&res->mutex, NULL);
 
 	switch (errCode) {
 	case EAGAIN:
-		log(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough resources\n");
+		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough resources\n");
 		break;
 	case ENOMEM:
-		log(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough memory\n");
+		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough memory\n");
 		break;
 	case EPERM:
-		log(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough priviledges\n");
+		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough priviledges\n");
 		break;
 	case EINVAL:
-		log(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, invalid settings in attr\n");
+		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, invalid settings in attr\n");
 		break;
 	case 0:
 	default:
@@ -55,14 +56,14 @@ ThreadPool::tpool *ThreadPool::create(const size_t tCount) {
 		switch (errCode) {
 		case EINVAL:
 			// since I don't use attr for the pthread this should never happen
-			log(LOG_ERROR, "[THREAD POOL] Could not initialize thread, invalid settings in attr\n");
+			llog(LOG_ERROR, "[THREAD POOL] Could not initialize thread, invalid settings in attr\n");
 			break;
 		case EPERM:
 			// since I don't use attr for the pthread this should never happen
-			log(LOG_ERROR, "[THREAD POOL] Could not initialize thread, no permission to set schedule policies for attr\n");
+			llog(LOG_ERROR, "[THREAD POOL] Could not initialize thread, no permission to set schedule policies for attr\n");
 			break;
 		case EAGAIN:
-			log(LOG_ERROR, "[THREAD POOL] Could not initialize thread, not enough resources\n");
+			llog(LOG_ERROR, "[THREAD POOL] Could not initialize thread, not enough resources\n");
 			break;
 
 		default:

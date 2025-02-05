@@ -4,7 +4,7 @@
 #include "utils.hpp"
 
 #include <filesystem>
-#include <logger.hpp>
+#include <logger.h>
 #include <map>
 #include <profiler.hpp>
 #include <regex>
@@ -44,7 +44,7 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	// re set the filename as the base directory and the decoded filename
 	std::string file = Res::baseDirectory + dst;
 
-	log(LOG_DEBUG, "[SERVER] Decoded '%s'\n", dst);
+	llog(LOG_DEBUG, "[SERVER] Decoded '%s'\n", dst);
 
 	delete[] dst;
 
@@ -55,7 +55,7 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	auto        errCode = stat(file.c_str(), &fileStat);
 
 	if (errCode != 0) {
-		log(LOG_WARNING, "[SERVER] File requested (%s) not found, %s\n", file.c_str(), strerror(errno));
+		llog(LOG_WARNING, "[SERVER] File requested (%s) not found, %s\n", file.c_str(), strerror(errno));
 
 		fileInfo = FILE_NOT_FOUND;
 	}
@@ -67,11 +67,11 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 
 		// index exists, use that
 		if (errCode == 0) {
-			log(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
+			llog(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
 			fileInfo = FILE_IS_DIR_FOUND;
 			file     = correctedFile;
 		} else { // file does not exists use dir view
-			log(LOG_WARNING, "[SERVER] The file requested is a directory with no index.html. Fallback to dir view\n");
+			llog(LOG_WARNING, "[SERVER] The file requested is a directory with no index.html. Fallback to dir view\n");
 			fileInfo = FILE_IS_DIR_NOT_FOUND;
 		}
 	}
@@ -100,7 +100,7 @@ void Methods::Get(const http::inboundHttpMessage &request, http::outboundHttpMes
 	std::string compressed = "";
 	if (uncompressed != "") {
 		compressGz({uncompressed.c_str(), uncompressed.length()}, compressed);
-		log(LOG_DEBUG, "[SERVER] Compressing response body\n");
+		llog(LOG_DEBUG, "[SERVER] Compressing response body\n");
 
 		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
 			http::addHeaderOption(http::RP_Content_Type, {"text/html", 9}, response);
@@ -180,10 +180,10 @@ std::string Methods::getContent(const stringRef &path, const int fileInfo) {
 
 		// Load the internal 404 error page
 		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
-			log(LOG_WARNING, "[SERVER] File not found. Loading the dir view\n");
+			llog(LOG_WARNING, "[SERVER] File not found. Loading the dir view\n");
 			content = Methods::getDirView(fileStr);
 		} else {
-			log(LOG_WARNING, "[SERVER] File not found. Loading deafult Error 404 page\n");
+			llog(LOG_WARNING, "[SERVER] File not found. Loading deafult Error 404 page\n");
 			content = Not_Found_Page;
 		}
 	}

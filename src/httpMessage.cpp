@@ -1,10 +1,11 @@
 #include "httpMessage.hpp"
 
+#include "miniMap.hpp"
 #include "profiler.hpp"
 #include "stringRef.hpp"
 #include "utils.hpp"
 
-#include <logger.hpp>
+#include <logger.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -17,7 +18,7 @@ void logMalformedParameter(const stringRefConst &strRef) {
 	char *temp = (char *)malloc(strRef.len + 1); // account for the null terminator
 	memcpy(temp, strRef.str, strRef.len);        // copy the data
 	temp[strRef.len] = '\0';                     // null terminator
-	log(LOG_WARNING, "Malformed parameter -> '%s' \n", temp);
+	llog(LOG_WARNING, "Malformed parameter -> '%s' \n", temp);
 	free(temp); // and free
 }
 
@@ -183,7 +184,7 @@ void addToOptions(stringRefConst key, stringRefConst val, http::inboundHttpMessa
 
 void addToParams(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
 	//ctx->m_parameters[key] = val;
-	miniMap::insert(ctx->m_parameters, key, val);
+	miniMap::set(&(ctx->m_parameters), &key, &val);
 }
 
 void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMessage &msg) {
@@ -255,7 +256,7 @@ void http::decompileMessage(http::inboundHttpMessage &msg) {
 		auto eq = strnchr(cType.str, '=', cType.len);
 		// sometimes the boundary is encolsed in quotes, take care of this case
 		if (eq == nullptr) {
-			log(LOG_WARNING, "Malformed multipart form data, no '='\n");
+			llog(LOG_WARNING, "Malformed multipart form data, no '='\n");
 		}
 
 		size_t         temp    = cType.str + cType.len - eq;
@@ -503,14 +504,13 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, htt
 
 	// if something is already present at the requested position
 	//auto old = msg.m_headerOptions[option];
-	auto old = miniMap::get(msg.m_headerOptions, option);
+	auto old = miniMap::get(&msg.m_headerOptions, &option);
 	if (old.str != nullptr) {
 		// free it
 		free(old.str);
 	}
 	// msg.m_headerOptions[option] = cpy;
-	auto temp = miniMap::get(msg.m_headerOptions, option);
-	temp = cpy;
+	miniMap::set(&(msg.m_headerOptions), &option, &cpy);
 
 	// account the bytes that will be added later
 	//                 name     ': ' value '\r\n'

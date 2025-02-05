@@ -5,8 +5,8 @@
 #include <cstddef>
 #include <pthread.h>
 #include <semaphore.h>
-#include <sslConn.hpp>
-#include <tcpConn.hpp>
+#include <sslConn.h>
+#include <tcpConn.h>
 
 /**
  * A thread pool created exclusively for managing the resolveRequest function

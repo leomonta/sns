@@ -5,7 +5,7 @@
 #include "threadpool.hpp"
 #include "utils.hpp"
 
-#include <logger.hpp>
+#include <logger.h>
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
@@ -103,28 +103,28 @@ runtimeInfo setup(cliArgs args) {
 	runtimeInfo res;
 
 	// initializing the tcp Server
-	res.serverSocket = tcpConn::initializeServer(args.tcpPort, 4);
+	res.serverSocket = TCPinitializeServer(args.tcpPort, 4);
 
 	if (res.serverSocket == INVALID_SOCKET) {
 		exit(1);
 	}
 
-	log(LOG_INFO, "[SERVER] Listening on %s:%d\n", args.baseDir, args.tcpPort);
+	llog(LOG_INFO, "[SERVER] Listening on %s:%d\n", args.baseDir, args.tcpPort);
 
 	// initializing the ssl connection data
-	sslConn::initializeServer();
-	res.sslContext = sslConn::createContext();
+	SSLinitializeServer();
+	res.sslContext = SSLcreateContext();
 
 	if (res.sslContext == nullptr) {
 		exit(1);
 	}
 
-	log(LOG_INFO, "[SSL] Context created\n");
+	llog(LOG_INFO, "[SSL] Context created\n");
 
 	// finally creating the threadPool
 	res.threadPool = ThreadPool::create(std::thread::hardware_concurrency());
 
-	log(LOG_INFO, "[THREAD POOL] Started the listenings threads\n");
+	llog(LOG_INFO, "[THREAD POOL] Started the listenings threads\n");
 
 	return res;
 }
@@ -133,19 +133,19 @@ void stop(runtimeInfo *rti) {
 
 	PROFILE_FUNCTION();
 
-	tcpConn::terminate(rti->serverSocket);
+	TCPterminate(rti->serverSocket);
 
 	rti->threadPool->stop = true;
-	log(LOG_INFO, "[SERVER] Sent stop message to all threads\n");
+	llog(LOG_INFO, "[SERVER] Sent stop message to all threads\n");
 
 	pthread_join(rti->requestAcceptor, NULL);
-	log(LOG_INFO, "[SERVER] Request acceptor stopped\n");
+	llog(LOG_INFO, "[SERVER] Request acceptor stopped\n");
 
-	sslConn::destroyContext(rti->sslContext);
+	SSLdestroyContext(rti->sslContext);
 
-	sslConn::terminateServer();
+	SSLterminateServer();
 
-	log(LOG_INFO, "[SERVER] Server stopped\n");
+	llog(LOG_INFO, "[SERVER] Server stopped\n");
 }
 
 void start(runtimeInfo *rti) {
@@ -160,7 +160,7 @@ void start(runtimeInfo *rti) {
 	pthread_create(&rti->requestAcceptor, NULL, proxy_accReq, rti);
 #endif
 
-	log(LOG_DEBUG, "[SERVER] ReqeustAcceptorSecure thread Started\n");
+	llog(LOG_DEBUG, "[SERVER] ReqeustAcceptorSecure thread Started\n");
 
 	rti->startTime = time(nullptr);
 }
@@ -184,12 +184,12 @@ cliArgs parseArgs(const int argc, const char *argv[]) {
 	switch (argc) {
 	case 3:
 		res.tcpPort = static_cast<unsigned short>(std::atoi(argv[2]));
-		log(LOG_DEBUG, "[SERVER] Read port %d from cli args\n", res.tcpPort);
+		llog(LOG_DEBUG, "[SERVER] Read port %d from cli args\n", res.tcpPort);
 		[[fallthrough]];
 
 	case 2:
 		res.baseDir = argv[1];
-		log(LOG_DEBUG, "[SERVER] Read directory %s from cli args\n", argv[1]);
+		llog(LOG_DEBUG, "[SERVER] Read directory %s from cli args\n", argv[1]);
 	}
 
 	return res;
@@ -208,7 +208,7 @@ void *proxy_resReq(void *ptr) {
 
 		// dequeue might return a null value for how it is implemented, i deal with that
 		if (data.ssl == nullptr) {
-			log(LOG_DEBUG, "DEQUEUE return null\n");
+			llog(LOG_DEBUG, "DEQUEUE return null\n");
 			continue;
 		}
 
@@ -233,26 +233,26 @@ void acceptRequestsSecure(runtimeInfo *rti) {
 		// infinetly wait for the socket to become usable
 		poll(&ss, 1, -1);
 
-		client = tcpConn::acceptClientSock(rti->serverSocket);
+		client = TCPacceptClientSock(rti->serverSocket);
 
 		if (client == -1) {
 			// no client tried to connect
 			continue;
 		}
 
-		auto sslConnection = sslConn::createConnection(rti->sslContext, client);
+		auto sslConnection = SSLcreateConnection(rti->sslContext, client);
 
 		if (sslConnection == nullptr) {
 			continue;
 		}
 
-		auto err = sslConn::acceptClientConnection(sslConnection);
+		auto err = SSLacceptClientConnection(sslConnection);
 
 		if (err == -1) {
 			continue;
 		}
 
-		log(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
+		llog(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
 
 		Methods::resolver_data t_data = {sslConnection, client};
 #ifdef NO_THREADING
@@ -267,13 +267,13 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 
 	// ---------------------------------------------------------------------- RECEIVE
 	char *request;
-	auto  bytesReceived = sslConn::receiveRecordC(sslConnection, &request);
+	auto  bytesReceived = SSLreceiveRecord(sslConnection, &request);
 
 	// received some bytes
 	if (bytesReceived > 0) {
 
 		http::inboundHttpMessage mex = http::makeInboundMessage(request);
-		log(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
+		llog(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
 
 		http::outboundHttpMessage response;
 		switch (mex.m_method) {
@@ -289,11 +289,11 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 		// make the message a single formatted string
 		auto res = http::compileMessage(response);
 
-		// log(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res;
+		// llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res;
 
 		// ------------------------------------------------------------------ SEND
 		// acknowledge the segment back to the sender
-		sslConn::sendRecordC(sslConnection, res.str, res.len);
+		SSLsendRecord(sslConnection, res.str, res.len);
 
 		http::destroyOutboundHttpMessage(&response);
 		http::destroyInboundHttpMessage(&mex);
@@ -301,7 +301,7 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 		free(res.str);
 	}
 
-	tcpConn::shutdownSocket(clientSocket);
-	tcpConn::closeSocket(clientSocket);
-	sslConn::destroyConnection(sslConnection);
+	TCPshutdownSocket(clientSocket);
+	TCPcloseSocket(clientSocket);
+	SSLdestroyConnection(sslConnection);
 }
