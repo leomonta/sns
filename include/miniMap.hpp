@@ -28,10 +28,10 @@ namespace miniMap {
 		for (size_t i = 0; i < map->keys.count; ++i) {
 
 			// if found
-			if (map->keys.data[i] == key) {
+			if (map->keys.data[i] == *key) {
 
 				// replace it
-				miniVector::set(map->values, i, value);
+				miniVector::set(&map->values, i, value);
 				return true;
 			}
 		}
@@ -52,16 +52,16 @@ namespace miniMap {
 	 * @return true if the value at key was replaced
 	 */
 	template <typename K, typename V>
-	bool replace(const miniMap<K, V> *map, const K *key, const V *value, bool (*eq)(K, K)) {
+	bool replace_eq(const miniMap<K, V> *map, const K *key, const V *value, bool (*eq)(const K *, const K *)) {
 
 		// find it
 		for (size_t i = 0; i < map->keys.count; ++i) {
 
 			// if found
-			if (eq(map->keys.data[i], key)) {
+			if (eq(map->keys.data + i, key)) {
 
 				// replace it
-				miniVector::set(map->values, i, value);
+				miniVector::set(&map->values, i, value);
 				return true;
 			}
 		}
@@ -78,15 +78,15 @@ namespace miniMap {
 	 * @return a pointer the value associated with the given key, or nullptr if the key is not present in the map
 	 */
 	template <typename K, typename V>
-	V get(const miniMap<K, V> *map, const K *key) {
+	V* get(const miniMap<K, V> *map, const K *key) {
 
 		// find it
 		for (size_t i = 0; i < map->keys.count; ++i) {
 
 			// if found
-			if (map->keys.data[i] == key) {
+			if (map->keys.data[i] == *key) {
 
-				return map->values.data[i];
+				return map->values.data + i;
 			}
 		}
 
@@ -104,15 +104,15 @@ namespace miniMap {
 	 * @return a pointer the value associated with the given key, or nullptr if the key is not present in the map
 	 */
 	template <typename K, typename V>
-	V get(const miniMap<K, V> *map, const K *key, bool (*eq)(K, K)) {
+	V* get_eq(const miniMap<K, V> *map, const K *key, bool (*eq)(const K *, const K *)) {
 
 		// find it
 		for (size_t i = 0; i < map->keys.count; ++i) {
 
 			// if found
-			if (eq(map->keys.data[i], key)) {
+			if (eq(map->keys.data + i, key)) {
 
-				return map->values.data[i];
+				return map->values.data + i;
 			}
 		}
 
@@ -129,23 +129,23 @@ namespace miniMap {
 	 * @param value the value to associate to the given key
 	 */
 	template <typename K, typename V>
-	void set(const miniMap<K, V> *map, const K *key, const V *value) {
+	void set(miniMap<K, V> *map, const K *key, const V *value) {
 
 		// find it
 		for (size_t i = 0; i < map->keys.count; ++i) {
 
 			// if found
-			if (map->keys.data[i] == key) {
+			if (map->keys.data[i] == *key) {
 
 				// replace it
-				miniVector::set(map->values, i, value);
+				miniVector::set(&map->values, i, value);
 				return;
 			}
 		}
 
 		// else append
-		miniVector::append(map->keys, key);
-		miniVector::append(map->values, value);
+		miniVector::append(&map->keys, key);
+		miniVector::append(&map->values, value);
 	}
 
 	/**
@@ -160,23 +160,23 @@ namespace miniMap {
 	 * @param eq the function that decides if the keys are equal
 	 */
 	template <typename K, typename V>
-	void set(const miniMap<K, V> *map, const K *key, const V *value, bool (*eq)(K, K)) {
+	void set_eq(miniMap<K, V> *map, const K *key, const V *value, bool (*eq)(const K *, const K *)) {
 
 		// find it
 		for (size_t i = 0; i < map->keys.count; ++i) {
 
 			// if found
-			if (eq(map->keys.data[i], key)) {
+			if (eq(map->keys.data + i, key)) {
 
 				// replace it
-				miniVector::set(map->values, i, value);
+				miniVector::set(&map->values, i, value);
 				return;
 			}
 		}
 
 		// else append
-		miniVector::append(map->keys, key);
-		miniVector::append(map->values, value);
+		miniVector::append(&map->keys, key);
+		miniVector::append(&map->values, value);
 	}
 
 	/**
@@ -193,10 +193,10 @@ namespace miniMap {
 		for (size_t i = 0; i < map->keys.count; ++i) {
 
 			// if found
-			if (map->keys.data[i] == key) {
+			if (map->keys.data[i] == *key) {
 
-				miniVector::remove(map->keys, i);
-				miniVector::remove(map->values, i);
+				miniVector::remove(&map->keys, i);
+				miniVector::remove(&map->values, i);
 
 				return true;
 			}
@@ -216,15 +216,15 @@ namespace miniMap {
 	 * @param eq the function that decides if the keys are equal
 	 */
 	template <typename K, typename V>
-	bool remove(const miniMap<K, V> *map, const K *key, bool (*eq)(K, K)) {
+	bool remove_eq(const miniMap<K, V> *map, const K *key, bool (*eq)(const K *, const K *)) {
 
 		for (size_t i = 0; i < map->keys.count; ++i) {
 
 			// if found
-			if (eq(map->keys.data[i], key)) {
+			if (eq(map->keys.data + i, key)) {
 
-				miniVector::remove(map->keys, i);
-				miniVector::remove(map->values, i);
+				miniVector::remove(&map->keys, i);
+				miniVector::remove(&map->values, i);
 
 				return true;
 			}

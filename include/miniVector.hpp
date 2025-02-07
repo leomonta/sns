@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cstdlib>
 #include <cstddef>
+#include <cstdlib>
+#include <cstring>
 
 namespace miniVector {
 	template <typename T>
@@ -52,9 +53,9 @@ namespace miniVector {
 	 * @param vec the vector to grow
 	 */
 	template <typename T>
-	void grow(const miniVector<T> *vec) {
+	void grow(miniVector<T> *vec) {
 
-		vec->data = realloc(vec->data, vec->capacity * 2);
+		vec->data = static_cast<T*>(realloc(vec->data, vec->capacity * 2));
 		vec->capacity *= 2;
 		// for why 2 and not 1.6 or 1.5
 		// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
@@ -77,7 +78,7 @@ namespace miniVector {
 			return nullptr;
 		}
 
-		return vec->data[index];
+		return vec->data + index;
 	}
 
 	/**
@@ -91,7 +92,7 @@ namespace miniVector {
 	void set(const miniVector<T> *vec, const size_t index, const T *element) {
 
 		if (index < vec->count) {
-			memcpy(vec[index], element, 1 * sizeof(T));
+			memcpy(vec->data + index, element, 1 * sizeof(T));
 		}
 	}
 
@@ -103,7 +104,7 @@ namespace miniVector {
 	 * @param element a pointer to the data to be appended
 	 */
 	template <typename T>
-	void append(const miniVector<T> *vec, T *element) {
+	void append(miniVector<T> *vec, const T *element) {
 		if (vec->count == vec->capacity / sizeof(T)) {
 			grow(vec);
 		}

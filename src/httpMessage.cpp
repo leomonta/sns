@@ -184,7 +184,7 @@ void addToOptions(stringRefConst key, stringRefConst val, http::inboundHttpMessa
 
 void addToParams(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
 	//ctx->m_parameters[key] = val;
-	miniMap::set(&ctx->m_parameters, &key, &val);
+	miniMap::set_eq(&ctx->m_parameters, &key, &val, &equal);
 }
 
 void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMessage &msg) {
@@ -505,9 +505,9 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, htt
 	// if something is already present at the requested position
 	//auto old = msg.m_headerOptions[option];
 	auto old = miniMap::get(&msg.m_headerOptions, &option);
-	if (old.str != nullptr) {
+	if (old->str != nullptr) {
 		// free it
-		free(old.str);
+		free(old->str);
 	}
 	// msg.m_headerOptions[option] = cpy;
 	miniMap::set(&msg.m_headerOptions, &option, &cpy);
