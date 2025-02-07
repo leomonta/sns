@@ -3,14 +3,14 @@
 #include "server.hpp"
 
 #include <asm-generic/errno-base.h>
+#include <cerrno>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <logger.h>
-#include <math.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <errno.h>
 
 ThreadPool::tpool *ThreadPool::create(const size_t tCount) {
 	// TODO

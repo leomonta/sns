@@ -3,8 +3,8 @@
 #include "profiler.hpp"
 
 #include <stdexcept>
-#include <string.h>
-#include <time.h>
+#include <ctime>
+#include <cstring>
 #include <vector>
 #include <zlib.h>
 

@@ -22,7 +22,7 @@ namespace miniMap {
 	 * @return true if the value at key was replaced
 	 */
 	template <typename K, typename V>
-	bool replace(const miniMap<K, V> *map, const K *key, const V *value) {
+	bool replace(miniMap<K, V> *map, const K *key, const V *value) {
 
 		// find it
 		for (size_t i = 0; i < map->keys.count; ++i) {
@@ -52,7 +52,7 @@ namespace miniMap {
 	 * @return true if the value at key was replaced
 	 */
 	template <typename K, typename V>
-	bool replace_eq(const miniMap<K, V> *map, const K *key, const V *value, bool (*eq)(const K *, const K *)) {
+	bool replace_eq(miniMap<K, V> *map, const K *key, const V *value, bool (*eq)(const K *, const K *)) {
 
 		// find it
 		for (size_t i = 0; i < map->keys.count; ++i) {
@@ -188,7 +188,7 @@ namespace miniMap {
 	 * @return if the key, value pair has been removed
 	 */
 	template <typename K, typename V>
-	bool remove(const miniMap<K, V> *map, const K *key) {
+	bool remove(miniMap<K, V> *map, const K *key) {
 
 		for (size_t i = 0; i < map->keys.count; ++i) {
 
@@ -216,7 +216,7 @@ namespace miniMap {
 	 * @param eq the function that decides if the keys are equal
 	 */
 	template <typename K, typename V>
-	bool remove_eq(const miniMap<K, V> *map, const K *key, bool (*eq)(const K *, const K *)) {
+	bool remove_eq(miniMap<K, V> *map, const K *key, bool (*eq)(const K *, const K *)) {
 
 		for (size_t i = 0; i < map->keys.count; ++i) {
 

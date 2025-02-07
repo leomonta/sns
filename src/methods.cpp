@@ -5,7 +5,6 @@
 
 #include <filesystem>
 #include <logger.h>
-#include <map>
 #include <profiler.hpp>
 #include <regex>
 #include <sys/stat.h>

@@ -6,10 +6,9 @@
 #include "utils.hpp"
 
 #include <logger.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 
 void logMalformedParameter(const stringRefConst &strRef) {
 	// malformed parameter

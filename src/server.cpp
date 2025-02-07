@@ -8,8 +8,8 @@
 #include <logger.h>
 #include <poll.h>
 #include <pthread.h>
-#include <signal.h>
-#include <time.h>
+#include <csignal>
+#include <ctime>
 
 const char *methodStr[] = {
     "INVALID",

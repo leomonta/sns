@@ -37,7 +37,7 @@ namespace miniVector {
 	 * @param vec the vector the destroy
 	 */
 	template <typename T>
-	void destroyMiniVector(const miniVector<T> *vec) {
+	void destroyMiniVector(miniVector<T> *vec) {
 
 		free(vec->data);
 
@@ -55,7 +55,7 @@ namespace miniVector {
 	template <typename T>
 	void grow(miniVector<T> *vec) {
 
-		vec->data = static_cast<T*>(realloc(vec->data, vec->capacity * 2));
+		vec->data = static_cast<T *>(realloc(vec->data, vec->capacity * 2));
 		vec->capacity *= 2;
 		// for why 2 and not 1.6 or 1.5
 		// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
@@ -89,7 +89,7 @@ namespace miniVector {
 	 * @param element the element to replace that will replace the one already in the vectori
 	 */
 	template <typename T>
-	void set(const miniVector<T> *vec, const size_t index, const T *element) {
+	void set(miniVector<T> *vec, const size_t index, const T *element) {
 
 		if (index < vec->count) {
 			memcpy(vec->data + index, element, 1 * sizeof(T));
@@ -123,7 +123,7 @@ namespace miniVector {
 	 *
 	 */
 	template <typename T>
-	void insert(const miniVector<T> *vec, const size_t index, const T *element) {
+	void insert(miniVector<T> *vec, const size_t index, const T *element) {
 		if (index >= vec->count) {
 			// invalid position
 			return;
@@ -154,7 +154,7 @@ namespace miniVector {
 	 * @param index the index of the element to be removed, if it is out of bounds no operation is performed
 	 */
 	template <typename T>
-	void remove(const miniVector<T> *vec, const size_t index) {
+	void remove(miniVector<T> *vec, const size_t index) {
 
 		// we cant just overwrite the position to erase when
 		// index is out of bound, > count or
