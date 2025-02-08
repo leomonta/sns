@@ -22,6 +22,27 @@ namespace miniMap {
 	 * @return true if the value at key was replaced
 	 */
 	template <typename K, typename V>
+	miniMap<K, V> makeMiniMap(const size_t initialCapacity) {
+
+		miniMap<K, V> res;
+
+		res.keys = miniVector::makeMiniVector<K>(initialCapacity);
+		res.values = miniVector::makeMiniVector<V>(initialCapacity);
+
+		return res;
+	}
+
+	/**
+	 * replace the value at the given key with the given value and returns true
+	 * if the key is not found no operation is performed and returns false
+	 *
+	 * @param map the hashmap to insert the values into
+	 * @param key the key relative for the value, the key is applied directly, no hash function is applied, thus the hashing step should be done before
+	 * @param value the value to associate to the given key
+	 *
+	 * @return true if the value at key was replaced
+	 */
+	template <typename K, typename V>
 	bool replace(miniMap<K, V> *map, const K *key, const V *value) {
 
 		// find it

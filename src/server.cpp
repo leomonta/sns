@@ -1,15 +1,18 @@
 #include "server.hpp"
 
 #include "methods.hpp"
+#include "miniMap.hpp"
 #include "profiler.hpp"
 #include "threadpool.hpp"
 #include "utils.hpp"
 
+#include <cstdlib>
 #include <logger.h>
 #include <poll.h>
 #include <pthread.h>
 #include <csignal>
 #include <ctime>
+#include <sys/types.h>
 
 const char *methodStr[] = {
     "INVALID",
@@ -113,7 +116,7 @@ runtimeInfo setup(cliArgs args) {
 
 	// initializing the ssl connection data
 	SSLinitializeServer();
-	res.sslContext = SSLcreateContext();
+	res.sslContext = SSLcreateContext("/usr/local/bin/server.crt", "/usr/local/bin/key.pem");
 
 	if (res.sslContext == nullptr) {
 		exit(1);
@@ -190,6 +193,10 @@ cliArgs parseArgs(const int argc, const char *argv[]) {
 	case 2:
 		res.baseDir = argv[1];
 		llog(LOG_DEBUG, "[SERVER] Read directory %s from cli args\n", argv[1]);
+		break;
+	case 1:
+		llog(LOG_FATAL, "[SERVER] No base directory given, exiting"); 
+		exit(1);
 	}
 
 	return res;
@@ -276,6 +283,8 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 		llog(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
 
 		http::outboundHttpMessage response;
+		response.m_headerOptions = miniMap::makeMiniMap<u_char, stringRef>(16);
+
 		switch (mex.m_method) {
 		case http::HTTP_HEAD:
 			Methods::Head(mex, response);

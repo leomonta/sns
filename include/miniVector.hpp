@@ -22,7 +22,7 @@ namespace miniVector {
 	template <typename T>
 	miniVector<T> makeMiniVector(const size_t initialCapacity) {
 		miniVector<T> res = {
-		    .data     = malloc(initialCapacity * sizeof(T)),
+		    .data     = static_cast<T *>(malloc(initialCapacity * sizeof(T))),
 		    .capacity = initialCapacity * sizeof(T),
 		    .count    = 0,
 		};

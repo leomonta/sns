@@ -504,7 +504,7 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, htt
 	// if something is already present at the requested position
 	//auto old = msg.m_headerOptions[option];
 	auto old = miniMap::get(&msg.m_headerOptions, &option);
-	if (old->str != nullptr) {
+	if (old != nullptr && old->str != nullptr) {
 		// free it
 		free(old->str);
 	}
