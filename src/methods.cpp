@@ -1,8 +1,10 @@
 #include "methods.hpp"
 
+#include "miniVector.hpp"
 #include "pages.hpp"
 #include "utils.hpp"
 
+#include <cstdio>
 #include <filesystem>
 #include <logger.h>
 #include <profiler.hpp>
@@ -48,8 +50,6 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	delete[] dst;
 
 	// usually to request index.html browsers do not specify it, they usually use /, if that's the case I add index.html
-	// back access the last char of the string
-
 	struct stat fileStat;
 	auto        errCode = stat(file.c_str(), &fileStat);
 
@@ -116,7 +116,6 @@ void Methods::Get(const http::inboundHttpMessage &request, http::outboundHttpMes
 }
 
 void Methods::composeHeader(const std::string &filename, http::outboundHttpMessage &msg, const int fileInfo) {
-
 	PROFILE_FUNCTION();
 
 	// I use map to easily manage key : value, the only problem is when i compile the header, the response code must be at the top
@@ -124,7 +123,7 @@ void Methods::composeHeader(const std::string &filename, http::outboundHttpMessa
 	if (fileInfo != FILE_NOT_FOUND) {
 
 		// status code OK
-		// result[http::RP_Status] = "200 OK";
+		msg.m_statusCode = 200;
 
 		// get the content type
 		std::string content_type = "";
@@ -137,7 +136,7 @@ void Methods::composeHeader(const std::string &filename, http::outboundHttpMessa
 		http::addHeaderOption(http::RP_Content_Type, {content_type.c_str(), content_type.size()}, msg);
 
 	} else {
-		// result[http::RP_Status]       = "404 Not Found";
+		msg.m_statusCode = 404;
 		http::addHeaderOption(http::RP_Content_Type, {"text/html", 9}, msg);
 	}
 

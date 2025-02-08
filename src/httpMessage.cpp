@@ -278,12 +278,13 @@ stringRef http::compileMessage(const http::outboundHttpMessage &msg) {
 	// The value to modify are at
 	//                   0123456789
 	char statusLine[] = "HTTP/1.0 XXX \r\n";
+	// FIXME: add status-phrase (THe OK, MISSING, NOT ALLOWED )
 
 	// A symbolic name for how long the status line is
 	const int STATUS_LINE_LEN = 15;
 
 	// the 2 is for the \r\n separator
-	auto msgLen = STATUS_LINE_LEN + msg.m_headerLen + 2 + msg.m_body.len;
+	auto msgLen = STATUS_LINE_LEN + msg.m_headerLen + 2 + msg.m_body.len; // + status-phrase[m_statusCode] + 2
 
 	// the entire message length
 	char *res = static_cast<char *>(malloc(msgLen));

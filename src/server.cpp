@@ -297,7 +297,6 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 
 		// make the message a single formatted string
 		auto res = http::compileMessage(response);
-
 		// llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res;
 
 		// ------------------------------------------------------------------ SEND

@@ -152,7 +152,7 @@ namespace http {
 
 	struct outboundHttpMessage {
 
-		u_char                        m_statusCode;    // 200, 404, 500, etc etc
+		u_short                       m_statusCode;    // 200, 404, 500, etc etc
 		u_char                        m_version;       // the version of the http header (1.0, 1.1, 2.0, ...)
 		miniMap::miniMap<u_char, stringRef> m_headerOptions; // represent the header as the collection of the single options -> value
 		size_t                        m_headerLen;     // how many bytes are there in the header
