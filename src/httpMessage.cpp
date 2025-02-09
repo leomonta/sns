@@ -68,6 +68,8 @@ void http::destroyInboundHttpMessage(http::inboundHttpMessage *mex) {
 	if (mex->m_rawMessage_a != nullptr) {
 		free(const_cast<char *>(mex->m_rawMessage_a));
 	}
+	
+	miniMap::destroyMiniMap(&mex->m_parameters);
 }
 
 void http::destroyOutboundHttpMessage(http::outboundHttpMessage *mex) {
@@ -77,8 +79,10 @@ void http::destroyOutboundHttpMessage(http::outboundHttpMessage *mex) {
 		free(mex->m_headerOptions.values.data[i].str);
 	}
 
+	miniMap::destroyMiniMap(&mex->m_headerOptions);
 	free(mex->m_body.str);
 	free(mex->m_filename.str);
+
 }
 
 void addToOptions(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
