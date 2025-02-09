@@ -1,14 +1,15 @@
 #include "httpMessage.hpp"
 
+#include "constants.hpp"
 #include "miniMap.hpp"
 #include "profiler.hpp"
 #include "stringRef.hpp"
 #include "utils.hpp"
 
-#include <logger.h>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <logger.h>
 
 void logMalformedParameter(const stringRefConst &strRef) {
 	// malformed parameter
@@ -20,103 +21,6 @@ void logMalformedParameter(const stringRefConst &strRef) {
 	llog(LOG_WARNING, "Malformed parameter -> '%s' \n", temp);
 	free(temp); // and free
 }
-
-// Beautifully compile-time evaluated lookup tables for header options
-const stringRefConst headerRqStr[] = {
-    TO_STRINGREF("A-IM"),
-    TO_STRINGREF("Accept"),
-    TO_STRINGREF("Accept-Charset"),
-    TO_STRINGREF("Accept-Datetime"),
-    TO_STRINGREF("Accept-Encoding"),
-    TO_STRINGREF("Accept-Language"),
-    TO_STRINGREF("Access-Control-Request-Method"),
-    TO_STRINGREF("Access-Control-Request-Headers"),
-    TO_STRINGREF("Authorization"),
-    TO_STRINGREF("Cache-Control"),
-    TO_STRINGREF("Connection"),
-    TO_STRINGREF("Content-Encoding"),
-    TO_STRINGREF("Content-Length"),
-    TO_STRINGREF("Content-MD5"),
-    TO_STRINGREF("Content-Type"),
-    TO_STRINGREF("Cookie"),
-    TO_STRINGREF("Date"),
-    TO_STRINGREF("Expect"),
-    TO_STRINGREF("Forwarded"),
-    TO_STRINGREF("From"),
-    TO_STRINGREF("Host"),
-    TO_STRINGREF("HTTP2-Settings"),
-    TO_STRINGREF("If-Match"),
-    TO_STRINGREF("If-Modified-Since"),
-    TO_STRINGREF("If-None-Match"),
-    TO_STRINGREF("If-Range"),
-    TO_STRINGREF("If-Unmodified-Since"),
-    TO_STRINGREF("Max-Forwards"),
-    TO_STRINGREF("Origin"),
-    TO_STRINGREF("Pragma"),
-    TO_STRINGREF("Prefer"),
-    TO_STRINGREF("Proxy-Authorization"),
-    TO_STRINGREF("Range"),
-    TO_STRINGREF("Referer"),
-    TO_STRINGREF("TE"),
-    TO_STRINGREF("Trailer"),
-    TO_STRINGREF("Transfer-Encoding"),
-    TO_STRINGREF("User-Agent"),
-    TO_STRINGREF("Upgrade"),
-    TO_STRINGREF("Via"),
-    TO_STRINGREF("Warning"),
-};
-
-const stringRefConst headerRpStr[] = {
-    TO_STRINGREF("Accept-CH"),
-    TO_STRINGREF("Access-Control-Allow-Origin"),
-    TO_STRINGREF("Access-Control-Allow-Credentials"),
-    TO_STRINGREF("Access-Control-Expose-Headers"),
-    TO_STRINGREF("Access-Control-Max-Age"),
-    TO_STRINGREF("Access-Control-Allow-Methods"),
-    TO_STRINGREF("Access-Control-Allow-Headers"),
-    TO_STRINGREF("Accept-Patch"),
-    TO_STRINGREF("Accept-Ranges"),
-    TO_STRINGREF("Age"),
-    TO_STRINGREF("Allow"),
-    TO_STRINGREF("Alt-Svc"),
-    TO_STRINGREF("Cache-Control"),
-    TO_STRINGREF("Connection"),
-    TO_STRINGREF("Content-Disposition"),
-    TO_STRINGREF("Content-Encoding"),
-    TO_STRINGREF("Content-Language"),
-    TO_STRINGREF("Content-Length"),
-    TO_STRINGREF("Content-Location"),
-    TO_STRINGREF("Content-MD5"),
-    TO_STRINGREF("Content-Range"),
-    TO_STRINGREF("Content-Type"),
-    TO_STRINGREF("Date"),
-    TO_STRINGREF("Delta-Base"),
-    TO_STRINGREF("ETag"),
-    TO_STRINGREF("Expires"),
-    TO_STRINGREF("IM"),
-    TO_STRINGREF("Last-Modified"),
-    TO_STRINGREF("Link"),
-    TO_STRINGREF("Location"),
-    TO_STRINGREF("P3P"),
-    TO_STRINGREF("Pragma"),
-    TO_STRINGREF("Preference-Applied"),
-    TO_STRINGREF("Proxy-Authenticate"),
-    TO_STRINGREF("Public-Key-Pins"),
-    TO_STRINGREF("Retry-After"),
-    TO_STRINGREF("Server"),
-    TO_STRINGREF("Set-Cookie"),
-    TO_STRINGREF("Strict-Transport-Security"),
-    TO_STRINGREF("Trailer"),
-    TO_STRINGREF("Transfer-Encoding"),
-    TO_STRINGREF("Tk"),
-    TO_STRINGREF("Upgrade"),
-    TO_STRINGREF("Vary"),
-    TO_STRINGREF("Via"),
-    TO_STRINGREF("Warning"),
-    TO_STRINGREF("WWW-Authenticate"),
-    TO_STRINGREF("X-Frame-Options"),
-    TO_STRINGREF("Status"),
-};
 
 http::inboundHttpMessage http::makeInboundMessage(const char *str) {
 
@@ -168,7 +72,7 @@ void http::destroyInboundHttpMessage(http::inboundHttpMessage *mex) {
 
 void http::destroyOutboundHttpMessage(http::outboundHttpMessage *mex) {
 
-	//for (const auto &[key, val] : mex->m_headerOptions) {
+	// for (const auto &[key, val] : mex->m_headerOptions) {
 	for (size_t i = 0; i < mex->m_headerOptions.values.count; ++i) {
 		free(mex->m_headerOptions.values.data[i].str);
 	}
@@ -182,7 +86,7 @@ void addToOptions(stringRefConst key, stringRefConst val, http::inboundHttpMessa
 }
 
 void addToParams(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
-	//ctx->m_parameters[key] = val;
+	// ctx->m_parameters[key] = val;
 	miniMap::set_eq(&ctx->m_parameters, &key, &val, &equal);
 }
 
@@ -276,30 +180,34 @@ stringRef http::compileMessage(const http::outboundHttpMessage &msg) {
 
 	// I preconstruct the status line so i don't have to do multiple allocations and string concatenations
 	// The value to modify are at
-	//                   0123456789
-	char statusLine[] = "HTTP/1.0 XXX \r\n";
-	// FIXME: add status-phrase (THe OK, MISSING, NOT ALLOWED )
+	//                             11
+	//                   012345678901
+	char statusLine[] = "HTTP/1.0 XXX ";
+	auto phrase       = getReasonPhrase(msg.m_statusCode);
 
 	// A symbolic name for how long the status line is
-	const int STATUS_LINE_LEN = 15;
+	const int STATUS_LINE_LEN = sizeof(statusLine) - 1;
 
-	// the 2 is for the \r\n separator
-	auto msgLen = STATUS_LINE_LEN + msg.m_headerLen + 2 + msg.m_body.len; // + status-phrase[m_statusCode] + 2
+	// the 2 is for the \r\n separator of the body
+	// the other +2 if for the status line \r\n
+	auto msgLen = STATUS_LINE_LEN + phrase.len + 2 + msg.m_headerLen + 2 + msg.m_body.len;
 
 	// the entire message length
 	char *res = static_cast<char *>(malloc(msgLen));
 
 	memcpy(res, statusLine, STATUS_LINE_LEN);
+	memcpy(res + STATUS_LINE_LEN, phrase.str, phrase.len);
+	memcpy(res + STATUS_LINE_LEN + phrase.len, "\r\n", 2);
 
 	// set the status code digit by digit
 	res[11] = '0' + (char)((msg.m_statusCode) % 10);
 	res[10] = '0' + (char)((msg.m_statusCode / 10) % 10);
 	res[9]  = '0' + (char)((msg.m_statusCode / 100) % 10);
 
-	char *writer = res + STATUS_LINE_LEN;
+	char *writer = res + STATUS_LINE_LEN + phrase.len + 2;
 
 	// add all headers
-	//for (auto const &[key, val] : msg.m_headerOptions) {
+	// for (auto const &[key, val] : msg.m_headerOptions) {
 	for (size_t i = 0; i < msg.m_headerOptions.values.count; ++i) {
 
 		auto key = msg.m_headerOptions.keys.data[i];
@@ -333,19 +241,6 @@ stringRef http::compileMessage(const http::outboundHttpMessage &msg) {
 u_char http::getMethodCode(const stringRefConst &requestMethod) {
 
 	PROFILE_FUNCTION();
-
-	static stringRefConst methods_strR[] = {
-	    TO_STRINGREF("HTTP_INVALID"),
-	    TO_STRINGREF("GET"),
-	    TO_STRINGREF("HEAD"),
-	    TO_STRINGREF("POST"),
-	    TO_STRINGREF("PUT"),
-	    TO_STRINGREF("DELETE"),
-	    TO_STRINGREF("OPTIONS"),
-	    TO_STRINGREF("CONNECT"),
-	    TO_STRINGREF("TRACE"),
-	    TO_STRINGREF("PATCH"),
-	};
 
 	if (requestMethod.len == 0) {
 		return HTTP_INVALID_METHOD;
@@ -503,7 +398,7 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, htt
 	    value.len};
 
 	// if something is already present at the requested position
-	//auto old = msg.m_headerOptions[option];
+	// auto old = msg.m_headerOptions[option];
 	auto old = miniMap::get(&msg.m_headerOptions, &option);
 	if (old != nullptr && old->str != nullptr) {
 		// free it

@@ -113,6 +113,7 @@ void Methods::Get(const http::inboundHttpMessage &request, http::outboundHttpMes
 	auto lenStr = std::to_string(compressed.length());
 	http::addHeaderOption(http::RP_Content_Length, {lenStr.c_str(), lenStr.size()}, response);
 	http::addHeaderOption(http::RP_Content_Encoding, {"gzip", 4}, response);
+
 }
 
 void Methods::composeHeader(const std::string &filename, http::outboundHttpMessage &msg, const int fileInfo) {

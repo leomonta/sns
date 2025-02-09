@@ -5,6 +5,7 @@
 #include "profiler.hpp"
 #include "threadpool.hpp"
 #include "utils.hpp"
+#include "stringRef.hpp"
 
 #include <cstdlib>
 #include <logger.h>
@@ -298,6 +299,7 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 		// make the message a single formatted string
 		auto res = http::compileMessage(response);
 		// llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res;
+		printStringRef(res);
 
 		// ------------------------------------------------------------------ SEND
 		// acknowledge the segment back to the sender
