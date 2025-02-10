@@ -264,7 +264,7 @@ void acceptRequestsSecure(runtimeInfo *rti) {
 
 		Methods::resolver_data t_data = {sslConnection, client};
 #ifdef NO_THREADING
-		proxy_reqRes(t_data);
+		proxy_resReq(t_data);
 #else
 		ThreadPool::enque(rti->threadPool, &t_data);
 #endif

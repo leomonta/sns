@@ -1,5 +1,6 @@
 #include "threadpool.hpp"
 
+#include "logger.h"
 #include "server.hpp"
 
 #include <asm-generic/errno-base.h>
@@ -8,7 +9,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
-#include <logger.h>
 #include <pthread.h>
 #include <semaphore.h>
 
@@ -22,6 +22,7 @@ ThreadPool::tpool *ThreadPool::create(const size_t tCount) {
 	res->head   = nullptr;
 	res->tail   = nullptr;
 	res->tCount = 0;
+	res->stop   = false;
 
 	// the semaphore is the one responsible for preventing race conditions
 	auto errCode = sem_init(&res->sempahore, 0, 0);
@@ -29,6 +30,9 @@ ThreadPool::tpool *ThreadPool::create(const size_t tCount) {
 		llog(LOG_ERROR, "[THREAD POOL] Could not initilize semphore -> %s\n", strerror(errno));
 	}
 
+	// Linux `man pthread_mutex_init` tells me this always returns 0
+	// but pthread `man pthread_mutex_init` tells me this returns non zero on error
+	// better safe than sorry?
 	errCode = pthread_mutex_init(&res->mutex, NULL);
 
 	switch (errCode) {
