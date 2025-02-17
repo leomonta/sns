@@ -232,6 +232,7 @@ void acceptRequestsSecure(runtimeInfo *rti) {
 	pollfd ss = {
 	    .fd     = rti->serverSocket,
 	    .events = POLLIN,
+		.revents = 0,
 	};
 
 	// Receive until the peer shuts down the connection

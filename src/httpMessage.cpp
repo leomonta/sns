@@ -36,6 +36,7 @@ http::inboundHttpMessage http::makeInboundMessage(const char *str) {
 	memcpy(temp, str, msgLen + 1);
 
 	res.m_rawMessage_a = temp;
+	res.m_parameters = miniMap::makeMiniMap<stringRefConst, stringRefConst>(10);
 
 	// body and header are divided by two newlines
 	auto msgSeparator = strstr(res.m_rawMessage_a, "\r\n\r\n");
