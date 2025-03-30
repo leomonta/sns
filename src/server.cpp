@@ -3,16 +3,15 @@
 #include "methods.hpp"
 #include "miniMap.hpp"
 #include "profiler.hpp"
+#include "stringRef.hpp"
 #include "threadpool.hpp"
 #include "utils.hpp"
-#include "stringRef.hpp"
 
+#include <csignal>
 #include <cstdlib>
 #include <logger.h>
 #include <poll.h>
 #include <pthread.h>
-#include <csignal>
-#include <ctime>
 #include <sys/types.h>
 
 const char *methodStr[] = {
@@ -140,6 +139,7 @@ void stop(runtimeInfo *rti) {
 	TCPterminate(rti->serverSocket);
 
 	rti->threadPool->stop = true;
+	ThreadPool::destroy(rti->threadPool);
 	llog(LOG_INFO, "[SERVER] Sent stop message to all threads\n");
 
 	pthread_join(rti->requestAcceptor, NULL);
@@ -196,7 +196,7 @@ cliArgs parseArgs(const int argc, const char *argv[]) {
 		llog(LOG_DEBUG, "[SERVER] Read directory %s from cli args\n", argv[1]);
 		break;
 	case 1:
-		llog(LOG_FATAL, "[SERVER] No base directory given, exiting"); 
+		llog(LOG_FATAL, "[SERVER] No base directory given, exiting\n");
 		exit(1);
 	}
 
@@ -205,7 +205,11 @@ cliArgs parseArgs(const int argc, const char *argv[]) {
 
 void *proxy_accReq(void *ptr) {
 	acceptRequestsSecure((runtimeInfo *)(ptr));
+#ifdef NO_THREADING
 	return nullptr;
+#else
+	pthread_exit(NULL);
+#endif
 }
 
 void *proxy_resReq(void *ptr) {
@@ -216,23 +220,27 @@ void *proxy_resReq(void *ptr) {
 
 		// dequeue might return a null value for how it is implemented, i deal with that
 		if (data.ssl == nullptr) {
-			llog(LOG_DEBUG, "DEQUEUE return null\n");
+			llog(LOG_DEBUG, "[THREAD] DEQUEUE return null. Probably the threadpool is commiting fake data to kill all threads\n");
 			continue;
 		}
 
 		resolveRequestSecure(data.ssl, data.clientSocket);
 	}
 
+#ifdef NO_THREADING
 	return nullptr;
+#else
+	pthread_exit(NULL);
+#endif
 }
 
 void acceptRequestsSecure(runtimeInfo *rti) {
 	Socket client = -1;
 
 	pollfd ss = {
-	    .fd     = rti->serverSocket,
-	    .events = POLLIN,
-		.revents = 0,
+	    .fd      = rti->serverSocket,
+	    .events  = POLLIN,
+	    .revents = 0,
 	};
 
 	// Receive until the peer shuts down the connection
@@ -275,7 +283,7 @@ void acceptRequestsSecure(runtimeInfo *rti) {
 void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 
 	// ---------------------------------------------------------------------- RECEIVE
-	char *request;
+	char *request       = nullptr;
 	auto  bytesReceived = SSLreceiveRecord(sslConnection, &request);
 
 	// received some bytes
@@ -284,7 +292,7 @@ void resolveRequestSecure(SSL *sslConnection, const Socket clientSocket) {
 		http::inboundHttpMessage mex = http::makeInboundMessage(request);
 		llog(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
 
-		http::outboundHttpMessage response;
+		http::outboundHttpMessage response{};
 		response.m_headerOptions = miniMap::makeMiniMap<u_char, stringRef>(16);
 
 		switch (mex.m_method) {

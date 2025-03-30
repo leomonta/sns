@@ -87,10 +87,14 @@ void ThreadPool::destroy(tpool *tp) {
 
 	// wait for the threads to finish
 	for (size_t i = 0; i < tp->tCount; ++i) {
-		// the thread may be wating for a job at the sempahore, by faking data even if there actually is data
+		// the thread may be wating for a job at the sempahore, by faking data, even if there maybe actually be data,
 		// I force the thread to check the stop value. Thus ensuring the thread exits gracefully
 		// I might also start a timer of 0.5s to then call pthread_kill(SIG_KILL) to forcefully terminate the thread
 		sem_post(&tp->sempahore);
+	}
+
+	for (size_t i = 0; i < tp->tCount; ++i) {
+		// since i have no guarantee abou the order of which the treads take the sempahore, I have to split the two processes
 		pthread_join(tp->threads[i], NULL);
 	}
 

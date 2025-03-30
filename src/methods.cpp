@@ -1,6 +1,5 @@
 #include "methods.hpp"
 
-#include "miniVector.hpp"
 #include "pages.hpp"
 #include "utils.hpp"
 
@@ -78,12 +77,17 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	// insert in the response message the necessaire header options, filename is used to determine the response code
 	Methods::composeHeader(file, response, fileInfo);
 
+	llog(LOG_DEBUG, "[SERVER] Header Composed\n");
+
 	auto fileSize = std::to_string(fileStat.st_size);
 
 	http::addHeaderOption(http::RP_Content_Length, {fileSize.c_str(), fileSize.size()}, response);
 	http::addHeaderOption(http::RP_Cache_Control, {"max-age=3600", 12}, response);
+	llog(LOG_DEBUG, "[SERVER] Fized headers set\n");
 
 	http::setFilename({file.c_str(), file.size()}, response);
+
+	llog(LOG_DEBUG, "[SERVER] Fixed headers set\n");
 
 	return fileInfo;
 }
