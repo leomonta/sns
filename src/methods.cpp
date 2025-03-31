@@ -1,9 +1,11 @@
 #include "methods.hpp"
 
 #include "pages.hpp"
+#include "stringRef.hpp"
 #include "utils.hpp"
 
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <logger.h>
 #include <profiler.hpp>
@@ -21,7 +23,7 @@
 namespace Res {
 
 	// Http Server
-	std::string baseDirectory;
+	stringRefConst baseDirectory;
 
 	// for controlling debug prints
 	std::map<std::string, std::string> mimeTypes;
@@ -38,11 +40,25 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	memcpy(dst, request.m_url.str, request.m_url.len);
 	dst[request.m_url.len] = '\0';
 
-	// sinc the source is always longer or the same length of the output i can decode in-place
+	// since the source is always longer or the same length of the output i can decode in-place
 	urlDecode(dst, dst);
+	size_t url_len = strlen(dst);
 
-	// re set the filename as the base directory and the decoded filename
-	std::string file = Res::baseDirectory + dst;
+
+	#define INDEX_HTML "/index.html"
+	#define INDEX_HTML_LEN 11
+
+	// allocate space for, the base dir + the filename + index.html that might be added on top
+	size_t file_str_len = Res::baseDirectory.len + url_len + INDEX_HTML_LEN + 1;
+	char  *file         = new char[file_str_len];
+
+	file[file_str_len - 1] = '\0';
+
+	strncpy(file, Res::baseDirectory.str, Res::baseDirectory.len);
+	size_t file_end = Res::baseDirectory.len;
+	strncpy(file + file_end, dst, url_len);
+	file_end += url_len;
+	file[file_end] = '\0';
 
 	llog(LOG_DEBUG, "[SERVER] Decoded '%s'\n", dst);
 
@@ -50,29 +66,29 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 
 	// usually to request index.html browsers do not specify it, they usually use /, if that's the case I add index.html
 	struct stat fileStat;
-	auto        errCode = stat(file.c_str(), &fileStat);
+	auto        errCode = stat(file, &fileStat);
 
 	if (errCode != 0) {
-		llog(LOG_WARNING, "[SERVER] File requested (%s) not found, %s\n", file.c_str(), strerror(errno));
-
+		llog(LOG_WARNING, "[SERVER] File requested (%s) not found, %s\n", file, strerror(errno));
 		fileInfo = FILE_NOT_FOUND;
 	}
 
 	// check of I'm dealing with a directory
-	if (S_ISDIR(fileStat.st_mode) || file.back() == '/') {
-		auto correctedFile = file + "/index.html";
-		errCode            = stat(correctedFile.c_str(), &fileStat);
+	if (S_ISDIR(fileStat.st_mode) || file[file_end - 1] == '/') {
+		strncpy(file + file_end, INDEX_HTML, INDEX_HTML_LEN);
+		errCode            = stat(file, &fileStat);
 
 		// index exists, use that
 		if (errCode == 0) {
 			llog(LOG_DEBUG, "[SERVER] Automatically added index.html on the url\n");
 			fileInfo = FILE_IS_DIR_FOUND;
-			file     = correctedFile;
+			file_end += INDEX_HTML_LEN;
 		} else { // file does not exists use dir view
 			llog(LOG_WARNING, "[SERVER] The file requested is a directory with no index.html. Fallback to dir view\n");
 			fileInfo = FILE_IS_DIR_NOT_FOUND;
 		}
 	}
+	file[file_end] = '\0';
 
 	// insert in the response message the necessaire header options, filename is used to determine the response code
 	Methods::composeHeader(file, response, fileInfo);
@@ -85,7 +101,9 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	http::addHeaderOption(http::RP_Cache_Control, {"max-age=3600", 12}, response);
 	llog(LOG_DEBUG, "[SERVER] Fized headers set\n");
 
-	http::setFilename({file.c_str(), file.size()}, response);
+	http::setFilename({file, file_str_len}, response);
+
+	delete[] file;
 
 	llog(LOG_DEBUG, "[SERVER] Fixed headers set\n");
 
@@ -117,7 +135,6 @@ void Methods::Get(const http::inboundHttpMessage &request, http::outboundHttpMes
 	auto lenStr = std::to_string(compressed.length());
 	http::addHeaderOption(http::RP_Content_Length, {lenStr.c_str(), lenStr.size()}, response);
 	http::addHeaderOption(http::RP_Content_Encoding, {"gzip", 4}, response);
-
 }
 
 void Methods::composeHeader(const std::string &filename, http::outboundHttpMessage &msg, const int fileInfo) {
@@ -312,6 +329,6 @@ void Methods::getContentType(const std::string &filetype, std::string &result) {
 	result = Res::mimeTypes[parts.back()];
 }
 
-void Methods::setupBaseDir(const char *str) {
+void Methods::setupBaseDir(stringRefConst str) {
 	Res::baseDirectory = str;
 }

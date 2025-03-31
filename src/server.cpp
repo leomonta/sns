@@ -112,7 +112,7 @@ runtimeInfo setup(cliArgs args) {
 		exit(1);
 	}
 
-	llog(LOG_INFO, "[SERVER] Listening on %s:%d\n", args.baseDir, args.tcpPort);
+	llog(LOG_INFO, "[SERVER] Listening on %*s:%d\n", args.baseDir.len, args.baseDir.str, args.tcpPort);
 
 	// initializing the ssl connection data
 	SSLinitializeServer();
@@ -183,7 +183,7 @@ cliArgs parseArgs(const int argc, const char *argv[]) {
 	// server directory port
 	//    0       1      2
 
-	cliArgs res = {443, nullptr};
+	cliArgs res = {443, {nullptr, 0}};
 
 	switch (argc) {
 	case 3:
@@ -192,7 +192,7 @@ cliArgs parseArgs(const int argc, const char *argv[]) {
 		[[fallthrough]];
 
 	case 2:
-		res.baseDir = argv[1];
+		res.baseDir =  {argv[1], strlen(argv[1])};
 		llog(LOG_DEBUG, "[SERVER] Read directory %s from cli args\n", argv[1]);
 		break;
 	case 1:

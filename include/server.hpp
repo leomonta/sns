@@ -1,13 +1,14 @@
 #pragma once
 
 #include "threadpool.hpp"
+#include "stringRef.hpp"
 
 #include <sslConn.h>
 #include <tcpConn.h>
 
 struct cliArgs {
 	unsigned short tcpPort;
-	const char    *baseDir;
+	stringRefConst baseDir;
 };
 
 // this shouldn't be here but it makes sense for preventing cyclic include 

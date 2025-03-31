@@ -1,6 +1,7 @@
 #pragma once
 
 #include "httpMessage.hpp"
+#include "stringRef.hpp"
 
 #include <sslConn.h>
 
@@ -70,7 +71,7 @@ namespace Methods {
 	 *
 	 * @param str the string used to intializer the baseDirectory internal variable
 	 */
-	void setupBaseDir(const char *str);
+	void setupBaseDir(stringRefConst str);
 	/**
 	 * sets result as the mime type correct for the give fyle extension
 	 *
