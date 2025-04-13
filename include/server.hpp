@@ -1,17 +1,11 @@
 #pragma once
 
 #include "threadpool.hpp"
-#include "stringRef.hpp"
 
 #include <sslConn.h>
 #include <tcpConn.h>
 
-struct cliArgs {
-	unsigned short tcpPort;
-	stringRefConst baseDir;
-};
-
-// this shouldn't be here but it makes sense for preventing cyclic include 
+// this shouldn't be here but it makes sense for preventing cyclic include
 typedef struct runtimeInfo {
 	pthread_t          requestAcceptor;
 	Socket             serverSocket;
@@ -20,43 +14,14 @@ typedef struct runtimeInfo {
 	ThreadPool::tpool *threadPool;
 } runtimeInfo;
 
-
-/**
- * given the cli arguments set's the server options accordingly
- *
- * @param argc the count of arguments
- * @param argv the values of the arguments
- */
-cliArgs parseArgs(const int argc, const char *argv[]);
-
-/**
- * Setup the server, loads libraries and stuff
- *
- * to call one
- */
-runtimeInfo setup(cliArgs args);
-
-/**
- * stop the server and its threads
- */
-void stop(runtimeInfo *rti);
-
-/**
- * stop and immediatly starts the server again
- */
-void restart(cliArgs ca, runtimeInfo *rti);
-
-/**
- * starts the server main thread
- */
-void start(runtimeInfo *rti);
+void SIGPIPE_handler(int os);
 
 /**
  * polls for activity on the server socket, ir receives a client start the resolveRequestSecure thread
  *
  * @param threadStop if true stops the infinite loop and exits
  */
-void acceptRequestsSecure(runtimeInfo *rti);
+void acceptRequests(runtimeInfo *rti);
 
 /**
  * receive a client that wants to communicate and attempts to resolve it's request
@@ -65,7 +30,7 @@ void acceptRequestsSecure(runtimeInfo *rti);
  * @param clientSock the socket of the client
  * @param sslConn the ssl connection to communicate on
  */
-void resolveRequestSecure(SSL *sslConn, const Socket clientSocket);
+void resolveRequest(SSL *sslConn, const Socket clientSocket);
 
 /**
  * Proxy function to be called by pthred that itself calls acceptRequestsSecure

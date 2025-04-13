@@ -217,7 +217,7 @@ std::string Methods::getDirView(const std::string &path) {
 
 	for (const auto &entry : std::filesystem::directory_iterator(path)) {
 		auto        filename  = static_cast<std::string>(entry.path().filename());
-		auto        url       = "./" + filename;
+		auto        url       = filename;
 		auto        cftime    = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(entry.last_write_time()));
 		std::string timestamp = std::asctime(std::localtime(&cftime));
 		// timestamp.pop_back(); // remove the trailing \n
