@@ -12,11 +12,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-ThreadPool::tpool *ThreadPool::create(const size_t tCount) {
-	// TODO
-	// the tpool is kinda big to be created on the stack (112B)
-	// but maybe it's fine due to copy elision
-	tpool *res = (tpool *)(malloc(sizeof(tpool)));
+ThreadPool::tpool *ThreadPool::initialize(const size_t thread_pool, tpool *res) {
 
 	// init linked list
 	res->head   = nullptr;
@@ -53,9 +49,9 @@ ThreadPool::tpool *ThreadPool::create(const size_t tCount) {
 		break;
 	}
 
-	res->threads = (pthread_t *)(malloc(tCount * sizeof(pthread_t)));
+	res->threads = (pthread_t *)(malloc(thread_pool * sizeof(pthread_t)));
 
-	for (size_t i = 0; i < tCount; ++i) {
+	for (size_t i = 0; i < thread_pool; ++i) {
 		errCode = pthread_create(&res->threads[res->tCount], NULL, proxy_resReq, (void *)(res));
 		switch (errCode) {
 		case EINVAL:
@@ -87,14 +83,13 @@ void ThreadPool::destroy(tpool *tp) {
 
 	// wait for the threads to finish
 	for (size_t i = 0; i < tp->tCount; ++i) {
-		// the thread may be wating for a job at the sempahore, by faking data, even if there maybe actually be data,
+		// the thread may be wating for a job at the sempahore, by faking data, even if there maybe actually be some,
 		// I force the thread to check the stop value. Thus ensuring the thread exits gracefully
-		// I might also start a timer of 0.5s to then call pthread_kill(SIG_KILL) to forcefully terminate the thread
 		sem_post(&tp->sempahore);
 	}
 
 	for (size_t i = 0; i < tp->tCount; ++i) {
-		// since i have no guarantee abou the order of which the treads take the sempahore, I have to split the two processes
+		// since i have no guarantee about the order of which the treads take the sempahore, I have to split the two processes
 		pthread_join(tp->threads[i], NULL);
 	}
 
@@ -111,10 +106,6 @@ void ThreadPool::destroy(tpool *tp) {
 
 	pthread_mutex_destroy(&tp->mutex);
 	sem_destroy(&tp->sempahore);
-
-	// TODO remove this is stack allocation is used in ThreadPool::create
-	// lastly
-	free(tp);
 }
 
 Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {

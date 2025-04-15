@@ -22,12 +22,12 @@ namespace miniMap {
 	 * @return true if the value at key was replaced
 	 */
 	template <typename K, typename V>
-	miniMap<K, V> makeMiniMap(const size_t initialCapacity) {
+	miniMap<K, V> makeMiniMap(const size_t initial_capacity) {
 
 		miniMap<K, V> res;
 
-		res.keys = miniVector::makeMiniVector<K>(initialCapacity);
-		res.values = miniVector::makeMiniVector<V>(initialCapacity);
+		res.keys = miniVector::makeMiniVector<K>(initial_capacity);
+		res.values = miniVector::makeMiniVector<V>(initial_capacity);
 
 		return res;
 	}

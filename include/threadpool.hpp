@@ -34,13 +34,14 @@ namespace ThreadPool {
 	 * Create a thread pool on the heap and returns it.
 	 * It also start tCount threads with the proxy_resReq function
 	 *
-	 * @param tCount the number of concurrent threads to start
-	 * @return an allocated thread pool
+	 * @param[in] thread_count the number of concurrent threads to start
+	 * @param[out] res the thread pool to initialize
+	 * @return the modified thread pool
 	 */
-	tpool *create(const size_t tCount);
+	tpool *initialize(const size_t thread_count, tpool *res);
 
 	/**
-	 * Free all the resource allocated in the given thrad pool and the thread pool itself
+	 * Free all the resource allocated in the given thrad pool
 	 *
 	 * @parma tp the thread pool the destroy
 	 */

@@ -11,6 +11,7 @@
 #include <poll.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <tcpConn.h>
 
 const char *methodStr[] = {
     "INVALID",
@@ -25,16 +26,8 @@ const char *methodStr[] = {
     "PATCH",
 };
 
-namespace Res {
-
-	Socket             serverSocket;
-	SSL_CTX           *sslContext = nullptr;
-	ThreadPool::tpool *threadPool;
-} // namespace Res
-
 void SIGPIPE_handler(int os) {
 	llog(LOG_FATAL, "[SIGPIPE] Received a sigpipe %s\n", os);
-
 }
 
 void *proxy_accReq(void *ptr) {
@@ -69,7 +62,7 @@ void *proxy_resReq(void *ptr) {
 }
 
 void acceptRequests(runtimeInfo *rti) {
-	Socket client = -1;
+	Socket client = INVALID_SOCKET;
 
 	pollfd ss = {
 	    .fd      = rti->serverSocket,
@@ -78,8 +71,7 @@ void acceptRequests(runtimeInfo *rti) {
 	};
 
 	// Receive until the peer shuts down the connection
-	// ! and * are at the same precedence but they right-to-left associated so this works
-	while (!rti->threadPool->stop) {
+	while (!rti->threadPool.stop) {
 
 		// infinetly wait for the socket to become usable
 		poll(&ss, 1, -1);
@@ -106,10 +98,11 @@ void acceptRequests(runtimeInfo *rti) {
 		llog(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
 
 		Methods::resolver_data t_data = {sslConnection, client};
+
 #ifdef NO_THREADING
 		proxy_resReq(t_data);
 #else
-		ThreadPool::enque(rti->threadPool, &t_data);
+		ThreadPool::enque(&rti->threadPool, &t_data);
 #endif
 	}
 }

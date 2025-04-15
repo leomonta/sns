@@ -2,6 +2,7 @@
 
 #include "logger.h"
 #include "profiler.hpp"
+#include "threadpool.hpp"
 #include "utils.hpp"
 
 #include <csignal>
@@ -96,7 +97,7 @@ runtimeInfo setup(cliArgs args) {
 	llog(LOG_INFO, "[SSL] Context created\n");
 
 	// finally creating the threadPool
-	res.threadPool = ThreadPool::create(std::thread::hardware_concurrency());
+	ThreadPool::initialize(std::thread::hardware_concurrency(), &res.threadPool);
 
 	llog(LOG_INFO, "[THREAD POOL] Started the listenings threads\n");
 
@@ -109,10 +110,12 @@ void stop(runtimeInfo *rti) {
 
 	TCPterminate(rti->serverSocket);
 
-	rti->threadPool->stop = true;
-	ThreadPool::destroy(rti->threadPool);
+	// tpool stop
+	rti->threadPool.stop = true;
+	ThreadPool::destroy(&rti->threadPool);
 	llog(LOG_INFO, "[SERVER] Sent stop message to all threads\n");
 
+	// thread stop
 	pthread_join(rti->requestAcceptor, NULL);
 	llog(LOG_INFO, "[SERVER] Request acceptor stopped\n");
 
@@ -127,7 +130,7 @@ void start(runtimeInfo *rti) {
 
 	PROFILE_FUNCTION();
 
-	rti->threadPool->stop = false;
+	rti->threadPool.stop = false;
 
 #ifdef NO_THREADING
 	proxy_accReq(rti);

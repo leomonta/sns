@@ -7,11 +7,11 @@
 
 // this shouldn't be here but it makes sense for preventing cyclic include
 typedef struct runtimeInfo {
-	pthread_t          requestAcceptor;
-	Socket             serverSocket;
-	SSL_CTX           *sslContext = nullptr;
-	time_t             startTime;
-	ThreadPool::tpool *threadPool;
+	pthread_t         requestAcceptor = 0;
+	Socket            serverSocket    = 0;
+	SSL_CTX          *sslContext      = nullptr;
+	time_t            startTime       = 0;
+	ThreadPool::tpool threadPool{};
 } runtimeInfo;
 
 void SIGPIPE_handler(int os);

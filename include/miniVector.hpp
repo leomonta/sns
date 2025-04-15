@@ -20,10 +20,12 @@ namespace miniVector {
 	 * @return a built miniVector
 	 */
 	template <typename T>
-	miniVector<T> makeMiniVector(const size_t initialCapacity) {
+	miniVector<T> makeMiniVector(const size_t initial_capacity) {
+		auto capacity = initial_capacity == 0 ? 10 : initial_capacity;
+
 		miniVector<T> res = {
-		    .data     = static_cast<T *>(malloc(initialCapacity * sizeof(T))),
-		    .capacity = initialCapacity * sizeof(T),
+		    .data     = static_cast<T *>(malloc(capacity * sizeof(T))),
+		    .capacity = initial_capacity * sizeof(T),
 		    .count    = 0,
 		};
 
@@ -136,7 +138,7 @@ namespace miniVector {
 			// I move part of the array and then realloc copies everything
 			// If I were to malloc new memory I would not incur in a double copy BUT i would miss out on a potential easy realloc
 			// So the decision lies on the distribution of good realloc vs bad realloc
-			// but I don't have the data to do this. So I'll just go with grow (realloc)
+			// but I don't have the data to know this. So I'll just go with grow (realloc)
 			grow(vec);
 		}
 
