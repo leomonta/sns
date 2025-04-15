@@ -4,6 +4,7 @@
 #include "stringRef.hpp"
 
 #include <sslConn.h>
+#include <map>
 
 #include <string>
 
@@ -64,14 +65,14 @@ namespace Methods {
 	/**
 	 * loads in the hash map for the mime types
 	 */
-	void setupContentTypes();
+	void setupContentTypes(std::map<std::string, std::string> mimeTypes);
 
 	/**
 	 * Initilizes the default directory variable with the given string
 	 *
 	 * @param str the string used to intializer the baseDirectory internal variable
 	 */
-	void setupBaseDir(stringRefConst str);
+	void setup(stringRefConst str);
 	/**
 	 * sets result as the mime type correct for the give fyle extension
 	 *

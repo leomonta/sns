@@ -3,6 +3,7 @@ bin/
 files_hash
 move
 compile_commands.json
+results.json
 .cache
 Makefile
 cpp_builder_config.json

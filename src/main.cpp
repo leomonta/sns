@@ -70,8 +70,7 @@ runtimeInfo setup(cliArgs args) {
 	PROFILE_FUNCTION();
 
 	// initializing methods data
-	Methods::setupContentTypes();
-	Methods::setupBaseDir(args.baseDir);
+	Methods::setup(args.baseDir);
 
 	errno = 0;
 

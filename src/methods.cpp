@@ -18,8 +18,6 @@
 #define FILE_IS_DIR_FOUND     2
 #define FILE_IS_DIR_NOT_FOUND 3
 
-#define Res Resources
-
 namespace Res {
 
 	// Http Server
@@ -234,91 +232,6 @@ std::string Methods::getDirView(const std::string &path) {
 	return content;
 }
 
-void Methods::setupContentTypes() {
-
-	PROFILE_FUNCTION();
-
-	Res::mimeTypes["abw"]    = "application/x-abiword";
-	Res::mimeTypes["aac"]    = "audio/aac";
-	Res::mimeTypes["arc"]    = "application/x-freearc";
-	Res::mimeTypes["avif"]   = "image/avif";
-	Res::mimeTypes["aac"]    = "audio/aac";
-	Res::mimeTypes["avi"]    = "video/x-msvideo";
-	Res::mimeTypes["azw"]    = "application/vnd.amazon.ebook";
-	Res::mimeTypes["bin"]    = "application/octet-stream";
-	Res::mimeTypes["bmp"]    = "image/bmp";
-	Res::mimeTypes["bz"]     = "application/x-bzip";
-	Res::mimeTypes["bz2"]    = "application/x-bzip2";
-	Res::mimeTypes["cda"]    = "application/x-cdf";
-	Res::mimeTypes["csh"]    = "application/x-csh";
-	Res::mimeTypes["css"]    = "text/css";
-	Res::mimeTypes["csv"]    = "text/csv";
-	Res::mimeTypes["doc"]    = "application/msword";
-	Res::mimeTypes["docx"]   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-	Res::mimeTypes["eot"]    = "application/vnd.ms-fontobject";
-	Res::mimeTypes["exe"]    = "application/octet-stream";
-	Res::mimeTypes["epub"]   = "application/epub+zip";
-	Res::mimeTypes["gz"]     = "application/gzip";
-	Res::mimeTypes["gif"]    = "image/gif";
-	Res::mimeTypes["tml"]    = "text/html";
-	Res::mimeTypes["htm"]    = "text/html";
-	Res::mimeTypes["html"]   = "text/html";
-	Res::mimeTypes["ico"]    = "image/vnd.microsoft.icon";
-	Res::mimeTypes["ics"]    = "text/calendar";
-	Res::mimeTypes["jar"]    = "application/java-archive";
-	Res::mimeTypes["jpeg"]   = "image/jpeg";
-	Res::mimeTypes["jpg"]    = "image/jpeg";
-	Res::mimeTypes["js"]     = "text/javascript";
-	Res::mimeTypes["json"]   = "application/json";
-	Res::mimeTypes["jsonld"] = "application/ld+json";
-	Res::mimeTypes["midi"]   = "audio/midi";
-	Res::mimeTypes["mid"]    = "audio/midi";
-	Res::mimeTypes["mjs"]    = "text/javascript";
-	Res::mimeTypes["mp3"]    = "audio/mpeg";
-	Res::mimeTypes["mp4"]    = "video/mp4";
-	Res::mimeTypes["mpeg"]   = "video/mpeg";
-	Res::mimeTypes["mpkg"]   = "application/vnd.apple.installer+xml";
-	Res::mimeTypes["odp"]    = "application/vnd.oasis.opendocument.presentation";
-	Res::mimeTypes["ods"]    = "application/vnd.oasis.opendocument.spreadsheet";
-	Res::mimeTypes["odt"]    = "application/vnd.oasis.opendocument.text";
-	Res::mimeTypes["oga"]    = "audio/ogg";
-	Res::mimeTypes["ogv"]    = "video/ogg";
-	Res::mimeTypes["ogx"]    = "application/ogg";
-	Res::mimeTypes["opus"]   = "audio/opus";
-	Res::mimeTypes["otf"]    = "font/otf";
-	Res::mimeTypes["png"]    = "image/png";
-	Res::mimeTypes["pdf"]    = "application/pdf";
-	Res::mimeTypes["php"]    = "application/x-httpd-php";
-	Res::mimeTypes["ppt"]    = "application/vnd.ms-powerpoint";
-	Res::mimeTypes["pptx"]   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-	Res::mimeTypes["rar"]    = "application/vnd.rar";
-	Res::mimeTypes["rtf"]    = "application/rtf";
-	Res::mimeTypes["sh"]     = "application/x-sh";
-	Res::mimeTypes["svg"]    = "image/svg+xml";
-	Res::mimeTypes["swf"]    = "application/x-shockwave-flash";
-	Res::mimeTypes["tar"]    = "application/x-tar";
-	Res::mimeTypes["tiff"]   = "image/tiff";
-	Res::mimeTypes["tif"]    = "image/tiff";
-	Res::mimeTypes["ts"]     = "video/mp2t";
-	Res::mimeTypes["ttf"]    = "font/ttf";
-	Res::mimeTypes["txt"]    = "text/plain";
-	Res::mimeTypes["vsd"]    = "application/vnd.visio";
-	Res::mimeTypes["wav"]    = "audio/wav";
-	Res::mimeTypes["weba"]   = "audio/webm";
-	Res::mimeTypes["webm"]   = "video/webm";
-	Res::mimeTypes["webp"]   = "image/webp";
-	Res::mimeTypes["woff"]   = "font/woff";
-	Res::mimeTypes["woff2"]  = "font/woff2";
-	Res::mimeTypes["xhtml"]  = "application/xhtml+xml";
-	Res::mimeTypes["xls"]    = "application/vnd.ms-excel";
-	Res::mimeTypes["xlsx"]   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-	Res::mimeTypes["xml"]    = "application/xml";
-	Res::mimeTypes["xul"]    = "application/vnd.mozilla.xul+xml";
-	Res::mimeTypes["zip"]    = "application/zip";
-	Res::mimeTypes["3gp"]    = "video/3gpp";
-	Res::mimeTypes["3g2"]    = "video/3gpp2";
-	Res::mimeTypes["7z"]     = "application/x-7z-compressed";
-}
 
 void Methods::getContentType(const std::string &filetype, std::string &result) {
 
@@ -329,6 +242,7 @@ void Methods::getContentType(const std::string &filetype, std::string &result) {
 	result = Res::mimeTypes[parts.back()];
 }
 
-void Methods::setupBaseDir(stringRefConst str) {
+void Methods::setup(stringRefConst str) {
+	Methods::setupContentTypes(Res::mimeTypes);
 	Res::baseDirectory = str;
 }
