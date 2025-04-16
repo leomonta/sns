@@ -7,6 +7,8 @@
 
 #include <csignal>
 #include <cstdio>
+#include <sslConn.h>
+#include <tcpConn.h>
 
 int main(const int argc, const char *argv[]) {
 
@@ -78,7 +80,7 @@ runtimeInfo setup(cliArgs args) {
 	runtimeInfo res;
 
 	// initializing the tcp Server
-	res.serverSocket = TCPinitializeServer(args.tcpPort, 4);
+	res.serverSocket = TCP_initialize_server(args.tcpPort, 4);
 
 	if (res.serverSocket == INVALID_SOCKET) {
 		exit(1);
@@ -87,8 +89,8 @@ runtimeInfo setup(cliArgs args) {
 	llog(LOG_INFO, "[SERVER] Listening on %*s:%d\n", args.baseDir.len, args.baseDir.str, args.tcpPort);
 
 	// initializing the ssl connection data
-	SSLinitializeServer();
-	res.sslContext = SSLcreateContext("/usr/local/bin/server.crt", "/usr/local/bin/key.pem");
+	SSL_initialize();
+	res.sslContext = SSL_create_context("/usr/local/bin/server.crt", "/usr/local/bin/key.pem");
 
 	if (res.sslContext == nullptr) {
 		exit(1);
@@ -108,7 +110,7 @@ void stop(runtimeInfo *rti) {
 
 	PROFILE_FUNCTION();
 
-	TCPterminate(rti->serverSocket);
+	TCP_terminate(rti->serverSocket);
 
 	// tpool stop
 	rti->threadPool.stop = true;
@@ -119,9 +121,9 @@ void stop(runtimeInfo *rti) {
 	pthread_join(rti->requestAcceptor, NULL);
 	llog(LOG_INFO, "[SERVER] Request acceptor stopped\n");
 
-	SSLdestroyContext(rti->sslContext);
+	SSL_destroy_context(rti->sslContext);
 
-	SSLterminateServer();
+	SSL_terminate();
 
 	llog(LOG_INFO, "[SERVER] Server stopped\n");
 }

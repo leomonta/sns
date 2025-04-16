@@ -65,7 +65,7 @@ namespace Methods {
 	/**
 	 * loads in the hash map for the mime types
 	 */
-	void setupContentTypes(std::map<std::string, std::string> mimeTypes);
+	void setupContentTypes(std::map<std::string, std::string> &mimeTypes);
 
 	/**
 	 * Initilizes the default directory variable with the given string

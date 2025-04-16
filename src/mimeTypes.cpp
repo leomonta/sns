@@ -1,6 +1,6 @@
 #include "methods.hpp"
 
-void Methods::setupContentTypes(std::map<std::string, std::string> mimeTypes) {
+void Methods::setupContentTypes(std::map<std::string, std::string> &mimeTypes) {
 
 	mimeTypes["abw"]    = "application/x-abiword";
 	mimeTypes["aac"]    = "audio/aac";

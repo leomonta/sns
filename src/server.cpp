@@ -1,5 +1,6 @@
 #include "server.hpp"
 
+#include "logger.h"
 #include "methods.hpp"
 #include "miniMap.hpp"
 #include "stringRef.hpp"
@@ -7,9 +8,9 @@
 
 #include <csignal>
 #include <cstdlib>
-#include <logger.h>
 #include <poll.h>
 #include <pthread.h>
+#include <sslConn.h>
 #include <sys/types.h>
 #include <tcpConn.h>
 
@@ -76,20 +77,20 @@ void acceptRequests(runtimeInfo *rti) {
 		// infinetly wait for the socket to become usable
 		poll(&ss, 1, -1);
 
-		client = TCPacceptClientSock(rti->serverSocket);
+		client = TCP_accept_client(rti->serverSocket);
 
 		if (client == -1) {
 			// no client tried to connect
 			continue;
 		}
 
-		auto sslConnection = SSLcreateConnection(rti->sslContext, client);
+		auto sslConnection = SSL_create_connection(rti->sslContext, client);
 
 		if (sslConnection == nullptr) {
 			continue;
 		}
 
-		auto err = SSLacceptClientConnection(sslConnection);
+		auto err = SSL_accept_client(sslConnection);
 
 		if (err == -1) {
 			continue;
@@ -111,7 +112,7 @@ void resolveRequest(SSL *sslConnection, const Socket clientSocket) {
 
 	// ---------------------------------------------------------------------- RECEIVE
 	char *request       = nullptr;
-	auto  bytesReceived = SSLreceiveRecord(sslConnection, &request);
+	auto  bytesReceived = SSL_receive_record(sslConnection, &request);
 
 	// received some bytes
 	if (bytesReceived > 0) {
@@ -138,7 +139,7 @@ void resolveRequest(SSL *sslConnection, const Socket clientSocket) {
 
 		// ------------------------------------------------------------------ SEND
 		// acknowledge the segment back to the sender
-		SSLsendRecord(sslConnection, res.str, res.len);
+		SSL_send_record(sslConnection, res.str, res.len);
 
 		http::destroyOutboundHttpMessage(&response);
 		http::destroyInboundHttpMessage(&mex);
@@ -146,7 +147,7 @@ void resolveRequest(SSL *sslConnection, const Socket clientSocket) {
 		free(res.str);
 	}
 
-	TCPshutdownSocket(clientSocket);
-	TCPcloseSocket(clientSocket);
-	SSLdestroyConnection(sslConnection);
+	TCP_shutdown_socket(clientSocket);
+	TCP_close_socket(clientSocket);
+	SSL_destroy_connection(sslConnection);
 }

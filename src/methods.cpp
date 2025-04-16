@@ -42,9 +42,8 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	urlDecode(dst, dst);
 	size_t url_len = strlen(dst);
 
-
-	#define INDEX_HTML "/index.html"
-	#define INDEX_HTML_LEN 11
+#define INDEX_HTML     "/index.html"
+#define INDEX_HTML_LEN 11
 
 	// allocate space for, the base dir + the filename + index.html that might be added on top
 	size_t file_str_len = Res::baseDirectory.len + url_len + INDEX_HTML_LEN + 1;
@@ -74,7 +73,7 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	// check of I'm dealing with a directory
 	if (S_ISDIR(fileStat.st_mode) || file[file_end - 1] == '/') {
 		strncpy(file + file_end, INDEX_HTML, INDEX_HTML_LEN);
-		errCode            = stat(file, &fileStat);
+		errCode = stat(file, &fileStat);
 
 		// index exists, use that
 		if (errCode == 0) {
@@ -97,13 +96,10 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 
 	http::addHeaderOption(http::RP_Content_Length, {fileSize.c_str(), fileSize.size()}, response);
 	http::addHeaderOption(http::RP_Cache_Control, {"max-age=3600", 12}, response);
-	llog(LOG_DEBUG, "[SERVER] Fized headers set\n");
 
 	http::setFilename({file, file_str_len}, response);
 
 	delete[] file;
-
-	llog(LOG_DEBUG, "[SERVER] Fixed headers set\n");
 
 	return fileInfo;
 }
@@ -231,7 +227,6 @@ std::string Methods::getDirView(const std::string &path) {
 
 	return content;
 }
-
 
 void Methods::getContentType(const std::string &filetype, std::string &result) {
 
