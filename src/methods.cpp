@@ -18,6 +18,9 @@
 #define FILE_IS_DIR_FOUND     2
 #define FILE_IS_DIR_NOT_FOUND 3
 
+const char INDEX_HTML[] =  {'/','i','n','d','e','x','.','h','t','m','l'};
+#define INDEX_HTML_LEN 11
+
 namespace Res {
 
 	// Http Server
@@ -41,9 +44,6 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	// since the source is always longer or the same length of the output i can decode in-place
 	urlDecode(dst, dst);
 	size_t url_len = strlen(dst);
-
-#define INDEX_HTML     "/index.html"
-#define INDEX_HTML_LEN 11
 
 	// allocate space for, the base dir + the filename + index.html that might be added on top
 	size_t file_str_len = Res::baseDirectory.len + url_len + INDEX_HTML_LEN + 1;
