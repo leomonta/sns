@@ -7,8 +7,8 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <logger.h>
-#include <profiler.hpp>
 #include <regex>
 #include <sys/stat.h>
 
@@ -18,7 +18,7 @@
 #define FILE_IS_DIR_FOUND     2
 #define FILE_IS_DIR_NOT_FOUND 3
 
-const char INDEX_HTML[] =  {'/','i','n','d','e','x','.','h','t','m','l'};
+const char INDEX_HTML[] = {'/', 'i', 'n', 'd', 'e', 'x', '.', 'h', 't', 'm', 'l'};
 #define INDEX_HTML_LEN 11
 
 namespace Res {
@@ -31,8 +31,6 @@ namespace Res {
 } // namespace Res
 
 int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMessage &response) {
-
-	PROFILE_FUNCTION();
 
 	// info about the file requested, to not recheck later
 	int fileInfo = FILE_FOUND;
@@ -90,8 +88,6 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	// insert in the response message the necessaire header options, filename is used to determine the response code
 	Methods::composeHeader(file, response, fileInfo);
 
-	llog(LOG_DEBUG, "[SERVER] Header Composed\n");
-
 	auto fileSize = std::to_string(fileStat.st_size);
 
 	http::addHeaderOption(http::RP_Content_Length, {fileSize.c_str(), fileSize.size()}, response);
@@ -105,7 +101,6 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 }
 
 void Methods::Get(const http::inboundHttpMessage &request, http::outboundHttpMessage &response) {
-	PROFILE_FUNCTION();
 
 	// I just need to add the body to the head,
 	auto fileInfo = Methods::Head(request, response);
@@ -132,7 +127,6 @@ void Methods::Get(const http::inboundHttpMessage &request, http::outboundHttpMes
 }
 
 void Methods::composeHeader(const std::string &filename, http::outboundHttpMessage &msg, const int fileInfo) {
-	PROFILE_FUNCTION();
 
 	// I use map to easily manage key : value, the only problem is when i compile the header, the response code must be at the top
 	// if the requested file actually exist
@@ -171,8 +165,6 @@ void Methods::composeHeader(const std::string &filename, http::outboundHttpMessa
 }
 
 std::string Methods::getContent(const stringRef &path, const int fileInfo) {
-
-	PROFILE_FUNCTION();
 
 	std::string content;
 	std::string fileStr(path.str, path.len);
@@ -229,8 +221,6 @@ std::string Methods::getDirView(const std::string &path) {
 }
 
 void Methods::getContentType(const std::string &filetype, std::string &result) {
-
-	PROFILE_FUNCTION();
 
 	auto parts = split(filetype, ".");
 

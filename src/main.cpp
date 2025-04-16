@@ -1,7 +1,6 @@
 #include "main.hpp"
 
 #include "logger.h"
-#include "profiler.hpp"
 #include "threadpool.hpp"
 #include "utils.hpp"
 
@@ -9,12 +8,9 @@
 #include <cstdio>
 #include <sslConn.h>
 #include <tcpConn.h>
+#include <thread>
 
 int main(const int argc, const char *argv[]) {
-
-#ifdef DEBUG
-	Instrumentor::Get().BeginSession("Leonard server");
-#endif
 
 	signal(SIGPIPE, &SIGPIPE_handler);
 
@@ -61,16 +57,10 @@ int main(const int argc, const char *argv[]) {
 		}
 	}
 
-#ifdef DEBUG
-	Instrumentor::Get().EndSession();
-#endif
-
 	return 0;
 }
 
 runtimeInfo setup(cliArgs args) {
-
-	PROFILE_FUNCTION();
 
 	// initializing methods data
 	Methods::setup(args.baseDir);
@@ -108,8 +98,6 @@ runtimeInfo setup(cliArgs args) {
 
 void stop(runtimeInfo *rti) {
 
-	PROFILE_FUNCTION();
-
 	TCP_terminate(rti->serverSocket);
 
 	// tpool stop
@@ -130,8 +118,6 @@ void stop(runtimeInfo *rti) {
 
 void start(runtimeInfo *rti) {
 
-	PROFILE_FUNCTION();
-
 	rti->threadPool.stop = false;
 
 #ifdef NO_THREADING
@@ -147,7 +133,6 @@ void start(runtimeInfo *rti) {
 
 void restart(cliArgs ca, runtimeInfo *rti) {
 
-	PROFILE_FUNCTION();
 	stop(rti);
 	setup(ca);
 	start(rti);
@@ -155,12 +140,12 @@ void restart(cliArgs ca, runtimeInfo *rti) {
 
 cliArgs parseArgs(const int argc, const char *argv[]) {
 
-	PROFILE_FUNCTION();
 	// server directory port
 	//    0       1      2
 
-	cliArgs res = {
-	    443, {nullptr, 0}
+	cliArgs res{
+	    443,
+	    {nullptr, 0}
     };
 
 	switch (argc) {

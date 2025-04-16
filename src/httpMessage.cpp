@@ -2,7 +2,6 @@
 
 #include "constants.hpp"
 #include "miniMap.hpp"
-#include "profiler.hpp"
 #include "stringRef.hpp"
 #include "utils.hpp"
 
@@ -12,7 +11,6 @@
 #include <logger.h>
 
 void logMalformedParameter(const stringRefConst &strRef) {
-	// malformed parameter
 
 	// make a temporary buffer to print it with a classical printf
 	char *temp = (char *)malloc(strRef.len + 1); // account for the null terminator
@@ -23,8 +21,6 @@ void logMalformedParameter(const stringRefConst &strRef) {
 }
 
 http::inboundHttpMessage http::makeInboundMessage(const char *str) {
-
-	PROFILE_FUNCTION();
 
 	http::inboundHttpMessage res;
 
@@ -97,8 +93,6 @@ void addToParams(stringRefConst key, stringRefConst val, http::inboundHttpMessag
 
 void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMessage &msg) {
 
-	PROFILE_FUNCTION();
-
 	// the first line should be "METHOD URL HTTP/Version"
 
 	//  0 |1|    2
@@ -135,8 +129,6 @@ void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMes
 }
 
 void http::decompileMessage(http::inboundHttpMessage &msg) {
-
-	PROFILE_FUNCTION();
 
 	auto cType = msg.m_headerOptions[http::RQ_Content_Type];
 
@@ -180,8 +172,6 @@ void http::decompileMessage(http::inboundHttpMessage &msg) {
 }
 
 stringRef http::compileMessage(const http::outboundHttpMessage &msg) {
-
-	PROFILE_FUNCTION();
 
 	// I preconstruct the status line so i don't have to do multiple allocations and string concatenations
 	// The value to modify are at
@@ -245,8 +235,6 @@ stringRef http::compileMessage(const http::outboundHttpMessage &msg) {
 
 u_char http::getMethodCode(const stringRefConst &requestMethod) {
 
-	PROFILE_FUNCTION();
-
 	if (requestMethod.len == 0) {
 		return HTTP_INVALID_METHOD;
 	}
@@ -263,8 +251,6 @@ u_char http::getMethodCode(const stringRefConst &requestMethod) {
 }
 
 u_char http::getVersionCode(const stringRefConst &httpVersion) {
-
-	PROFILE_FUNCTION();
 
 	if (httpVersion.len == 0) {
 		return HTTP_VER_UNKN;
@@ -290,8 +276,6 @@ u_char http::getVersionCode(const stringRefConst &httpVersion) {
 
 u_char http::getParameterCode(const stringRefConst &parameter) {
 
-	PROFILE_FUNCTION();
-
 	for (u_char i = 0; i < RQ_ENUM_LEN; ++i) {
 		if (streq(parameter, headerRqStr[i]) == 0) {
 			return i;
@@ -302,8 +286,6 @@ u_char http::getParameterCode(const stringRefConst &parameter) {
 }
 
 void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefConst a, stringRefConst b, http::inboundHttpMessage *ctx), const char *chunkSep, const char itemSep, http::inboundHttpMessage *ctx) {
-
-	PROFILE_FUNCTION();
 
 	// parse the remaining header options
 
@@ -396,6 +378,7 @@ void http::parseFormData(const std::string &params, std::string &divisor, std::u
 */
 
 void http::addHeaderOption(const u_char option, const stringRefConst &value, http::outboundHttpMessage &msg) {
+
 	auto opt = headerRpStr[option];
 
 	stringRef cpy{

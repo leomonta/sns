@@ -1,7 +1,5 @@
 #include "utils.hpp"
 
-#include "profiler.hpp"
-
 #include <stdexcept>
 #include <ctime>
 #include <cstring>
@@ -49,8 +47,6 @@ std::string getUTC() {
 
 void urlDecode(char *dst, const char *src) {
 
-	PROFILE_FUNCTION();
-
 	char a, b;
 	while (*src) {
 		if ((*src == '%') && ((a = src[1]) && (b = src[2])) && (isxdigit(a) && isxdigit(b))) {
@@ -79,8 +75,6 @@ void urlDecode(char *dst, const char *src) {
 }
 
 void compressGz(const stringRefConst data, std::string &output) {
-
-	PROFILE_FUNCTION();
 
 	z_stream deflate_s;
 	deflate_s.zalloc   = Z_NULL;
@@ -128,8 +122,6 @@ void simpleMemcpy(char *src, char *dst, size_t size) {
 
 void trimwhitespace(char *str) {
 
-	PROFILE_FUNCTION();
-
 	char *nEnd;
 	char *nStart = str;
 
@@ -161,8 +153,6 @@ void trimwhitespace(char *str) {
 
 const char *strnstr(const char *haystack, const char *needle, const size_t count) {
 
-	PROFILE_FUNCTION();
-
 	if (count == 0) {
 		return nullptr;
 	}
@@ -190,8 +180,6 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
 }
 
 const char *strnchr(const char *str, int chr, const size_t count) {
-
-	PROFILE_FUNCTION();
 
 	for (size_t i = 0; i < count; ++i) {
 		if (*str == chr) {
