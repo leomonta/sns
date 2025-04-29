@@ -10,14 +10,8 @@
 #include <cstring>
 #include <logger.h>
 
-void logMalformedParameter(const stringRefConst &strRef) {
-
-	// make a temporary buffer to print it with a classical printf
-	char *temp = (char *)malloc(strRef.len + 1); // account for the null terminator
-	memcpy(temp, strRef.str, strRef.len);        // copy the data
-	temp[strRef.len] = '\0';                     // null terminator
-	llog(LOG_WARNING, "Malformed parameter -> '%s' \n", temp);
-	free(temp); // and free
+void logMalformedParameter(const stringRef &strRef) {
+	llog(LOG_WARNING, "Malformed parameter -> '%*s' \n", strRef.len, strRef.str);
 }
 
 http::inboundHttpMessage http::makeInboundMessage(const char *str) {
@@ -32,14 +26,14 @@ http::inboundHttpMessage http::makeInboundMessage(const char *str) {
 	memcpy(temp, str, msgLen + 1);
 
 	res.m_rawMessage_a = temp;
-	res.m_parameters = miniMap::makeMiniMap<stringRefConst, stringRefConst>(10);
+	res.m_parameters   = miniMap::makeMiniMap<stringRef, stringRef>(10);
 
 	// body and header are divided by two newlines
 	auto msgSeparator = strstr(res.m_rawMessage_a, "\r\n\r\n");
 
-	unsigned long hLen = msgSeparator - res.m_rawMessage_a;
+	unsigned long hLen = (unsigned long)(msgSeparator - res.m_rawMessage_a);
 
-	stringRefConst header;
+	stringRef header;
 
 	// strstr return 0 if nothing is found or the given pointer if it is an empty string
 	if (msgSeparator == 0 || msgSeparator == res.m_rawMessage_a) {
@@ -65,7 +59,7 @@ void http::destroyInboundHttpMessage(http::inboundHttpMessage *mex) {
 	if (mex->m_rawMessage_a != nullptr) {
 		free(const_cast<char *>(mex->m_rawMessage_a));
 	}
-	
+
 	miniMap::destroyMiniMap(&mex->m_parameters);
 }
 
@@ -79,19 +73,18 @@ void http::destroyOutboundHttpMessage(http::outboundHttpMessage *mex) {
 	miniMap::destroyMiniMap(&mex->m_headerOptions);
 	free(mex->m_body.str);
 	free(mex->m_filename.str);
-
 }
 
-void addToOptions(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
+void addToOptions(stringRef key, stringRef val, http::inboundHttpMessage *ctx) {
 	ctx->m_headerOptions[http::getParameterCode(key)] = val;
 }
 
-void addToParams(stringRefConst key, stringRefConst val, http::inboundHttpMessage *ctx) {
+void addToParams(stringRef key, stringRef val, http::inboundHttpMessage *ctx) {
 	// ctx->m_parameters[key] = val;
 	miniMap::set_eq(&ctx->m_parameters, &key, &val, &equal);
 }
 
-void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMessage &msg) {
+void http::decompileHeader(const stringRef &rawHeader, http::inboundHttpMessage &msg) {
 
 	// the first line should be "METHOD URL HTTP/Version"
 
@@ -102,8 +95,8 @@ void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMes
 	size_t endlineLen     = strnstr(rawHeader.str, "\r\n", rawHeader.len) - (rawHeader.str + firstSpaceLen + secondSpaceLen + 2); // until the first newline
 
 	// temporary stringRefs
-	stringRefConst methodRef  = {rawHeader.str, firstSpaceLen};
-	stringRefConst versionRef = {rawHeader.str + secondSpaceLen + firstSpaceLen + 2, endlineLen};
+	stringRef methodRef  = {rawHeader.str, firstSpaceLen};
+	stringRef versionRef = {rawHeader.str + secondSpaceLen + firstSpaceLen + 2, endlineLen};
 
 	// actually storing the values in the object
 	msg.m_method  = http::getMethodCode(methodRef);
@@ -118,7 +111,7 @@ void http::decompileHeader(const stringRefConst &rawHeader, http::inboundHttpMes
 	// if strnchr returns nullptr the result is negative, else is positive
 	if (qPos > 0) {
 		// confine the parameters in a single stringREf excluding the '?'
-		stringRefConst queryParams = {msg.m_url.str + qPos + 1, msg.m_url.len - qPos - 1};
+		stringRef queryParams = {msg.m_url.str + qPos + 1, msg.m_url.len - qPos - 1};
 		parseOptions(queryParams, addToParams, "&", '=', &msg);
 
 		// limit thw url to before the '?'
@@ -133,7 +126,7 @@ void http::decompileMessage(http::inboundHttpMessage &msg) {
 	auto cType = msg.m_headerOptions[http::RQ_Content_Type];
 
 	// the content type indicates how parameters are showed
-	if (isEmpty(cType)) {
+	if (is_empty(cType)) {
 		return;
 	}
 
@@ -159,8 +152,8 @@ void http::decompileMessage(http::inboundHttpMessage &msg) {
 			llog(LOG_WARNING, "Malformed multipart form data, no '='\n");
 		}
 
-		size_t         temp    = cType.str + cType.len - eq;
-		stringRefConst divisor = {eq, temp};
+		size_t    temp    = cType.str + cType.len - eq;
+		stringRef divisor = {eq, temp};
 
 		if (*eq == '"') {
 			++divisor.str;
@@ -171,7 +164,7 @@ void http::decompileMessage(http::inboundHttpMessage &msg) {
 	}
 }
 
-stringRef http::compileMessage(const http::outboundHttpMessage &msg) {
+stringOwn http::compileMessage(const http::outboundHttpMessage &msg) {
 
 	// I preconstruct the status line so i don't have to do multiple allocations and string concatenations
 	// The value to modify are at
@@ -189,6 +182,7 @@ stringRef http::compileMessage(const http::outboundHttpMessage &msg) {
 
 	// the entire message length
 	char *res = static_cast<char *>(malloc(msgLen));
+	memset(res, '\0', msgLen);
 
 	memcpy(res, statusLine, STATUS_LINE_LEN);
 	memcpy(res + STATUS_LINE_LEN, phrase.str, phrase.len);
@@ -233,7 +227,7 @@ stringRef http::compileMessage(const http::outboundHttpMessage &msg) {
 	return {res, msgLen};
 }
 
-u_char http::getMethodCode(const stringRefConst &requestMethod) {
+u_char http::getMethodCode(const stringRef &requestMethod) {
 
 	if (requestMethod.len == 0) {
 		return HTTP_INVALID_METHOD;
@@ -242,7 +236,7 @@ u_char http::getMethodCode(const stringRefConst &requestMethod) {
 	// since the codes are sequential starting from 1
 	// the 0 is for an invalid http method / verb
 	for (u_char i = 1; i < methods::HTTP_ENUM_LEN; ++i) {
-		if (streq(requestMethod, methods_strR[i])) {
+		if (streq_stringRef(requestMethod, methods_strR[i])) {
 			return i;
 		}
 	}
@@ -250,13 +244,13 @@ u_char http::getMethodCode(const stringRefConst &requestMethod) {
 	return HTTP_INVALID_METHOD;
 }
 
-u_char http::getVersionCode(const stringRefConst &httpVersion) {
+u_char http::getVersionCode(const stringRef &httpVersion) {
 
 	if (httpVersion.len == 0) {
 		return HTTP_VER_UNKN;
 	}
 
-	static stringRefConst versions_strR[] = {
+	static stringRef versions_strR[] = {
 	    TO_STRINGREF("undefined"),
 	    TO_STRINGREF("HTTP/0.9"),
 	    TO_STRINGREF("HTTP/1.0"),
@@ -266,7 +260,7 @@ u_char http::getVersionCode(const stringRefConst &httpVersion) {
 	};
 
 	for (u_char i = 1; i < versions::HTTP_VER_ENUM_LEN; ++i) {
-		if (streq(httpVersion, versions_strR[i])) {
+		if (streq_stringRef(httpVersion, versions_strR[i])) {
 			return i;
 		}
 	}
@@ -274,10 +268,10 @@ u_char http::getVersionCode(const stringRefConst &httpVersion) {
 	return HTTP_VER_UNKN;
 }
 
-u_char http::getParameterCode(const stringRefConst &parameter) {
+u_char http::getParameterCode(const stringRef &parameter) {
 
 	for (u_char i = 0; i < RQ_ENUM_LEN; ++i) {
-		if (streq(parameter, headerRqStr[i]) == 0) {
+		if (streq_stringRef(parameter, headerRqStr[i]) == 0) {
 			return i;
 		}
 	}
@@ -285,17 +279,17 @@ u_char http::getParameterCode(const stringRefConst &parameter) {
 	return -1;
 }
 
-void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefConst a, stringRefConst b, http::inboundHttpMessage *ctx), const char *chunkSep, const char itemSep, http::inboundHttpMessage *ctx) {
+void http::parseOptions(const stringRef &segment, void (*fun)(stringRef a, stringRef b, http::inboundHttpMessage *ctx), const char *chunkSep, const char itemSep, http::inboundHttpMessage *ctx) {
 
 	// parse the remaining header options
 
 	const auto addLen = strlen(chunkSep); // the lenght to move after the string is found
 
-	auto           startOptions      = strnchr(segment.str, *chunkSep, segment.len) + addLen; // the plus 1 is needed to start after the \r\n
-	size_t         lenToStartOptions = startOptions - segment.str;
-	stringRefConst chunk             = {startOptions, lenToStartOptions};
-	const auto     limit             = segment.str + segment.len;
-	auto           limitLen          = segment.len - lenToStartOptions;
+	auto       startOptions      = strnchr(segment.str, *chunkSep, segment.len) + addLen; // the plus 1 is needed to start after the \r\n
+	size_t     lenToStartOptions = startOptions - segment.str;
+	stringRef  chunk             = {startOptions, lenToStartOptions};
+	const auto limit             = segment.str + segment.len;
+	auto       limitLen          = segment.len - lenToStartOptions;
 
 	while (chunk.str < limit) {
 
@@ -313,15 +307,15 @@ void http::parseOptions(const stringRefConst &segment, void (*fun)(stringRefCons
 		} else {
 
 			// everything is fine here
-			size_t         pos = sep - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
-			stringRefConst key = {chunk.str, pos};               // from the start of the chunk to before the '='
-			stringRefConst val = {sep + 1, chunk.len - pos - 1}; // from after the '=' to the end of the chunk
+			size_t    pos = sep - chunk.str;                // get the pointer difference from the start of the chunk and the position of the '='
+			stringRef key = {chunk.str, pos};               // from the start of the chunk to before the '='
+			stringRef val = {sep + 1, chunk.len - pos - 1}; // from after the '=' to the end of the chunk
 
 			key = trim(key);
 			val = trim(val);
 
 			// check if we actually have a key, the value can be empty
-			if (streq_str(key.str, "")) {
+			if (streq(key.str, "")) {
 				// finally put it in the map
 				fun(key, val, ctx);
 			}
@@ -377,12 +371,12 @@ void http::parseFormData(const std::string &params, std::string &divisor, std::u
 }
 */
 
-void http::addHeaderOption(const u_char option, const stringRefConst &value, http::outboundHttpMessage &msg) {
+void http::addHeaderOption(const u_char option, const stringRef &value, http::outboundHttpMessage &msg) {
 
 	auto opt = headerRpStr[option];
 
-	stringRef cpy{
-	    makeCopyConst(value),
+	stringOwn cpy{
+	    copy_stringRef(value),
 	    value.len};
 
 	// if something is already present at the requested position
@@ -400,6 +394,6 @@ void http::addHeaderOption(const u_char option, const stringRefConst &value, htt
 	msg.m_headerLen += (opt.len + 2 + cpy.len + 2);
 }
 
-void http::setFilename(const stringRefConst &val, http::outboundHttpMessage &msg) {
-	msg.m_filename = {makeCopyConst(val), val.len};
+void http::setFilename(const stringRef &val, http::outboundHttpMessage &msg) {
+	msg.m_filename = {copy_stringRef(val), val.len};
 }

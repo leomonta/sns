@@ -5,7 +5,7 @@
 #include <cstring>
 #include <sys/types.h>
 
-const static stringRefConst methods_strR[] = {
+const static stringRef methods_strR[] = {
     TO_STRINGREF("HTTP_INVALID"),
     TO_STRINGREF("GET"),
     TO_STRINGREF("HEAD"),
@@ -19,7 +19,7 @@ const static stringRefConst methods_strR[] = {
 };
 
 // Beautifully compile-time evaluated lookup tables for header options
-const static stringRefConst headerRqStr[] = {
+const static stringRef headerRqStr[] = {
     TO_STRINGREF("A-IM"),
     TO_STRINGREF("Accept"),
     TO_STRINGREF("Accept-Charset"),
@@ -63,7 +63,7 @@ const static stringRefConst headerRqStr[] = {
     TO_STRINGREF("Warning"),
 };
 
-const static stringRefConst headerRpStr[] = {
+const static stringRef headerRpStr[] = {
     TO_STRINGREF("Accept-CH"),
     TO_STRINGREF("Access-Control-Allow-Origin"),
     TO_STRINGREF("Access-Control-Allow-Credentials"),
@@ -117,7 +117,7 @@ const static stringRefConst headerRpStr[] = {
 
 // keeping this for consistency with the other strings
 // but this should not be used
-const static stringRefConst reasonPhrases[] = {
+const static stringRef reasonPhrases[] = {
     TO_STRINGREF("Continue"),
     TO_STRINGREF("Switching Protocols"),
     TO_STRINGREF("OK"),
@@ -159,7 +159,7 @@ const static stringRefConst reasonPhrases[] = {
     TO_STRINGREF("Gateway Time-out"),
     TO_STRINGREF("HTTP Version not supported")};
 
-inline stringRefConst getReasonPhrase(u_short statusCode) {
+inline stringRef getReasonPhrase(u_short statusCode) {
 
 	switch (statusCode) {
 	case 100:

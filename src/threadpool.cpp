@@ -1,6 +1,9 @@
 #include "threadpool.hpp"
 
+#include "constants.hpp"
 #include "logger.h"
+#include "methods.hpp"
+#include "miniVector.hpp"
 #include "server.hpp"
 
 #include <asm-generic/errno-base.h>
@@ -11,14 +14,14 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <tcpConn.h>
 
-ThreadPool::tpool *ThreadPool::initialize(const size_t thread_pool, tpool *res) {
+ThreadPool::tpool *ThreadPool::initialize(const size_t thread_count, tpool *res) {
 
 	// init linked list
-	res->head   = nullptr;
-	res->tail   = nullptr;
-	res->tCount = 0;
-	res->stop   = false;
+	res->ring_buffer = miniVector::makeMiniVector<tjob>(thread_count);
+	res->tCount      = 0;
+	res->stop        = false;
 
 	// the semaphore is the one responsible for preventing race conditions
 	auto errCode = sem_init(&res->sempahore, 0, 0);
@@ -49,9 +52,9 @@ ThreadPool::tpool *ThreadPool::initialize(const size_t thread_pool, tpool *res) 
 		break;
 	}
 
-	res->threads = (pthread_t *)(malloc(thread_pool * sizeof(pthread_t)));
+	res->threads = (pthread_t *)(malloc(thread_count * sizeof(pthread_t)));
 
-	for (size_t i = 0; i < thread_pool; ++i) {
+	for (size_t i = 0; i < thread_count; ++i) {
 		errCode = pthread_create(&res->threads[res->tCount], NULL, proxy_resReq, (void *)(res));
 		switch (errCode) {
 		case EINVAL:
@@ -97,12 +100,7 @@ void ThreadPool::destroy(tpool *tp) {
 	free(tp->threads);
 
 	// freeing the leftover data (if any)
-	tjob *curr = tp->head;
-	while (curr != nullptr) {
-		auto t = curr->next;
-		free(curr);
-		curr = t;
-	}
+	miniVector::destroyMiniVector(&tp->ring_buffer);
 
 	pthread_mutex_destroy(&tp->mutex);
 	sem_destroy(&tp->sempahore);
@@ -117,18 +115,16 @@ Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {
 
 	// I'm sure there is a job for a thread
 
+	auto ref = miniVector::get(&tpool->ring_buffer, tpool->ring_read_index);
+
 	Methods::resolver_data res;
 
-	if (tpool->head == nullptr) {
-		res = {nullptr, 0};
+	if (ref == nullptr) {
+		res = {nullptr, INVALID_SOCKET};
 	} else {
-		res = tpool->head->data;
-		if (tpool->head->next == nullptr) {
-			tpool->tail = nullptr;
-		}
-		auto t      = tpool->head;
-		tpool->head = tpool->head->next;
-		free(t);
+		res = *ref;
+		free(ref);
+		miniVector::set(&tpool->ring_buffer, tpool->ring_read_index, nullptr);
 	}
 
 	// let the next one in

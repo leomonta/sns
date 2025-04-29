@@ -37,16 +37,16 @@ int main(const int argc, const char *argv[]) {
 		trimwhitespace(line);
 
 		// simple commands
-		if (streq_str(line, "exit") || streq_str(line, "quit")) {
+		if (streq(line, "exit") || streq(line, "quit")) {
 			stop(&runInfo);
 			break;
 		}
 
-		if (streq_str(line, "restart")) {
+		if (streq(line, "restart")) {
 			restart(args, &runInfo);
 		}
 
-		if (streq_str(line, "time")) {
+		if (streq(line, "time")) {
 			time_t now   = time(nullptr) - runInfo.startTime;
 			long   days  = now / (60 * 60 * 24);
 			long   hours = now / (60 * 60) % 24;

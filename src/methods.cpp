@@ -24,7 +24,7 @@ const char INDEX_HTML[] = {'/', 'i', 'n', 'd', 'e', 'x', '.', 'h', 't', 'm', 'l'
 namespace Res {
 
 	// Http Server
-	stringRefConst baseDirectory;
+	stringRef baseDirectory;
 
 	// for controlling debug prints
 	std::map<std::string, std::string> mimeTypes;
@@ -40,7 +40,7 @@ int Methods::Head(const http::inboundHttpMessage &request, http::outboundHttpMes
 	dst[request.m_url.len] = '\0';
 
 	// since the source is always longer or the same length of the output i can decode in-place
-	urlDecode(dst, dst);
+	url_decode(dst, dst);
 	size_t url_len = strlen(dst);
 
 	// allocate space for, the base dir + the filename + index.html that might be added on top
@@ -109,7 +109,7 @@ void Methods::Get(const http::inboundHttpMessage &request, http::outboundHttpMes
 
 	std::string compressed = "";
 	if (uncompressed != "") {
-		compressGz({uncompressed.c_str(), uncompressed.length()}, compressed);
+		compress_gz({uncompressed.c_str(), uncompressed.length()}, compressed);
 		llog(LOG_DEBUG, "[SERVER] Compressing response body\n");
 
 		if (fileInfo == FILE_IS_DIR_NOT_FOUND) {
@@ -118,7 +118,7 @@ void Methods::Get(const http::inboundHttpMessage &request, http::outboundHttpMes
 	}
 
 	// set the content of the message
-	char *temp      = makeCopyConst({compressed.c_str(), compressed.size()});
+	char *temp      = copy_stringRef({compressed.c_str(), compressed.size()});
 	response.m_body = {temp, compressed.size()};
 
 	auto lenStr = std::to_string(compressed.length());
@@ -164,7 +164,7 @@ void Methods::composeHeader(const std::string &filename, http::outboundHttpMessa
 	http::addHeaderOption(http::RP_Server, {srvr, 21}, msg);
 }
 
-std::string Methods::getContent(const stringRef &path, const int fileInfo) {
+std::string Methods::getContent(const stringOwn &path, const int fileInfo) {
 
 	std::string content;
 	std::string fileStr(path.str, path.len);
@@ -227,7 +227,7 @@ void Methods::getContentType(const std::string &filetype, std::string &result) {
 	result = Res::mimeTypes[parts.back()];
 }
 
-void Methods::setup(stringRefConst str) {
+void Methods::setup(stringRef str) {
 	Methods::setupContentTypes(Res::mimeTypes);
 	Res::baseDirectory = str;
 }

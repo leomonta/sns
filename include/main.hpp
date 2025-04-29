@@ -1,11 +1,11 @@
 #pragma once
 
-#include "stringRef.hpp"
 #include "server.hpp"
+#include "stringRef.hpp"
 
 struct cliArgs {
 	unsigned short tcpPort;
-	stringRefConst baseDir;
+	stringRef      baseDir;
 };
 
 /**

@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-bool equal(const stringRef *lhs, const stringRef *rhs) {
+bool equal(const stringOwn *lhs, const stringOwn *rhs) {
 	if (lhs->len != rhs->len) {
 		return false;
 	}
@@ -10,7 +10,7 @@ bool equal(const stringRef *lhs, const stringRef *rhs) {
 	return strncmp(lhs->str, rhs->str, lhs->len);
 }
 
-bool equal(const stringRefConst *lhs, const stringRefConst *rhs) {
+bool equal(const stringRef *lhs, const stringRef *rhs) {
 	if (lhs->len != rhs->len) {
 		return false;
 	}

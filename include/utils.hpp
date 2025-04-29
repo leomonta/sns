@@ -34,7 +34,7 @@ std::string getUTC();
  * @param dst where to put the decoded strin
  * @param src the string to decode
  */
-void urlDecode(char *dst, const char *src);
+void url_decode(char *dst, const char *src);
 
 /**
  * compress given data to gzip
@@ -43,7 +43,7 @@ void urlDecode(char *dst, const char *src);
  * @param data the string reference pointing to the data to compress
  * @param output where to put the result
  */
-void compressGz(const stringRefConst data, std::string &output);
+void compress_gz(const stringRef data, std::string &output);
 
 /**
  * Thaks to https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
@@ -85,7 +85,7 @@ const char *strnchr(const char *str, int chr, const size_t count);
  * @param strRef the stringRef to trim
  * @return the trimmed stringRef
  */
-stringRefConst trim(stringRefConst &strRef);
+stringRef trim(stringRef &strRef);
 
 /**
  * check if every character in the stringref is a space
@@ -93,14 +93,7 @@ stringRefConst trim(stringRefConst &strRef);
  *
  * @param strRef the stringref to check
  */
-bool isEmpty(const stringRefConst &strRef);
-
-/**
- * print a string ref to stdout
- *
- * @param strRef the stirngRef to print
- */
-void printStringRef(const stringRef &strRef);
+bool is_empty(const stringRef &strRef);
 
 /**
  * given a sringref mallocs a copy of the string and returns it
@@ -109,7 +102,7 @@ void printStringRef(const stringRef &strRef);
  * 
  * @return the mallocated string
  */
-char *makeCopy(const stringRef &str);
+char *copy_stringOwn(const stringOwn &str);
 
 /**
  * given a string and its size mallocs a copy of the string and returns it
@@ -119,10 +112,10 @@ char *makeCopy(const stringRef &str);
  * 
  * @return the mallocated string
  */
-char *makeCopyConst(const stringRefConst &str);
+char *copy_stringRef(const stringRef &str);
 
 /**
  * Given two strings return true if and only if they have the same content
  */
-bool streq(const stringRefConst &lhs, const stringRefConst &rhs);
-bool streq_str(const char *lhs, const char *rhs);
+bool streq_stringRef(const stringRef &lhs, const stringRef &rhs);
+bool streq(const char *lhs, const char *rhs);

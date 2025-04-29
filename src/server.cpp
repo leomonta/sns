@@ -121,7 +121,7 @@ void resolveRequest(SSL *sslConnection, const Socket clientSocket) {
 		llog(LOG_INFO, "[SERVER] Received request <%s> \n", methodStr[mex.m_method]);
 
 		http::outboundHttpMessage response{};
-		response.m_headerOptions = miniMap::makeMiniMap<u_char, stringRef>(16);
+		response.m_headerOptions = miniMap::makeMiniMap<u_char, stringOwn>(16);
 
 		switch (mex.m_method) {
 		case http::HTTP_HEAD:

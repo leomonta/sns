@@ -51,7 +51,7 @@ namespace Methods {
 	 *
 	 * @return the plain text string of the path
 	 */
-	std::string getContent(const stringRef &path, const int fileInfo);
+	std::string getContent(const stringOwn &path, const int fileInfo);
 
 	/**
 	 * Given a path of a directory return its dirview in html
@@ -72,7 +72,7 @@ namespace Methods {
 	 *
 	 * @param str the string used to intializer the baseDirectory internal variable
 	 */
-	void setup(stringRefConst str);
+	void setup(stringRef str);
 	/**
 	 * sets result as the mime type correct for the give fyle extension
 	 *

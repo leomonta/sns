@@ -45,7 +45,7 @@ std::string getUTC() {
 	return std::string(buffer);
 }
 
-void urlDecode(char *dst, const char *src) {
+void url_decode(char *dst, const char *src) {
 
 	char a, b;
 	while (*src) {
@@ -74,7 +74,7 @@ void urlDecode(char *dst, const char *src) {
 	*dst++ = '\0';
 }
 
-void compressGz(const stringRefConst data, std::string &output) {
+void compress_gz(const stringRef data, std::string &output) {
 
 	z_stream deflate_s;
 	deflate_s.zalloc   = Z_NULL;
@@ -192,7 +192,7 @@ const char *strnchr(const char *str, int chr, const size_t count) {
 	return nullptr;
 }
 
-stringRefConst trim(stringRefConst &strRef) {
+stringRef trim(stringRef &strRef) {
 	size_t newStart;
 
 	for (newStart = 0; newStart < strRef.len; ++newStart) {
@@ -201,7 +201,7 @@ stringRefConst trim(stringRefConst &strRef) {
 		}
 	}
 
-	stringRefConst res = {
+	stringRef res = {
 	    strRef.str + newStart,
 	    strRef.len - newStart
 	};
@@ -217,7 +217,7 @@ stringRefConst trim(stringRefConst &strRef) {
 	return res;
 }
 
-bool isEmpty(const stringRefConst &strRef) {
+bool is_empty(const stringRef &strRef) {
 
 	if (strRef.len == 0) {
 		return true;
@@ -234,32 +234,19 @@ bool isEmpty(const stringRefConst &strRef) {
 	return true;
 }
 
-void printStringRef(const stringRef &strRef) {
-
-	const char *str = strRef.str;
-
-	for (size_t i = 0; i < strRef.len; ++i) {
-		// there is no print function that print a portion of a string, so i print each character one by one
-		putchar(*str);
-		++str;
-	}
-	// newline is essential for flushing
-	putchar('\n');
-}
-
-char *makeCopy(const stringRef &str) {
+char *copy_stringOwn(const stringOwn &str) {
 	auto cpy = static_cast<char *>(malloc(str.len));
 	memcpy(cpy, str.str, str.len);
 	return cpy;
 }
 
-char *makeCopyConst(const stringRefConst &str) {
+char *copy_stringRef(const stringRef &str) {
 	auto cpy = static_cast<char *>(malloc(str.len));
 	memcpy(cpy, str.str, str.len);
 	return cpy;
 }
 
-bool streq(const stringRefConst &lhs, const stringRefConst &rhs) {
+bool streq_stringRef(const stringRef &lhs, const stringRef &rhs) {
 	if (lhs.len != rhs.len) {
 		return false;
 	}
@@ -273,7 +260,7 @@ bool streq(const stringRefConst &lhs, const stringRefConst &rhs) {
 	return true;
 }
 
-bool streq_str(const char *lhs, const char *rhs) {
+bool streq(const char *lhs, const char *rhs) {
 
 	for (; *lhs != '\0' && *rhs != '\0'; ++lhs, ++rhs) {
 		if (*lhs != *rhs) {

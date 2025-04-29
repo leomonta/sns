@@ -1,6 +1,7 @@
 #pragma once
 
 #include "methods.hpp"
+#include "miniVector.hpp"
 
 #include <cstddef>
 #include <pthread.h>
@@ -13,21 +14,16 @@
  */
 namespace ThreadPool {
 
-	// linked list node
-	typedef struct tjob {
-		Methods::resolver_data data; // data of the node. I use a copy since the data is small (12B) and trivial int + ptr
-		tjob                  *next; // next job
-	} tjob;
-
 	// linked list + other thread related data
 	typedef struct tpool {
-		tjob           *head;      // head of linked list
-		tjob           *tail;      // tail of linked list
-		sem_t           sempahore; // semaphore to decide how many can get in the critical section
-		pthread_mutex_t mutex;     // mutex to enter the critical section
-		size_t          tCount;    // num of threads allocated in *threads
-		pthread_t      *threads;   // array of the pthreads started, it will not change once the tpoll is created
-		bool            stop;      // should the threads stop
+		miniVector::miniVector<Methods::resolver_data> ring_buffer;      // the jobs arranged in a threadBuffer
+		size_t                                         ring_write_index; // index of the next empty job
+		size_t                                         ring_read_index;  // index of the last job
+		sem_t                                          sempahore;        // semaphore to decide how many can get in the critical section
+		pthread_mutex_t                                mutex;            // mutex to enter the critical section
+		size_t                                         tCount;           // num of threads allocated in *threads
+		pthread_t                                     *threads;          // array of the pthreads started, it will not change once the tpoll is created
+		bool                                           stop;             // should the threads stop
 	} tpool;
 
 	/**
