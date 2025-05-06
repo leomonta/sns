@@ -8,7 +8,6 @@
 
 #include <asm-generic/errno-base.h>
 #include <cerrno>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
@@ -19,9 +18,12 @@
 ThreadPool::tpool *ThreadPool::initialize(const size_t thread_count, tpool *res) {
 
 	// init linked list
-	res->ring_buffer = miniVector::makeMiniVector<tjob>(thread_count);
-	res->tCount      = 0;
-	res->stop        = false;
+	res->ring_buffer       = miniVector::makeMiniVector<Methods::resolver_data>(thread_count);
+	res->ring_buffer.count = thread_count;
+	res->ring_data_count   = 0;
+	res->ring_read_index   = 0;
+	res->thread_count            = 0;
+	res->stop              = false;
 
 	// the semaphore is the one responsible for preventing race conditions
 	auto errCode = sem_init(&res->sempahore, 0, 0);
@@ -55,7 +57,7 @@ ThreadPool::tpool *ThreadPool::initialize(const size_t thread_count, tpool *res)
 	res->threads = (pthread_t *)(malloc(thread_count * sizeof(pthread_t)));
 
 	for (size_t i = 0; i < thread_count; ++i) {
-		errCode = pthread_create(&res->threads[res->tCount], NULL, proxy_resReq, (void *)(res));
+		errCode = pthread_create(&res->threads[res->thread_count], NULL, proxy_resReq, (void *)(res));
 		switch (errCode) {
 		case EINVAL:
 			// since I don't use attr for the pthread this should never happen
@@ -71,7 +73,7 @@ ThreadPool::tpool *ThreadPool::initialize(const size_t thread_count, tpool *res)
 
 		default:
 		case 0:
-			res->tCount++;
+			res->thread_count++;
 			break;
 		}
 	}
@@ -85,13 +87,13 @@ void ThreadPool::destroy(tpool *tp) {
 	tp->stop = true;
 
 	// wait for the threads to finish
-	for (size_t i = 0; i < tp->tCount; ++i) {
+	for (size_t i = 0; i < tp->thread_count; ++i) {
 		// the thread may be wating for a job at the sempahore, by faking data, even if there maybe actually be some,
 		// I force the thread to check the stop value. Thus ensuring the thread exits gracefully
 		sem_post(&tp->sempahore);
 	}
 
-	for (size_t i = 0; i < tp->tCount; ++i) {
+	for (size_t i = 0; i < tp->thread_count; ++i) {
 		// since i have no guarantee about the order of which the treads take the sempahore, I have to split the two processes
 		pthread_join(tp->threads[i], NULL);
 	}
@@ -108,23 +110,24 @@ void ThreadPool::destroy(tpool *tp) {
 
 Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {
 
-	// this takes care of lletting pass n threads for n datas
+	// this takes care of letting pass n threads for n datas
 	sem_wait(&tpool->sempahore);
 	pthread_mutex_lock(&tpool->mutex);
 	// ---------------------------------------------------------------------------------------------- CRITICAL SECTION START
 
 	// I'm sure there is a job for a thread
 
-	auto ref = miniVector::get(&tpool->ring_buffer, tpool->ring_read_index);
-
 	Methods::resolver_data res;
 
-	if (ref == nullptr) {
+	if (tpool->ring_data_count == 0) {
 		res = {nullptr, INVALID_SOCKET};
 	} else {
-		res = *ref;
-		free(ref);
-		miniVector::set(&tpool->ring_buffer, tpool->ring_read_index, nullptr);
+		res = *miniVector::get(&tpool->ring_buffer, tpool->ring_read_index);
+		++tpool->ring_read_index;
+		--tpool->ring_data_count;
+		// tecnically this is not needed, the read_index has been moved
+		// but this smells of security vulnerability so...
+		miniVector::set(&tpool->ring_buffer, tpool->ring_read_index, &Methods::EMPTY_RESOLVER_DATA);
 	}
 
 	// let the next one in
@@ -134,23 +137,21 @@ Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {
 	return res;
 }
 
-void ThreadPool::enque(tpool *tpool, const Methods::resolver_data *data) {
+void ThreadPool::enqueue(tpool *tpool, const Methods::resolver_data *data) {
 
 	pthread_mutex_lock(&tpool->mutex);
 	// ---------------------------------------------------------------------------------------------- CRITICAL SECTION START
-	tjob *ntail = (tjob *)(malloc(sizeof(tjob)));
 
-	ntail->next = nullptr;
-	ntail->data = *data;
-
-	// headless / empty
-	if (tpool->head == nullptr) {
-		tpool->head = ntail;
-		tpool->tail = ntail;
-	} else {
-		tpool->tail->next = ntail;
-		tpool->tail       = ntail;
+	// full ring buffer
+	if (tpool->ring_data_count == tpool->ring_buffer.count) {
+		miniVector::grow(&tpool->ring_buffer);
+		tpool->ring_buffer.count *= 2;
 	}
+
+	// else
+	miniVector::set(&tpool->ring_buffer, tpool->ring_read_index + tpool->ring_data_count, data);
+
+	++tpool->ring_data_count;
 
 	// notify anywating thread that there is data
 	sem_post(&tpool->sempahore);

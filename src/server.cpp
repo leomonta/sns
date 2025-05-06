@@ -103,7 +103,7 @@ void acceptRequests(runtimeInfo *rti) {
 #ifdef NO_THREADING
 		proxy_resReq(t_data);
 #else
-		ThreadPool::enque(&rti->threadPool, &t_data);
+		ThreadPool::enqueue(&rti->threadPool, &t_data);
 #endif
 	}
 }

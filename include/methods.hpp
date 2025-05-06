@@ -3,9 +3,8 @@
 #include "httpMessage.hpp"
 #include "stringRef.hpp"
 
-#include <sslConn.h>
 #include <map>
-
+#include <sslConn.h>
 #include <string>
 
 const unsigned char serverVersionMajor = 4;
@@ -17,6 +16,8 @@ namespace Methods {
 		SSL   *ssl;
 		Socket clientSocket;
 	};
+
+	const static Methods::resolver_data EMPTY_RESOLVER_DATA = {nullptr, INVALID_SOCKET};
 
 	/**
 	 * Fills the outbound httpMessage with the correct headers for the Head method

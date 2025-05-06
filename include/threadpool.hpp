@@ -16,14 +16,14 @@ namespace ThreadPool {
 
 	// linked list + other thread related data
 	typedef struct tpool {
-		miniVector::miniVector<Methods::resolver_data> ring_buffer;      // the jobs arranged in a threadBuffer
-		size_t                                         ring_write_index; // index of the next empty job
-		size_t                                         ring_read_index;  // index of the last job
-		sem_t                                          sempahore;        // semaphore to decide how many can get in the critical section
-		pthread_mutex_t                                mutex;            // mutex to enter the critical section
-		size_t                                         tCount;           // num of threads allocated in *threads
-		pthread_t                                     *threads;          // array of the pthreads started, it will not change once the tpoll is created
-		bool                                           stop;             // should the threads stop
+		miniVector::miniVector<Methods::resolver_data> ring_buffer;     // the jobs arranged in a threadBuffer
+		size_t                                         ring_data_count; // amount of stored data in the ring buffer
+		size_t                                         ring_read_index; // index of the last job
+		sem_t                                          sempahore;       // semaphore to decide how many can get in the critical section
+		pthread_mutex_t                                mutex;           // mutex to enter the critical section
+		size_t                                         thread_count;    // num of threads allocated in *threads
+		pthread_t                                     *threads;         // array of the pthreads started, it will not change once the tpoll is created
+		bool                                           stop;            // should the threads stop
 	} tpool;
 
 	/**
@@ -57,6 +57,6 @@ namespace ThreadPool {
 	 * @param tpool the thread pool where to put the job in
 	 * @param data the data that will be copied into the thread job
 	 */
-	void enque(tpool *tpool, const Methods::resolver_data *data);
+	void enqueue(tpool *tpool, const Methods::resolver_data *data);
 
 } // namespace ThreadPool
