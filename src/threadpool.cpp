@@ -117,38 +117,9 @@ Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {
 	if (tpool->ring_buffer.stored == 0) {
 		res = {nullptr, INVALID_SOCKET};
 	} else {
-		res = *ringBuffer::retrieve(&tpool->ring_buffer);
-		/*
-		* AddressSanitizer:DEADLYSIGNAL
-		* =================================================================
-		* ==24505==ERROR: AddressSanitizer: SEGV on unknown address 0x000000000008 (pc 0x57b0b83bd1af bp 0x78ef4f7fecd0 sp 0x78ef4f7fec40 T1)
-		* ==24505==The signal is caused by a READ memory access.
-		* ==24505==Hint: address points to the zero page.
-		    * #0 0x57b0b83bd1af in ThreadPool::dequeue(ThreadPool::tpool*) src/threadpool.cpp:125
-		    * #1 0x57b0b8338e21 in proxy_resReq(void*) src/server.cpp:47
-		    * #2 0x7cef5345e29a in asan_thread_start /usr/src/debug/gcc/gcc/libsanitizer/asan/asan_interceptors.cpp:239
-		    * #3 0x7cef528a57ea  (/usr/lib/libc.so.6+0x957ea) (BuildId: 468e3585c794491a48ea75fceb9e4d6b1464fc35)
-		    * #4 0x7cef5292918b  (/usr/lib/libc.so.6+0x11918b) (BuildId: 468e3585c794491a48ea75fceb9e4d6b1464fc35)
-		*
-		* ==24505==Register values:
-		* rax = 0x0000000000000000  rbx = 0x000078ef4c5419c0  rcx = 0x0000000000000000  rdx = 0x0000000000000000
-		* rdi = 0x000078ef50900090  rsi = 0x0000000000000014  rbp = 0x000078ef4f7fecd0  rsp = 0x000078ef4f7fec40
-		* r8 = 0x0000000000000000   r9 = 0x0000000000000000  r10 = 0x0000000000000000  r11 = 0x000078ef4f7ff6c0
-		* r12 = 0x000078ef4c541a20  r13 = 0x00000f1de98a8338  r14 = 0x000078ef4f7fec50  r15 = 0x000078ef50900090
-		* AddressSanitizer can not provide additional info.
-		* SUMMARY: AddressSanitizer: SEGV src/threadpool.cpp:125 in ThreadPool::dequeue(ThreadPool::tpool*)
-		* Thread T1 created by T0 here:
-		    * #0 0x7cef535174ac in pthread_create /usr/src/debug/gcc/gcc/libsanitizer/asan/asan_interceptors.cpp:250
-		    * #1 0x57b0b83bccf6 in ThreadPool::initialize(unsigned long, ThreadPool::tpool*) src/threadpool.cpp:60
-		    * #2 0x57b0b83384f3 in setup(cliArgs) src/main.cpp:92
-		    * #3 0x57b0b8337d45 in main src/main.cpp:21
-		    * #4 0x7cef528376b4  (/usr/lib/libc.so.6+0x276b4) (BuildId: 468e3585c794491a48ea75fceb9e4d6b1464fc35)
-		    * #5 0x7cef52837768 in __libc_start_main (/usr/lib/libc.so.6+0x27768) (BuildId: 468e3585c794491a48ea75fceb9e4d6b1464fc35)
-		    * #6 0x57b0b8330b34 in _start (/usr/local/bin/sns+0x1bb34) (BuildId: ad7fc3f3fc7eff0a7b000fe5f3e1059499f87006)
-
-		* ==24505==ABORTING
-
-		 */
+		auto ref = ringBuffer::retrieve(&tpool->ring_buffer);
+		res = *ref;
+		memset(ref, 0, sizeof(Methods::resolver_data));
 	}
 
 	// let the next one in

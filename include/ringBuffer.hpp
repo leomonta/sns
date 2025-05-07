@@ -106,8 +106,6 @@ namespace ringBuffer {
 
 		auto res = rngb->data + rngb->index;
 
-		memset(rngb->data + rngb->index, 0, sizeof(T));
-
 		++rngb->index;
 		rngb->index = rngb->index % rngb->count;
 		--rngb->stored;
@@ -133,7 +131,6 @@ namespace ringBuffer {
 		memcpy(rngb->data + write_index, element, sizeof(T));
 
 		++rngb->stored;
-		++rngb->index;
 	}
 
 	/**
