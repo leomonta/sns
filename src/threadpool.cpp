@@ -1,9 +1,9 @@
 #include "threadpool.hpp"
 
-#include "constants.hpp"
 #include "logger.h"
 #include "methods.hpp"
 #include "miniVector.hpp"
+#include "ringBuffer.hpp"
 #include "server.hpp"
 
 #include <asm-generic/errno-base.h>
@@ -18,11 +18,8 @@
 ThreadPool::tpool *ThreadPool::initialize(const size_t thread_count, tpool *res) {
 
 	// init linked list
-	res->ring_buffer       = miniVector::makeMiniVector<Methods::resolver_data>(thread_count);
-	res->ring_buffer.count = thread_count;
-	res->ring_data_count   = 0;
-	res->ring_read_index   = 0;
-	res->thread_count            = 0;
+	res->ring_buffer       = ringBuffer::make<Methods::resolver_data>(thread_count);
+	res->thread_count      = 0;
 	res->stop              = false;
 
 	// the semaphore is the one responsible for preventing race conditions
@@ -102,7 +99,7 @@ void ThreadPool::destroy(tpool *tp) {
 	free(tp->threads);
 
 	// freeing the leftover data (if any)
-	miniVector::destroyMiniVector(&tp->ring_buffer);
+	ringBuffer::destroy(&tp->ring_buffer);
 
 	pthread_mutex_destroy(&tp->mutex);
 	sem_destroy(&tp->sempahore);
@@ -113,21 +110,45 @@ Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {
 	// this takes care of letting pass n threads for n datas
 	sem_wait(&tpool->sempahore);
 	pthread_mutex_lock(&tpool->mutex);
-	// ---------------------------------------------------------------------------------------------- CRITICAL SECTION START
-
-	// I'm sure there is a job for a thread
+	// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CRITICAL SECTION START
 
 	Methods::resolver_data res;
 
-	if (tpool->ring_data_count == 0) {
+	if (tpool->ring_buffer.stored == 0) {
 		res = {nullptr, INVALID_SOCKET};
 	} else {
-		res = *miniVector::get(&tpool->ring_buffer, tpool->ring_read_index);
-		++tpool->ring_read_index;
-		--tpool->ring_data_count;
-		// tecnically this is not needed, the read_index has been moved
-		// but this smells of security vulnerability so...
-		miniVector::set(&tpool->ring_buffer, tpool->ring_read_index, &Methods::EMPTY_RESOLVER_DATA);
+		res = *ringBuffer::retrieve(&tpool->ring_buffer);
+		/*
+		* AddressSanitizer:DEADLYSIGNAL
+		* =================================================================
+		* ==24505==ERROR: AddressSanitizer: SEGV on unknown address 0x000000000008 (pc 0x57b0b83bd1af bp 0x78ef4f7fecd0 sp 0x78ef4f7fec40 T1)
+		* ==24505==The signal is caused by a READ memory access.
+		* ==24505==Hint: address points to the zero page.
+		    * #0 0x57b0b83bd1af in ThreadPool::dequeue(ThreadPool::tpool*) src/threadpool.cpp:125
+		    * #1 0x57b0b8338e21 in proxy_resReq(void*) src/server.cpp:47
+		    * #2 0x7cef5345e29a in asan_thread_start /usr/src/debug/gcc/gcc/libsanitizer/asan/asan_interceptors.cpp:239
+		    * #3 0x7cef528a57ea  (/usr/lib/libc.so.6+0x957ea) (BuildId: 468e3585c794491a48ea75fceb9e4d6b1464fc35)
+		    * #4 0x7cef5292918b  (/usr/lib/libc.so.6+0x11918b) (BuildId: 468e3585c794491a48ea75fceb9e4d6b1464fc35)
+		*
+		* ==24505==Register values:
+		* rax = 0x0000000000000000  rbx = 0x000078ef4c5419c0  rcx = 0x0000000000000000  rdx = 0x0000000000000000
+		* rdi = 0x000078ef50900090  rsi = 0x0000000000000014  rbp = 0x000078ef4f7fecd0  rsp = 0x000078ef4f7fec40
+		* r8 = 0x0000000000000000   r9 = 0x0000000000000000  r10 = 0x0000000000000000  r11 = 0x000078ef4f7ff6c0
+		* r12 = 0x000078ef4c541a20  r13 = 0x00000f1de98a8338  r14 = 0x000078ef4f7fec50  r15 = 0x000078ef50900090
+		* AddressSanitizer can not provide additional info.
+		* SUMMARY: AddressSanitizer: SEGV src/threadpool.cpp:125 in ThreadPool::dequeue(ThreadPool::tpool*)
+		* Thread T1 created by T0 here:
+		    * #0 0x7cef535174ac in pthread_create /usr/src/debug/gcc/gcc/libsanitizer/asan/asan_interceptors.cpp:250
+		    * #1 0x57b0b83bccf6 in ThreadPool::initialize(unsigned long, ThreadPool::tpool*) src/threadpool.cpp:60
+		    * #2 0x57b0b83384f3 in setup(cliArgs) src/main.cpp:92
+		    * #3 0x57b0b8337d45 in main src/main.cpp:21
+		    * #4 0x7cef528376b4  (/usr/lib/libc.so.6+0x276b4) (BuildId: 468e3585c794491a48ea75fceb9e4d6b1464fc35)
+		    * #5 0x7cef52837768 in __libc_start_main (/usr/lib/libc.so.6+0x27768) (BuildId: 468e3585c794491a48ea75fceb9e4d6b1464fc35)
+		    * #6 0x57b0b8330b34 in _start (/usr/local/bin/sns+0x1bb34) (BuildId: ad7fc3f3fc7eff0a7b000fe5f3e1059499f87006)
+
+		* ==24505==ABORTING
+
+		 */
 	}
 
 	// let the next one in
@@ -140,18 +161,9 @@ Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {
 void ThreadPool::enqueue(tpool *tpool, const Methods::resolver_data *data) {
 
 	pthread_mutex_lock(&tpool->mutex);
-	// ---------------------------------------------------------------------------------------------- CRITICAL SECTION START
+	// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CRITICAL SECTION START
 
-	// full ring buffer
-	if (tpool->ring_data_count == tpool->ring_buffer.count) {
-		miniVector::grow(&tpool->ring_buffer);
-		tpool->ring_buffer.count *= 2;
-	}
-
-	// else
-	miniVector::set(&tpool->ring_buffer, tpool->ring_read_index + tpool->ring_data_count, data);
-
-	++tpool->ring_data_count;
+	ringBuffer::append(&tpool->ring_buffer, data);
 
 	// notify anywating thread that there is data
 	sem_post(&tpool->sempahore);

@@ -6,26 +6,26 @@
 
 namespace miniVector {
 	template <typename T>
-	struct miniVector {
+	struct MiniVector {
 		T     *data;     // data ptr
 		size_t capacity; // total allocated bytes
 		size_t count;    // how many elements are stored at the moment / the first index that can be used
 	};
 
 	/**
-	 * Make a mini vector with a preallocated array of elementSize * initalCount lenght
+	 * Makes a MiniVector with a preallocated array of initial_count length
 	 *
-	 * @param `initialCapacity` how many bytes to preallocate;
+	 * @param `initial_count` how many elements to preallocate, defaults to 10 if zero is specified
 	 *
-	 * @return a built miniVector
+	 * @return a built MiniVector
 	 */
 	template <typename T>
-	miniVector<T> makeMiniVector(const size_t initial_capacity) {
-		auto capacity = initial_capacity == 0 ? 10 : initial_capacity;
+	MiniVector<T> make(const size_t initial_count) {
+		auto capacity = initial_count == 0 ? 10 : initial_count;
 
-		miniVector<T> res = {
+		MiniVector<T> res = {
 		    .data     = static_cast<T *>(malloc(capacity * sizeof(T))),
-		    .capacity = initial_capacity * sizeof(T),
+		    .capacity = capacity * sizeof(T),
 		    .count    = 0,
 		};
 
@@ -36,10 +36,10 @@ namespace miniVector {
 	/**
 	 * Frees all the resource allocated by vec
 	 *
-	 * @param `vec` the vector the destroy
+	 * @param `vec` the MiniVector the destroy
 	 */
 	template <typename T>
-	void destroyMiniVector(miniVector<T> *vec) {
+	void destroy(MiniVector<T> *vec) {
 
 		free(vec->data);
 
@@ -52,10 +52,10 @@ namespace miniVector {
 	/**
 	 * Doubles the capacity of the given vector
 	 *
-	 * @param `vec` the vector to grow
+	 * @param `vec` the MiniVector to grow
 	 */
 	template <typename T>
-	void grow(miniVector<T> *vec) {
+	void grow(MiniVector<T> *vec) {
 
 		vec->data = static_cast<T *>(realloc(vec->data, vec->capacity * 2));
 		vec->capacity *= 2;
@@ -67,13 +67,13 @@ namespace miniVector {
 	/**
 	 * Return the element at the specified position
 	 *
-	 * @param `vec` the vector to get the element from
+	 * @param `vec` the MiniVector to get the element from
 	 * @param `index` the position the element should be
 	 *
 	 * @return the pointer to the element at pos index
 	 */
 	template <typename T>
-	T *get(const miniVector<T> *vec, const size_t index) {
+	T *get(const MiniVector<T> *vec, const size_t index) {
 
 		if (index >= vec->count) {
 			// invalid pos
@@ -86,12 +86,12 @@ namespace miniVector {
 	/**
 	 * Set the element at index to the element given
 	 *
-	 * @param `vec` the vector to work on
+	 * @param `vec` the MiniVector to work on
 	 * @param `index` the index to replace the element at, if the index is out of bounds no operation is performed
 	 * @param `element` the element to replace that will replace the one already in the vectori. Must not be nullptr
 	 */
 	template <typename T>
-	void set(miniVector<T> *vec, const size_t index, const T *element) {
+	void set(MiniVector<T> *vec, const size_t index, const T *element) {
 
 		if (index < vec->count) {
 			memcpy(vec->data + index, element, sizeof(T));
@@ -99,14 +99,14 @@ namespace miniVector {
 	}
 
 	/**
-	 * append an element of the previously specified size at the end of the vector
+	 * Append an element at the end of the MiniVector
 	 * the element is bytecopied in the internal array
 	 *
-	 * @param `vec` the miniVecor where to append the data
+	 * @param `vec` the MiniVector where to append the data
 	 * @param `element` a pointer to the data to be appended
 	 */
 	template <typename T>
-	void append(miniVector<T> *vec, const T *element) {
+	void append(MiniVector<T> *vec, const T *element) {
 		if (vec->count == vec->capacity / sizeof(T)) {
 			grow(vec);
 		}
@@ -119,13 +119,13 @@ namespace miniVector {
 	/**
 	 * Insert the given value at the given index, shofting (and eventaully growing) the rest of the vector
 	 *
-	 * @param `vec` the vector to work on
+	 * @param `vec` the MiniVector to work on
 	 * @param `index` where to insert the given value
 	 * @param `element` the element to insert
 	 *
 	 */
 	template <typename T>
-	void insert(miniVector<T> *vec, const size_t index, const T *element) {
+	void insert(MiniVector<T> *vec, const size_t index, const T *element) {
 		if (index >= vec->count) {
 			// invalid position
 			return;
@@ -152,11 +152,11 @@ namespace miniVector {
 	/**
 	 * Renove the element at the given index and moves every element after to keep the data contiguous
 	 *
-	 * @param `vec` the miniVector to remove an element from
+	 * @param `vec` the MiniVector to remove an element from
 	 * @param `index` the index of the element to be removed, if it is out of bounds no operation is performed
 	 */
 	template <typename T>
-	void remove(miniVector<T> *vec, const size_t index) {
+	void remove(MiniVector<T> *vec, const size_t index) {
 
 		// we cant just overwrite the position to erase when
 		// index is out of bound, > count or
@@ -168,7 +168,7 @@ namespace miniVector {
 
 		if (index < vec->count - 1) {
 			// just copy over it, no need to do anything else really
-			memcpy(vec[index], vec[index + 1], (vec->count - index) * sizeof(T));
+			memcpy(vec->data + index, vec->data + index + 1, (vec->count - index - 1) * sizeof(T));
 		}
 
 		--vec->count;

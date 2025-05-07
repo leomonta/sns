@@ -144,7 +144,7 @@ namespace http {
 		u_char                                           m_version;                    // the version of the http header (1.0, 1.1, 2.0, ...)
 		const char                                      *m_rawMessage_a;               // the c string containing the entire header, the _a means it's heap allocated
 		size_t                                           m_headerLen;                  // how many bytes are there in the header
-		miniMap::miniMap<stringRef, stringRef> m_parameters;                 // contain the data sent in the forms and query parameters
+		miniMap::MiniMap<stringRef, stringRef> m_parameters;                 // contain the data sent in the forms and query parameters
 		stringRef                                   m_headerOptions[RQ_ENUM_LEN]; // an 'hash map' where to store the decoded header options
 		stringRef                                   m_url;                        // the resource asked from the client
 		stringRef                                   m_body;                       // the content of the message, what the message is about
@@ -154,7 +154,7 @@ namespace http {
 
 		u_short                             m_statusCode;    // 200, 404, 500, etc etc
 		u_char                              m_version;       // the version of the http header (1.0, 1.1, 2.0, ...)
-		miniMap::miniMap<u_char, stringOwn> m_headerOptions; // represent the header as the collection of the single options -> value
+		miniMap::MiniMap<u_char, stringOwn> m_headerOptions; // represent the header as the collection of the single options -> value
 		size_t                              m_headerLen;     // how many bytes are there in the header
 		stringOwn                           m_body;          // the content of the message, what the message is about
 		stringOwn                           m_filename;      // the internal complete filename for the resource present in the body

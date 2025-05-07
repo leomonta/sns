@@ -5,7 +5,6 @@
 #include "stringRef.hpp"
 #include "utils.hpp"
 
-#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <logger.h>
@@ -26,7 +25,7 @@ http::inboundHttpMessage http::makeInboundMessage(const char *str) {
 	memcpy(temp, str, msgLen + 1);
 
 	res.m_rawMessage_a = temp;
-	res.m_parameters   = miniMap::makeMiniMap<stringRef, stringRef>(10);
+	res.m_parameters   = miniMap::make<stringRef, stringRef>(10);
 
 	// body and header are divided by two newlines
 	auto msgSeparator = strstr(res.m_rawMessage_a, "\r\n\r\n");
@@ -60,7 +59,7 @@ void http::destroyInboundHttpMessage(http::inboundHttpMessage *mex) {
 		free(const_cast<char *>(mex->m_rawMessage_a));
 	}
 
-	miniMap::destroyMiniMap(&mex->m_parameters);
+	miniMap::destroy(&mex->m_parameters);
 }
 
 void http::destroyOutboundHttpMessage(http::outboundHttpMessage *mex) {
@@ -70,7 +69,7 @@ void http::destroyOutboundHttpMessage(http::outboundHttpMessage *mex) {
 		free(mex->m_headerOptions.values.data[i].str);
 	}
 
-	miniMap::destroyMiniMap(&mex->m_headerOptions);
+	miniMap::destroy(&mex->m_headerOptions);
 	free(mex->m_body.str);
 	free(mex->m_filename.str);
 }
