@@ -1,26 +1,24 @@
-#include "threadpool.hpp"
+#include "threadpool.h"
 
+#include "RingBuffer_ResolverData.h"
 #include "logger.h"
-#include "methods.hpp"
-#include "miniVector.hpp"
-#include "ringBuffer.hpp"
-#include "server.hpp"
+#include "methods.h"
+#include "server.h"
 
-#include <asm-generic/errno-base.h>
-#include <cerrno>
-#include <cstdlib>
-#include <cstring>
+#include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <stdlib.h>
+#include <string.h>
 #include <tcpConn.h>
 
-ThreadPool::tpool *ThreadPool::initialize(const size_t thread_count, tpool *res) {
+ThreadPool *initialize_threadpool(const size_t thread_count, ThreadPool *res) {
 
 	// init linked list
-	res->ring_buffer       = ringBuffer::make<Methods::resolver_data>(thread_count);
-	res->thread_count      = 0;
-	res->stop              = false;
+	res->ring_buffer  = RingBuffer_ResolverData_make(thread_count);
+	res->thread_count = 0;
+	res->stop         = false;
 
 	// the semaphore is the one responsible for preventing race conditions
 	auto errCode = sem_init(&res->sempahore, 0, 0);
@@ -29,7 +27,6 @@ ThreadPool::tpool *ThreadPool::initialize(const size_t thread_count, tpool *res)
 	}
 
 	// Linux `man pthread_mutex_init` tells me this always returns 0
-	// but pthread `man pthread_mutex_init` tells me this returns non zero on error
 	// better safe than sorry?
 	errCode = pthread_mutex_init(&res->mutex, NULL);
 
@@ -51,10 +48,10 @@ ThreadPool::tpool *ThreadPool::initialize(const size_t thread_count, tpool *res)
 		break;
 	}
 
-	res->threads = (pthread_t *)(malloc(thread_count * sizeof(pthread_t)));
+	res->threads = malloc(thread_count * sizeof(pthread_t));
 
 	for (size_t i = 0; i < thread_count; ++i) {
-		errCode = pthread_create(&res->threads[res->thread_count], NULL, proxy_resReq, (void *)(res));
+		errCode = pthread_create(&res->threads[res->thread_count], NULL, proxy_res_req, (void *)(res));
 		switch (errCode) {
 		case EINVAL:
 			// since I don't use attr for the pthread this should never happen
@@ -78,7 +75,7 @@ ThreadPool::tpool *ThreadPool::initialize(const size_t thread_count, tpool *res)
 	return res;
 }
 
-void ThreadPool::destroy(tpool *tp) {
+void destroy_threadpool(ThreadPool *tp) {
 
 	// stops all threads
 	tp->stop = true;
@@ -99,27 +96,25 @@ void ThreadPool::destroy(tpool *tp) {
 	free(tp->threads);
 
 	// freeing the leftover data (if any)
-	ringBuffer::destroy(&tp->ring_buffer);
+	RingBuffer_ResolverData_destroy(&tp->ring_buffer);
 
 	pthread_mutex_destroy(&tp->mutex);
 	sem_destroy(&tp->sempahore);
 }
 
-Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {
+ResolverData dequeue_threadpool(ThreadPool *tpool) {
 
 	// this takes care of letting pass n threads for n datas
 	sem_wait(&tpool->sempahore);
 	pthread_mutex_lock(&tpool->mutex);
 	// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CRITICAL SECTION START
 
-	Methods::resolver_data res;
+	ResolverData res;
 
 	if (tpool->ring_buffer.stored == 0) {
-		res = {nullptr, INVALID_SOCKET};
+		res = (ResolverData){nullptr, INVALID_SOCKET};
 	} else {
-		auto ref = ringBuffer::retrieve(&tpool->ring_buffer);
-		res = *ref;
-		memset(ref, 0, sizeof(Methods::resolver_data));
+		RingBuffer_ResolverData_retrieve(&tpool->ring_buffer, &res);
 	}
 
 	// let the next one in
@@ -129,12 +124,12 @@ Methods::resolver_data ThreadPool::dequeue(tpool *tpool) {
 	return res;
 }
 
-void ThreadPool::enqueue(tpool *tpool, const Methods::resolver_data *data) {
+void enqueue_threadpool(ThreadPool *tpool, const ResolverData *data) {
 
 	pthread_mutex_lock(&tpool->mutex);
 	// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CRITICAL SECTION START
 
-	ringBuffer::append(&tpool->ring_buffer, data);
+	RingBuffer_ResolverData_append(&tpool->ring_buffer, data);
 
 	// notify anywating thread that there is data
 	sem_post(&tpool->sempahore);

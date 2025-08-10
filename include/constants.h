@@ -1,11 +1,8 @@
 #pragma once
 
-#include "stringRef.hpp"
+#include "StringRef.h"
 
-#include <cstring>
-#include <sys/types.h>
-
-const static stringRef methods_strR[] = {
+static const StringRef methods_str[] = {
     TO_STRINGREF("HTTP_INVALID"),
     TO_STRINGREF("GET"),
     TO_STRINGREF("HEAD"),
@@ -18,8 +15,17 @@ const static stringRef methods_strR[] = {
     TO_STRINGREF("PATCH"),
 };
 
+static const StringRef versions_str[] = {
+    TO_STRINGREF("undefined"),
+    TO_STRINGREF("HTTP/0.9"),
+    TO_STRINGREF("HTTP/1.0"),
+    TO_STRINGREF("HTTP/1.1"),
+    TO_STRINGREF("HTTP/2"),
+    TO_STRINGREF("HTTP/3"),
+};
+
 // Beautifully compile-time evaluated lookup tables for header options
-const static stringRef headerRqStr[] = {
+static const StringRef header_request_options_str[] = {
     TO_STRINGREF("A-IM"),
     TO_STRINGREF("Accept"),
     TO_STRINGREF("Accept-Charset"),
@@ -63,7 +69,7 @@ const static stringRef headerRqStr[] = {
     TO_STRINGREF("Warning"),
 };
 
-const static stringRef headerRpStr[] = {
+static const StringRef header_response_options_str[] = {
     TO_STRINGREF("Accept-CH"),
     TO_STRINGREF("Access-Control-Allow-Origin"),
     TO_STRINGREF("Access-Control-Allow-Credentials"),
@@ -117,7 +123,7 @@ const static stringRef headerRpStr[] = {
 
 // keeping this for consistency with the other strings
 // but this should not be used
-const static stringRef reasonPhrases[] = {
+static const StringRef reason_phrases_str[] = {
     TO_STRINGREF("Continue"),
     TO_STRINGREF("Switching Protocols"),
     TO_STRINGREF("OK"),
@@ -159,90 +165,5 @@ const static stringRef reasonPhrases[] = {
     TO_STRINGREF("Gateway Time-out"),
     TO_STRINGREF("HTTP Version not supported")};
 
-inline stringRef getReasonPhrase(u_short statusCode) {
-
-	switch (statusCode) {
-	case 100:
-		return TO_STRINGREF("Continue");
-	case 101:
-		return TO_STRINGREF("Switching Protocols");
-	case 200:
-		return TO_STRINGREF("OK");
-	case 201:
-		return TO_STRINGREF("Created");
-	case 202:
-		return TO_STRINGREF("Accepted");
-	case 203:
-		return TO_STRINGREF("Non-Authoritative Information");
-	case 204:
-		return TO_STRINGREF("No Content");
-	case 205:
-		return TO_STRINGREF("Reset Content");
-	case 206:
-		return TO_STRINGREF("Partial Content");
-	case 300:
-		return TO_STRINGREF("Multiple Choices");
-	case 301:
-		return TO_STRINGREF("Moved Permanently");
-	case 302:
-		return TO_STRINGREF("Found");
-	case 303:
-		return TO_STRINGREF("See Other");
-	case 304:
-		return TO_STRINGREF("Not Modified");
-	case 305:
-		return TO_STRINGREF("Use Proxy");
-	case 307:
-		return TO_STRINGREF("Temporary Redirect");
-	case 400:
-		return TO_STRINGREF("Bad Request");
-	case 401:
-		return TO_STRINGREF("Unauthorized");
-	case 402:
-		return TO_STRINGREF("Payment Required");
-	case 403:
-		return TO_STRINGREF("Forbidden");
-	case 404:
-		return TO_STRINGREF("Not Found");
-	case 405:
-		return TO_STRINGREF("Method Not Allowed");
-	case 406:
-		return TO_STRINGREF("Not Acceptable");
-	case 407:
-		return TO_STRINGREF("Proxy Authentication Required");
-	case 408:
-		return TO_STRINGREF("Request Time-out");
-	case 409:
-		return TO_STRINGREF("Conflict");
-	case 410:
-		return TO_STRINGREF("Gone");
-	case 411:
-		return TO_STRINGREF("Length Required");
-	case 412:
-		return TO_STRINGREF("Precondition Failed");
-	case 413:
-		return TO_STRINGREF("Request Entity Too Large");
-	case 414:
-		return TO_STRINGREF("Request-URI Too Large");
-	case 415:
-		return TO_STRINGREF("Unsupported Media Type");
-	case 416:
-		return TO_STRINGREF("Requested range not satisfiable");
-	case 417:
-		return TO_STRINGREF("Expectation Failed");
-	case 500:
-		return TO_STRINGREF("Internal Server Error");
-	case 501:
-		return TO_STRINGREF("Not Implemented");
-	case 502:
-		return TO_STRINGREF("Bad Gateway");
-	case 503:
-		return TO_STRINGREF("Service Unavailable");
-	case 504:
-		return TO_STRINGREF("Gateway Time-out");
-	case 505:
-		return TO_STRINGREF("HTTP Version not supported");
-	default:
-		return TO_STRINGREF("UNKN");
-	}
-}
+constexpr unsigned char server_version_major = 4;
+constexpr unsigned char server_version_minor = 0;

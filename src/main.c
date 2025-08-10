@@ -1,21 +1,21 @@
-#include "main.hpp"
+#include "main.h"
 
 #include "logger.h"
-#include "threadpool.hpp"
-#include "utils.hpp"
+#include "threadpool.h"
+#include "utils.h"
 
-#include <csignal>
-#include <cstdio>
+#include <errno.h>
+#include <signal.h>
+#include <stdio.h>
 #include <sslConn.h>
 #include <tcpConn.h>
-#include <thread>
 
 int main(const int argc, const char *argv[]) {
 
 	signal(SIGPIPE, &SIGPIPE_handler);
 
 	// Get port and directory, maybe
-	auto args = parseArgs(argc, argv);
+	auto args = parse_args(argc, argv);
 
 	// setup the tcp server socket and the ssl context
 	auto runInfo = setup(args);
@@ -37,16 +37,16 @@ int main(const int argc, const char *argv[]) {
 		trimwhitespace(line);
 
 		// simple commands
-		if (streq(line, "exit") || streq(line, "quit")) {
+		if (strncmp(line, "exit", 4) == 0 || strncmp(line, "quit", 4) == 0) {
 			stop(&runInfo);
 			break;
 		}
 
-		if (streq(line, "restart")) {
+		if (strncmp(line, "restart", 7) == 0) {
 			restart(args, &runInfo);
 		}
 
-		if (streq(line, "time")) {
+		if (strncmp(line, "time", 4) == 0) {
 			time_t now   = time(nullptr) - runInfo.startTime;
 			long   days  = now / (60 * 60 * 24);
 			long   hours = now / (60 * 60) % 24;
@@ -60,14 +60,14 @@ int main(const int argc, const char *argv[]) {
 	return 0;
 }
 
-runtimeInfo setup(cliArgs args) {
+RuntimeInfo setup(CliArgs args) {
 
 	// initializing methods data
-	Methods::setup(args.baseDir);
+	setup_methods(&args.baseDir);
 
 	errno = 0;
 
-	runtimeInfo res;
+	RuntimeInfo res;
 
 	// initializing the tcp Server
 	res.serverSocket = TCP_initialize_server(args.tcpPort, 4);
@@ -89,20 +89,20 @@ runtimeInfo setup(cliArgs args) {
 	llog(LOG_INFO, "[SSL] Context created\n");
 
 	// finally creating the threadPool
-	ThreadPool::initialize(std::thread::hardware_concurrency(), &res.threadPool);
+	initialize_threadpool(20, &res.threadPool);
 
 	llog(LOG_INFO, "[THREAD POOL] Started the listenings threads\n");
 
 	return res;
 }
 
-void stop(runtimeInfo *rti) {
+void stop(RuntimeInfo *rti) {
 
 	TCP_terminate(rti->serverSocket);
 
 	// tpool stop
 	rti->threadPool.stop = true;
-	ThreadPool::destroy(&rti->threadPool);
+	destroy_threadpool(&rti->threadPool);
 	llog(LOG_INFO, "[SERVER] Sent stop message to all threads\n");
 
 	// thread stop
@@ -116,14 +116,14 @@ void stop(runtimeInfo *rti) {
 	llog(LOG_INFO, "[SERVER] Server stopped\n");
 }
 
-void start(runtimeInfo *rti) {
+void start(RuntimeInfo *rti) {
 
 	rti->threadPool.stop = false;
 
 #ifdef NO_THREADING
 	proxy_accReq(rti);
 #else
-	pthread_create(&rti->requestAcceptor, NULL, proxy_accReq, rti);
+	pthread_create(&rti->requestAcceptor, NULL, proxy_acc_req, rti);
 #endif
 
 	llog(LOG_DEBUG, "[SERVER] ReqeustAcceptorSecure thread Started\n");
@@ -131,31 +131,31 @@ void start(runtimeInfo *rti) {
 	rti->startTime = time(nullptr);
 }
 
-void restart(cliArgs ca, runtimeInfo *rti) {
+void restart(CliArgs ca, RuntimeInfo *rti) {
 
 	stop(rti);
-	setup(ca);
+	setup_methods(&ca.baseDir);
 	start(rti);
 }
 
-cliArgs parseArgs(const int argc, const char *argv[]) {
+CliArgs parse_args(const int argc, const char *argv[]) {
 
 	// server directory port
 	//    0       1      2
 
-	cliArgs res{
+	CliArgs res = {
 	    443,
 	    {nullptr, 0}
     };
 
 	switch (argc) {
 	case 3:
-		res.tcpPort = static_cast<unsigned short>(std::atoi(argv[2]));
+		res.tcpPort = (unsigned short)(atoi(argv[2]));
 		llog(LOG_DEBUG, "[SERVER] Read port %d from cli args\n", res.tcpPort);
 		[[fallthrough]];
 
 	case 2:
-		res.baseDir = {argv[1], strlen(argv[1])};
+		res.baseDir = (StringRef) {argv[1], strlen(argv[1])};
 		llog(LOG_DEBUG, "[SERVER] Read directory %s from cli args\n", argv[1]);
 		break;
 	case 1:

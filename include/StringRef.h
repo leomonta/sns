@@ -13,22 +13,25 @@
  *
  * To copy a `stringOwn` new memory should be reserved and copied.
  */
-#include <cstddef>
+#include <stddef.h>
+#include <string.h>
 
 #define TO_STRINGREF(str) \
-	{str, strlen(str)}
+	{str, sizeof(str)}
+
+#define CAST_STRINGREF(str) (StringRef){str, strlen(str)}
 
 // Owning string
-typedef struct stringOwn {
-	char  *str = nullptr;
-	size_t len = 0;
-} stringOwn;
+typedef struct {
+	char  *str;
+	size_t len;
+} StringOwn;
 
 // Non owning substring
-typedef struct stringRef {
-	const char *str = nullptr;
-	size_t      len = 0;
-} stringRef;
+typedef struct {
+	const char *str;
+	size_t      len;
+} StringRef;
 
-bool equal(const stringOwn *lhs, const stringOwn *rhs);
-bool equal(const stringRef *lhs, const stringRef *rhs);
+bool equal_StringOwn(const StringOwn *lhs, const StringOwn *rhs);
+bool equal_StringRef(const StringRef *lhs, const StringRef *rhs);

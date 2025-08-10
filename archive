@@ -1,0 +1,2 @@
+#|/bin/bash
+ar rcsl "-ldl -lz -lcrypto -lssl -lnetTcpSslDebug" -o bin/libsns obj/debug/srcutils.o obj/debug/srcstringRef.o obj/debug/srcmain.o obj/debug/srcserver.o obj/debug/srchttpMessage.o obj/debug/srcmethods.o obj/debug/srcmimeTypes.o obj/debug/srcthreadpool.o

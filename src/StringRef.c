@@ -1,8 +1,8 @@
-#include "stringRef.hpp"
+#include "StringRef.h"
 
-#include <cstring>
+#include <string.h>
 
-bool equal(const stringOwn *lhs, const stringOwn *rhs) {
+bool equal_StringOwn(const StringOwn *lhs, const StringOwn *rhs) {
 	if (lhs->len != rhs->len) {
 		return false;
 	}
@@ -10,7 +10,7 @@ bool equal(const stringOwn *lhs, const stringOwn *rhs) {
 	return strncmp(lhs->str, rhs->str, lhs->len);
 }
 
-bool equal(const stringRef *lhs, const stringRef *rhs) {
+bool equal_StringRef(const StringRef *lhs, const StringRef *rhs) {
 	if (lhs->len != rhs->len) {
 		return false;
 	}

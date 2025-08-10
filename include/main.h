@@ -1,12 +1,12 @@
 #pragma once
 
-#include "server.hpp"
-#include "stringRef.hpp"
+#include "StringRef.h"
+#include "server.h"
 
-struct cliArgs {
+typedef struct {
 	unsigned short tcpPort;
-	stringRef      baseDir;
-};
+	StringRef      baseDir;
+} CliArgs;
 
 /**
  * given the cli arguments set's the server options accordingly
@@ -14,26 +14,26 @@ struct cliArgs {
  * @param argc the count of arguments
  * @param argv the values of the arguments
  */
-cliArgs parseArgs(const int argc, const char *argv[]);
+CliArgs parse_args(const int argc, const char *argv[]);
 
 /**
  * Setup the server, loads libraries and stuff
  *
  * to call one
  */
-runtimeInfo setup(cliArgs args);
+RuntimeInfo setup(CliArgs args);
 
 /**
  * stop the server and its threads
  */
-void stop(runtimeInfo *rti);
+void stop(RuntimeInfo *rti);
 
 /**
  * stop and immediatly starts the server again
  */
-void restart(cliArgs ca, runtimeInfo *rti);
+void restart(CliArgs ca, RuntimeInfo *rti);
 
 /**
  * starts the server main thread
  */
-void start(runtimeInfo *rti);
+void start(RuntimeInfo *rti);
