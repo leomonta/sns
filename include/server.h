@@ -11,7 +11,7 @@ typedef struct {
 	Socket     serverSocket;
 	SSL_CTX   *sslContext;
 	time_t     startTime;
-	ThreadPool threadPool;
+	ThreadPool thread_pool;
 } RuntimeInfo;
 
 void SIGPIPE_handler(int os);

@@ -70,7 +70,7 @@ void accept_requests(RuntimeInfo *rti) {
 	};
 
 	// Receive until the peer shuts down the connection
-	while (!rti->threadPool.stop) {
+	while (!rti->thread_pool.stop) {
 
 		// infinetly wait for the socket to become usable
 		poll(&ss, 1, -1);
@@ -101,7 +101,7 @@ void accept_requests(RuntimeInfo *rti) {
 #ifdef NO_THREADING
 		proxy_resReq(t_data);
 #else
-		enqueue_threadpool(&rti->threadPool, &t_data);
+		enqueue_threadpool(&rti->thread_pool, &t_data);
 #endif
 	}
 }

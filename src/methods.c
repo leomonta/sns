@@ -255,6 +255,8 @@ void get_content_type(const StringRef *filetype, StringRef *result) {
 }
 
 void setup_methods(StringRef *str) {
+	resources.mime_types = MiniMap_StringRef_StringRef_make(10);
+
 	setup_content_types(&resources.mime_types);
 	resources.base_directory.str = copy_StringRef(str);
 	resources.base_directory.len = str->len;

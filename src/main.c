@@ -10,6 +10,8 @@
 #include <sslConn.h>
 #include <tcpConn.h>
 
+static RuntimeInfo res;
+
 int main(const int argc, const char *argv[]) {
 
 	signal(SIGPIPE, &SIGPIPE_handler);
@@ -67,8 +69,6 @@ RuntimeInfo setup(CliArgs args) {
 
 	errno = 0;
 
-	RuntimeInfo res;
-
 	// initializing the tcp Server
 	res.serverSocket = TCP_initialize_server(args.tcpPort, 4);
 
@@ -89,7 +89,7 @@ RuntimeInfo setup(CliArgs args) {
 	llog(LOG_INFO, "[SSL] Context created\n");
 
 	// finally creating the threadPool
-	initialize_threadpool(20, &res.threadPool);
+	initialize_threadpool(20, &res.thread_pool);
 
 	llog(LOG_INFO, "[THREAD POOL] Started the listenings threads\n");
 
@@ -101,8 +101,8 @@ void stop(RuntimeInfo *rti) {
 	TCP_terminate(rti->serverSocket);
 
 	// tpool stop
-	rti->threadPool.stop = true;
-	destroy_threadpool(&rti->threadPool);
+	rti->thread_pool.stop = true;
+	destroy_threadpool(&rti->thread_pool);
 	llog(LOG_INFO, "[SERVER] Sent stop message to all threads\n");
 
 	// thread stop
@@ -118,7 +118,7 @@ void stop(RuntimeInfo *rti) {
 
 void start(RuntimeInfo *rti) {
 
-	rti->threadPool.stop = false;
+	rti->thread_pool.stop = false;
 
 #ifdef NO_THREADING
 	proxy_accReq(rti);
@@ -126,7 +126,7 @@ void start(RuntimeInfo *rti) {
 	pthread_create(&rti->requestAcceptor, NULL, proxy_acc_req, rti);
 #endif
 
-	llog(LOG_DEBUG, "[SERVER] ReqeustAcceptorSecure thread Started\n");
+	llog(LOG_DEBUG, "[SERVER] Request acceptor thread Started\n");
 
 	rti->startTime = time(nullptr);
 }
@@ -151,17 +151,19 @@ CliArgs parse_args(const int argc, const char *argv[]) {
 	switch (argc) {
 	case 3:
 		res.tcpPort = (unsigned short)(atoi(argv[2]));
-		llog(LOG_DEBUG, "[SERVER] Read port %d from cli args\n", res.tcpPort);
+		llog(LOG_DEBUG, "[CLI] Read port %d from cli args\n", res.tcpPort);
 		[[fallthrough]];
 
 	case 2:
 		res.baseDir = (StringRef) {argv[1], strlen(argv[1])};
-		llog(LOG_DEBUG, "[SERVER] Read directory %s from cli args\n", argv[1]);
+		llog(LOG_DEBUG, "[CLI] Read directory %s from cli args\n", argv[1]);
 		break;
 	case 1:
-		llog(LOG_FATAL, "[SERVER] No base directory given, exiting\n");
+		llog(LOG_FATAL, "[CLI] No base directory given, exiting\n");
 		exit(1);
 	}
+
+	llog(LOG_DEBUG, "[CLI] Successfully parsed cli args\n");
 
 	return res;
 }
