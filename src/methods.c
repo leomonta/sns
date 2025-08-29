@@ -34,27 +34,26 @@ int Head(const InboundHttpMessage *request, OutboundHttpMessage *response) {
 	// info about the file requested, to not recheck later
 	int file_info = FILE_FOUND;
 
-	StringOwn dst = {(char *)(request->url.len + 1), request->url.len + 1};
-	memcpy(dst.str, request->url.str, request->url.len);
+	StringOwn dst             = {malloc(request->url.len + 1), request->url.len + 1};
 	dst.str[request->url.len] = '\0';
 
 	// since the source is always longer or the same length of the output i can decode in-place
-	url_decode(&dst, (StringRef *)(&dst));
-	size_t url_len = strlen(dst.str);
+	url_decode(&dst, (StringRef *)(&request->url));
+	dst.len = strlen(dst.str);
 
 	// allocate space for, the base dir + the filename + index.html that might be added on top
-	size_t    file_str_len = resources.base_directory.len + url_len + INDEX_HTML_LEN + 1;
+	size_t    file_str_len = resources.base_directory.len + dst.len + INDEX_HTML_LEN + 1;
 	StringOwn file         = {malloc(file_str_len), file_str_len};
 
 	file.str[file_str_len - 1] = '\0';
 
 	strncpy(file.str, resources.base_directory.str, resources.base_directory.len);
 	size_t file_end = resources.base_directory.len;
-	strncpy(file.str + file_end, dst.str, url_len);
-	file_end += url_len;
+	strncpy(file.str + file_end, dst.str, dst.len);
+	file_end += dst.len;
 	file.str[file_end] = '\0';
 
-	llog(LOG_DEBUG, "[SERVER] Decoded '%s'\n", dst);
+	llog(LOG_DEBUG, "[SERVER] Decoded '%s'\n", dst.str);
 
 	free(dst.str);
 
@@ -87,9 +86,9 @@ int Head(const InboundHttpMessage *request, OutboundHttpMessage *response) {
 	// insert in the response message the necessaire header options, filename is used to determine the response code
 	compose_header((StringRef *)&file, response, file_info);
 
-	StringOwn file_size     = num_to_string((size_t)file_stat.st_size);
+	StringRef sz            = {"0", 1};
 	StringRef cache_control = {"max-age=3600", 12};
-	add_header_option(RP_CONTENT_LENGTH, (StringRef *)&file_size, response);
+	add_header_option(RP_CONTENT_LENGTH, &sz, response);
 	add_header_option(RP_CACHE_CONTROL, &cache_control, response);
 
 	set_filename((StringRef *)&file, response);
@@ -113,6 +112,7 @@ void Get(const InboundHttpMessage *request, OutboundHttpMessage *response) {
 		uncompressed = Not_Found_Page;
 		do_free      = false;
 	}
+
 	// else defer free (uncompressed.str)
 
 	StringOwn compressed = {nullptr, 0};
@@ -173,10 +173,11 @@ void compose_header(const StringRef *filename, OutboundHttpMessage *msg, const i
 	add_header_option(RP_CONNECTION, &connection, msg);
 	StringRef vary = {"Accept-Encoding", 15};
 	add_header_option(RP_VARY, &vary, msg);
-	StringOwn server = {"sns/x.x (ArchLinux64)", 21};
+	char buffer[22];
 
-	server.str[4] = '0' + server_version_major;
-	server.str[6] = '0' + server_version_minor;
+	snprintf(buffer, 22, "sns/%c.%c (ArchLinux64)", '0' + server_version_major, '0' + server_version_minor);
+
+	StringOwn server = {buffer, 21};
 
 	add_header_option(RP_SERVER, (StringRef *)&server, msg);
 }
@@ -197,24 +198,24 @@ StringOwn get_content(const StringOwn *path, const int file_info) {
 			fseek(f, 0, SEEK_END);
 			content.len = (size_t)ftell(f);
 			fseek(f, 0, SEEK_SET);
-			content.str = malloc(content.len);
+			content.str = malloc(content.len + 1);
 			if (content.str) {
 				fread(content.str, 1, content.len, f);
 			}
 			fclose(f);
+			content.str[content.len - 1] = '\0';
 		}
 	}
 
 	/*
 	if (content.len == 0) {
 
-		if (file_info == FILE_IS_DIR_NOT_FOUND) {
-			llog(LOG_WARNING, "[SERVER] File not found. Loading the dir view\n");
-			content = get_dir_view((StringRef *)path);
-		}
+	    if (file_info == FILE_IS_DIR_NOT_FOUND) {
+	        llog(LOG_WARNING, "[SERVER] File not found. Loading the dir view\n");
+	        content = get_dir_view((StringRef *)path);
+	    }
 	}
 	*/
-	
 
 	return content;
 }
@@ -226,17 +227,17 @@ StringOwn get_dir_view(const StringRef *path) {
 	std::string dirItems;
 
 	for (const auto &entry : std::filesystem::directory_iterator(path)) {
-		auto        filename  = static_cast<std::string>(entry.path().filename());
-		auto        url       = filename;
-		auto        cftime    = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(entry.last_write_time()));
-		std::string timestamp = std::asctime(std::localtime(&cftime));
-		// timestamp.pop_back(); // remove the trailing \n
+	    auto        filename  = static_cast<std::string>(entry.path().filename());
+	    auto        url       = filename;
+	    auto        cftime    = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(entry.last_write_time()));
+	    std::string timestamp = std::asctime(std::localtime(&cftime));
+	    // timestamp.pop_back(); // remove the trailing \n
 
-		std::string item = Dir_View_Page_Item;
-		item             = std::regex_replace(item, std::regex("URL"), url);
-		item             = std::regex_replace(item, std::regex("FILENAME"), filename);
-		item             = std::regex_replace(item, std::regex("TIMESTAMP"), timestamp);
-		dirItems.append(item);
+	    std::string item = Dir_View_Page_Item;
+	    item             = std::regex_replace(item, std::regex("URL"), url);
+	    item             = std::regex_replace(item, std::regex("FILENAME"), filename);
+	    item             = std::regex_replace(item, std::regex("TIMESTAMP"), timestamp);
+	    dirItems.append(item);
 	}
 
 	std::string content = Dir_View_Page_Pre + dirItems + Dir_View_Page_Post;
@@ -247,9 +248,9 @@ StringOwn get_dir_view(const StringRef *path) {
 
 void get_content_type(const StringRef *filetype, StringRef *result) {
 
-	auto dot = strrnchr(filetype->str, '.', filetype->len);
+	auto after_dot = strrnchr(filetype->str, '.', filetype->len) + 1;
 
-	StringRef part = {dot + 1, (size_t)(filetype->str + filetype->len - dot)};
+	StringRef part = {after_dot, strnlen(after_dot, (size_t)(filetype->len + filetype->str - after_dot))};
 
 	MiniMap_StringRef_StringRef_get(&resources.mime_types, &part, equal_StringRef, result);
 }

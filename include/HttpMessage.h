@@ -83,7 +83,7 @@ typedef enum : u_char {
 	RQ_VIA,
 	RQ_WARNING,
 	RQ_ENUM_LEN,
-} HTTP_HeaderRequestOption;
+} HTTPHeaderRequestOption;
 
 typedef enum : u_char {
 	// ResPonse Options
@@ -136,7 +136,7 @@ typedef enum : u_char {
 	RP_WWW_AUTHENTICATE,
 	RP_X_FRAME_OPTIONS,
 	RP_ENUM_LEN,
-} HTTP_HeaderResponseOption;
+} HTTPHeaderResponseOption;
 
 typedef struct {
 	u_char                      method;                      // the appropriate http method, GET, POST, PATCH
@@ -237,7 +237,7 @@ void parse_options(const StringRef *segment, void (*fun)(StringRef a, StringRef 
  * @param value the string value to assign to the option
  * @param msg the httpMessage that contains the header options map
  */
-void add_header_option(const u_char option, const StringRef *value, OutboundHttpMessage *msg);
+void add_header_option(const HTTPHeaderResponseOption option, const StringRef *value, OutboundHttpMessage *msg);
 
 /**
  * Simple makes sure that a copy of the passed stringRef is inserted in the url of the http message

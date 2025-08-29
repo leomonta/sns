@@ -133,7 +133,7 @@ void resolve_request(SSL *sslConnection, const Socket clientSocket) {
 
 		// make the message a single formatted string
 		auto res = compile_message(&response);
-		// llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%s\n", res;
+		// llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%*s\n", res.len, res.str);
 
 		// ------------------------------------------------------------------ SEND
 		// acknowledge the segment back to the sender

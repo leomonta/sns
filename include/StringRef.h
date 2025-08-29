@@ -17,7 +17,7 @@
 #include <string.h>
 
 #define TO_STRINGREF(str) \
-	{str, sizeof(str)}
+	{str, sizeof(str) - 1}
 
 #define CAST_STRINGREF(str) (StringRef){str, strlen(str)}
 

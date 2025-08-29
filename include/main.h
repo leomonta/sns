@@ -21,7 +21,7 @@ CliArgs parse_args(const int argc, const char *argv[]);
  *
  * to call one
  */
-RuntimeInfo setup(CliArgs args);
+void setup(CliArgs args, RuntimeInfo *res);
 
 /**
  * stop the server and its threads

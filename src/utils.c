@@ -3,7 +3,6 @@
 #include "logger.h"
 
 #include <ctype.h>
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -96,18 +95,18 @@ bool compress_gz(const StringRef *data, StringOwn *output) {
 	deflate_s.next_in  = (Bytef *)data->str;
 	deflate_s.avail_in = (uInt)data->len;
 
-	size_t size_compressed = 0;
+	output->len = 0;
 	do {
 		size_t increase = data->len / 2 + 1024;
-		if (output->len < (size_compressed + increase)) {
-			output->str = realloc(output->str, size_compressed + increase);
+		if (output->len < (output->len + increase)) {
+			output->str = realloc(output->str, output->len + increase);
 		}
 
 		deflate_s.avail_out = (unsigned int)(increase);
-		deflate_s.next_out  = (Bytef *)((&output[0] + size_compressed));
+		deflate_s.next_out  = (Bytef *)((output->str + output->len));
 
 		deflate(&deflate_s, Z_FINISH);
-		size_compressed += (increase - deflate_s.avail_out);
+		output->len += (increase - deflate_s.avail_out);
 	} while (deflate_s.avail_out == 0);
 
 	deflateEnd(&deflate_s);
@@ -190,16 +189,24 @@ const char *strnchr(const char *str, int chr, const size_t count) {
 const char *strrnchr(const char *str, int chr, const size_t count) {
 
 	for (size_t i = count - 1; i < count; --i) {
-		if (*str == chr) {
-			return str;
+		if (str[i] == chr) {
+			return str + i;
 		}
-
-		++str;
 	}
 
 	return nullptr;
 }
 
+size_t strnlen(const char *str, const size_t count) {
+	size_t res = 0;
+
+	while (res < count && str[res] != '\0') {
+		++res;
+	}
+
+	return res;
+
+}
 
 StringRef trim(StringRef *str_ref) {
 	size_t newStart;
@@ -256,7 +263,7 @@ char *copy_StringRef(const StringRef *str) {
 
 // https://stackoverflow.com/questions/1068849/how-do-i-determine-the-number-of-digits-of-an-integer-in-c
 unsigned char get_num_digits(size_t n) {
-	unsigned char r = 0;
+	unsigned char r = 1;
 
 	if (n >= 10000000000000000) {
 		r += 16;
@@ -287,8 +294,10 @@ StringOwn num_to_string(size_t number) {
 
 	char *str = malloc(digits);
 
-	for (unsigned i = 0; i < digits; ++i) {
-		str[i] = (char)(number / (10 * (i + 1))) + '0';
+	// < digits cause (unsigned 0 - 1 = UINT_MAX)
+	for (unsigned i = digits - 1; i < digits; --i) {
+		str[i] = (char)(number % 10) + '0';
+		number = number / 10;
 	}
 
 	return (StringOwn){str, digits};

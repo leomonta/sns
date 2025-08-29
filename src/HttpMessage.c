@@ -6,6 +6,7 @@
 #include "utils.h"
 
 #include <logger.h>
+#include <stdio.h>
 
 void log_malformed_parameter(const StringRef *str_ref) {
 	llog(LOG_WARNING, "Malformed parameter -> '%*s' \n", str_ref->len, str_ref->str);
@@ -363,23 +364,38 @@ bool compare_u_char(const u_char *lhs, const u_char *rhs) {
 	return *lhs == *rhs;
 }
 
-void add_header_option(const u_char option, const StringRef *value, OutboundHttpMessage *msg) {
+void add_header_option(const HTTPHeaderResponseOption option, const StringRef *value, OutboundHttpMessage *msg) {
 
 	auto opt = header_response_options_str[option];
 
+	size_t len      = value->len;
+	size_t calc_len = strnlen(value->str, value->len);
+	if (calc_len < len) {
+		len = calc_len;
+	}
+
+	StringRef t = {value->str, len};
+
 	StringOwn cpy = {
-	    copy_StringRef(value),
-	    value->len};
+	    copy_StringRef(&t),
+	    len};
 
 	// if something is already present at the requested position
-	// auto old = msg.m_headerOptions[option];
 	StringOwn old = {};
 	auto      res = MiniMap_u_char_StringOwn_get(&msg->header_options, &option, compare_u_char, &old);
-	if (res && old.str != nullptr) {
-		// free it
-		free(old.str);
+
+	// this spilt if is because there might be an insertion of a stringref with nullptr but size > 0
+
+	// something was present, need to unreserve the space it reserved
+	if (res) {
+		msg->header_len -= (opt.len + 2 + old.len + 2);
+
+		// free it if it was something
+		if (old.str != nullptr) {
+			// free it
+			free(old.str);
+		}
 	}
-	// msg.m_headerOptions[option] = cpy;
 	MiniMap_u_char_StringOwn_set(&msg->header_options, &option, &cpy, compare_u_char);
 
 	// account the bytes that will be added later

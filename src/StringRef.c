@@ -15,5 +15,5 @@ bool equal_StringRef(const StringRef *lhs, const StringRef *rhs) {
 		return false;
 	}
 
-	return strncmp(lhs->str, rhs->str, lhs->len);
+	return strncmp(lhs->str, rhs->str, lhs->len) == 0;
 }

@@ -10,7 +10,6 @@
 #include <sslConn.h>
 #include <tcpConn.h>
 
-static RuntimeInfo res;
 
 int main(const int argc, const char *argv[]) {
 
@@ -19,11 +18,13 @@ int main(const int argc, const char *argv[]) {
 	// Get port and directory, maybe
 	auto args = parse_args(argc, argv);
 
+	RuntimeInfo run_info;
+
 	// setup the tcp server socket and the ssl context
-	auto runInfo = setup(args);
+	setup(args, &run_info);
 
 	// start the requests accpetor secure thread
-	start(&runInfo);
+	start(&run_info);
 
 	// line that will be read from stdin
 	char line[256];
@@ -40,16 +41,16 @@ int main(const int argc, const char *argv[]) {
 
 		// simple commands
 		if (strncmp(line, "exit", 4) == 0 || strncmp(line, "quit", 4) == 0) {
-			stop(&runInfo);
+			stop(&run_info);
 			break;
 		}
 
 		if (strncmp(line, "restart", 7) == 0) {
-			restart(args, &runInfo);
+			restart(args, &run_info);
 		}
 
 		if (strncmp(line, "time", 4) == 0) {
-			time_t now   = time(nullptr) - runInfo.startTime;
+			time_t now   = time(nullptr) - run_info.startTime;
 			long   days  = now / (60 * 60 * 24);
 			long   hours = now / (60 * 60) % 24;
 			long   mins  = now / 20 % 60;
@@ -62,7 +63,7 @@ int main(const int argc, const char *argv[]) {
 	return 0;
 }
 
-RuntimeInfo setup(CliArgs args) {
+void setup(CliArgs args, RuntimeInfo *res) {
 
 	// initializing methods data
 	setup_methods(&args.baseDir);
@@ -70,9 +71,9 @@ RuntimeInfo setup(CliArgs args) {
 	errno = 0;
 
 	// initializing the tcp Server
-	res.serverSocket = TCP_initialize_server(args.tcpPort, 4);
+	res->serverSocket = TCP_initialize_server(args.tcpPort, 4);
 
-	if (res.serverSocket == INVALID_SOCKET) {
+	if (res->serverSocket == INVALID_SOCKET) {
 		exit(1);
 	}
 
@@ -80,20 +81,18 @@ RuntimeInfo setup(CliArgs args) {
 
 	// initializing the ssl connection data
 	SSL_initialize();
-	res.sslContext = SSL_create_context("/usr/local/bin/server.crt", "/usr/local/bin/key.pem");
+	res->sslContext = SSL_create_context("/usr/local/bin/server.crt", "/usr/local/bin/key.pem");
 
-	if (res.sslContext == nullptr) {
+	if (res->sslContext == nullptr) {
 		exit(1);
 	}
 
 	llog(LOG_INFO, "[SSL] Context created\n");
 
 	// finally creating the threadPool
-	initialize_threadpool(20, &res.thread_pool);
+	initialize_threadpool(20, &res->thread_pool);
 
 	llog(LOG_INFO, "[THREAD POOL] Started the listenings threads\n");
-
-	return res;
 }
 
 void stop(RuntimeInfo *rti) {
@@ -143,19 +142,19 @@ CliArgs parse_args(const int argc, const char *argv[]) {
 	// server directory port
 	//    0       1      2
 
-	CliArgs res = {
+	CliArgs args = {
 	    443,
 	    {nullptr, 0}
     };
 
 	switch (argc) {
 	case 3:
-		res.tcpPort = (unsigned short)(atoi(argv[2]));
-		llog(LOG_DEBUG, "[CLI] Read port %d from cli args\n", res.tcpPort);
+		args.tcpPort = (unsigned short)(atoi(argv[2]));
+		llog(LOG_DEBUG, "[CLI] Read port %d from cli args\n", args.tcpPort);
 		[[fallthrough]];
 
 	case 2:
-		res.baseDir = (StringRef) {argv[1], strlen(argv[1])};
+		args.baseDir = (StringRef) {argv[1], strlen(argv[1])};
 		llog(LOG_DEBUG, "[CLI] Read directory %s from cli args\n", argv[1]);
 		break;
 	case 1:
@@ -165,5 +164,5 @@ CliArgs parse_args(const int argc, const char *argv[]) {
 
 	llog(LOG_DEBUG, "[CLI] Successfully parsed cli args\n");
 
-	return res;
+	return args;
 }
