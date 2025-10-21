@@ -7,10 +7,10 @@
 
 // this shouldn't be here but it makes sense for preventing cyclic include
 typedef struct {
-	pthread_t  requestAcceptor;
-	Socket     serverSocket;
-	SSL_CTX   *sslContext;
-	time_t     startTime;
+	pthread_t  request_acceptor;
+	Socket     server_socket;
+	SSL_CTX   *ssl_context;
+	time_t     start_time;
 	ThreadPool thread_pool;
 } RuntimeInfo;
 
@@ -26,9 +26,8 @@ void accept_requests(RuntimeInfo *rti);
 /**
  * receive a client that wants to communicate and attempts to resolve it's request
  *
- * @param threadStop if true stops the infinite loop and exits
- * @param clientSock the socket of the client
- * @param sslConn the ssl connection to communicate on
+ * @param ssl_connection the ssl connection to communicate on
+ * @param client_socket the socket of the client
  */
 void resolve_request(SSL *ssl_connection, const Socket client_socket);
 

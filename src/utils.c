@@ -232,7 +232,7 @@ StringRef trim(StringRef *str_ref) {
 	return res;
 }
 
-bool is_empty(const StringRef *str_ref) {
+bool strrefblnk(const StringRef *str_ref) {
 
 	if (str_ref->len == 0) {
 		return true;

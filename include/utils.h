@@ -106,7 +106,7 @@ StringRef trim(StringRef *strRef);
  *
  * @return true if the string is empty
  */
-bool is_empty(const StringRef *strRef);
+bool strrefblnk(const StringRef *strRef);
 
 /**
  * given a sringref mallocs a copy of the string and returns it

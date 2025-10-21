@@ -4,8 +4,8 @@
 #include "server.h"
 
 typedef struct {
-	unsigned short tcpPort;
-	StringRef      baseDir;
+	unsigned short tcp_port;
+	StringRef      base_dir;
 } CliArgs;
 
 /**

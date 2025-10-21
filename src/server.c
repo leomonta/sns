@@ -50,7 +50,7 @@ void *proxy_res_req(void *ptr) {
 			continue;
 		}
 
-		resolve_request(data.ssl, data.clientSocket);
+		resolve_request(data.ssl, data.client_socket);
 	}
 
 #ifdef NO_THREADING
@@ -64,7 +64,7 @@ void accept_requests(RuntimeInfo *rti) {
 	Socket client = INVALID_SOCKET;
 
 	struct pollfd ss = {
-	    .fd      = rti->serverSocket,
+	    .fd      = rti->server_socket,
 	    .events  = POLLIN,
 	    .revents = 0,
 	};
@@ -75,20 +75,20 @@ void accept_requests(RuntimeInfo *rti) {
 		// infinetly wait for the socket to become usable
 		poll(&ss, 1, -1);
 
-		client = TCP_accept_client(rti->serverSocket);
+		client = TCP_accept_client(rti->server_socket);
 
 		if (client == -1) {
 			// no client tried to connect
 			continue;
 		}
 
-		auto sslConnection = SSL_create_connection(rti->sslContext, client);
+		auto ssl_connection = SSL_create_connection(rti->ssl_context, client);
 
-		if (sslConnection == nullptr) {
+		if (ssl_connection == nullptr) {
 			continue;
 		}
 
-		auto err = SSL_accept_client(sslConnection);
+		auto err = SSL_accept_client(ssl_connection);
 
 		if (err == -1) {
 			continue;
@@ -96,7 +96,7 @@ void accept_requests(RuntimeInfo *rti) {
 
 		llog(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
 
-		ResolverData t_data = {sslConnection, client};
+		ResolverData t_data = {ssl_connection, client};
 
 #ifdef NO_THREADING
 		proxy_resReq(t_data);
@@ -106,14 +106,14 @@ void accept_requests(RuntimeInfo *rti) {
 	}
 }
 
-void resolve_request(SSL *sslConnection, const Socket clientSocket) {
+void resolve_request(SSL *ssl_connection, const Socket client_socket) {
 
 	// ---------------------------------------------------------------------- RECEIVE
 	char *request       = nullptr;
-	auto  bytesReceived = SSL_receive_record(sslConnection, &request);
+	auto  bytes_received = SSL_receive_record(ssl_connection, &request);
 
 	// received some bytes
-	if (bytesReceived > 0) {
+	if (bytes_received > 0) {
 
 		InboundHttpMessage mex = parse_InboundMessage(request);
 		llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[mex.method]);
@@ -137,7 +137,7 @@ void resolve_request(SSL *sslConnection, const Socket clientSocket) {
 
 		// ------------------------------------------------------------------ SEND
 		// acknowledge the segment back to the sender
-		SSL_send_record(sslConnection, res.str, res.len);
+		SSL_send_record(ssl_connection, res.str, res.len);
 
 		destroy_OutboundHttpMessage(&response);
 		destroy_InboundHttpMessage(&mex);
@@ -145,7 +145,7 @@ void resolve_request(SSL *sslConnection, const Socket clientSocket) {
 		free(res.str);
 	}
 
-	TCP_shutdown_socket(clientSocket);
-	TCP_close_socket(clientSocket);
-	SSL_destroy_connection(sslConnection);
+	TCP_shutdown_socket(client_socket);
+	TCP_close_socket(client_socket);
+	SSL_destroy_connection(ssl_connection);
 }

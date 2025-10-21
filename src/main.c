@@ -50,7 +50,7 @@ int main(const int argc, const char *argv[]) {
 		}
 
 		if (strncmp(line, "time", 4) == 0) {
-			time_t now   = time(nullptr) - run_info.startTime;
+			time_t now   = time(nullptr) - run_info.start_time;
 			long   days  = now / (60 * 60 * 24);
 			long   hours = now / (60 * 60) % 24;
 			long   mins  = now / 20 % 60;
@@ -66,24 +66,24 @@ int main(const int argc, const char *argv[]) {
 void setup(CliArgs args, RuntimeInfo *res) {
 
 	// initializing methods data
-	setup_methods(&args.baseDir);
+	setup_methods(&args.base_dir);
 
 	errno = 0;
 
 	// initializing the tcp Server
-	res->serverSocket = TCP_initialize_server(args.tcpPort, 4);
+	res->server_socket = TCP_initialize_server(args.tcp_port, 4);
 
-	if (res->serverSocket == INVALID_SOCKET) {
+	if (res->server_socket == INVALID_SOCKET) {
 		exit(1);
 	}
 
-	llog(LOG_INFO, "[SERVER] Listening on %*s:%d\n", args.baseDir.len, args.baseDir.str, args.tcpPort);
+	llog(LOG_INFO, "[SERVER] Listening on %*s:%d\n", args.base_dir.len, args.base_dir.str, args.tcp_port);
 
 	// initializing the ssl connection data
 	SSL_initialize();
-	res->sslContext = SSL_create_context("/usr/local/bin/server.crt", "/usr/local/bin/key.pem");
+	res->ssl_context = SSL_create_context("/usr/local/bin/server.crt", "/usr/local/bin/key.pem");
 
-	if (res->sslContext == nullptr) {
+	if (res->ssl_context == nullptr) {
 		exit(1);
 	}
 
@@ -97,7 +97,7 @@ void setup(CliArgs args, RuntimeInfo *res) {
 
 void stop(RuntimeInfo *rti) {
 
-	TCP_terminate(rti->serverSocket);
+	TCP_terminate(rti->server_socket);
 
 	// tpool stop
 	rti->thread_pool.stop = true;
@@ -105,10 +105,10 @@ void stop(RuntimeInfo *rti) {
 	llog(LOG_INFO, "[SERVER] Sent stop message to all threads\n");
 
 	// thread stop
-	pthread_join(rti->requestAcceptor, NULL);
+	pthread_join(rti->request_acceptor, NULL);
 	llog(LOG_INFO, "[SERVER] Request acceptor stopped\n");
 
-	SSL_destroy_context(rti->sslContext);
+	SSL_destroy_context(rti->ssl_context);
 
 	SSL_terminate();
 
@@ -122,18 +122,18 @@ void start(RuntimeInfo *rti) {
 #ifdef NO_THREADING
 	proxy_accReq(rti);
 #else
-	pthread_create(&rti->requestAcceptor, NULL, proxy_acc_req, rti);
+	pthread_create(&rti->request_acceptor, NULL, proxy_acc_req, rti);
 #endif
 
 	llog(LOG_DEBUG, "[SERVER] Request acceptor thread Started\n");
 
-	rti->startTime = time(nullptr);
+	rti->start_time = time(nullptr);
 }
 
 void restart(CliArgs ca, RuntimeInfo *rti) {
 
 	stop(rti);
-	setup_methods(&ca.baseDir);
+	setup_methods(&ca.base_dir);
 	start(rti);
 }
 
@@ -149,12 +149,12 @@ CliArgs parse_args(const int argc, const char *argv[]) {
 
 	switch (argc) {
 	case 3:
-		args.tcpPort = (unsigned short)(atoi(argv[2]));
-		llog(LOG_DEBUG, "[CLI] Read port %d from cli args\n", args.tcpPort);
+		args.tcp_port = (unsigned short)(atoi(argv[2]));
+		llog(LOG_DEBUG, "[CLI] Read port %d from cli args\n", args.tcp_port);
 		[[fallthrough]];
 
 	case 2:
-		args.baseDir = (StringRef) {argv[1], strlen(argv[1])};
+		args.base_dir = (StringRef) {argv[1], strlen(argv[1])};
 		llog(LOG_DEBUG, "[CLI] Read directory %s from cli args\n", argv[1]);
 		break;
 	case 1:

@@ -17,30 +17,30 @@ InboundHttpMessage parse_InboundMessage(const char *str) {
 	InboundHttpMessage res = {};
 
 	// use strlen so i'm sure it's not counting the null terminator
-	auto msgLen = strlen(str);
+	auto msg_len = strlen(str);
 
 	// save the message in a local pointer so i don't rely on std::string allocation plus a null terminator
-	char *temp = malloc(msgLen + 1);
-	memcpy(temp, str, msgLen);
-	temp[msgLen] = 0;
+	char *temp = malloc(msg_len + 1);
+	memcpy(temp, str, msg_len);
+	temp[msg_len] = 0;
 
 	res.raw_message_a = temp;
 	res.parameters    = MiniMap_StringRef_StringRef_make(10);
 
 	// body and header are divided by two newlines
-	auto msgSeparator = strstr(res.raw_message_a, "\r\n\r\n");
+	auto msg_separator = strstr(res.raw_message_a, "\r\n\r\n");
 
-	unsigned long hLen = (unsigned long)(msgSeparator - res.raw_message_a);
+	unsigned long header_len = (unsigned long)(msg_separator - res.raw_message_a);
 
 	StringRef header;
 
 	// strstr return 0 if nothing is found or the given pointer if it is an empty string
-	if (msgSeparator == 0 || msgSeparator == res.raw_message_a) {
+	if (msg_separator == 0 || msg_separator == res.raw_message_a) {
 		header   = (StringRef){nullptr, 0};
 		res.body = (StringRef){nullptr, 0};
 	} else {
-		header   = (StringRef){res.raw_message_a, hLen};
-		res.body = (StringRef){res.raw_message_a + hLen, msgLen - hLen};
+		header   = (StringRef){res.raw_message_a, header_len};
+		res.body = (StringRef){res.raw_message_a + header_len, msg_len - header_len};
 	}
 
 	// now i have the two stringRefs to the body and the header
@@ -78,7 +78,7 @@ void add_to_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 	ctx->header_options[get_parameter_code(&key)] = val;
 }
 
-void addToParams(StringRef key, StringRef val, InboundHttpMessage *ctx) {
+void add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 	MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val, equal_StringRef);
 }
 
@@ -104,16 +104,16 @@ void decompile_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	// Now checks if there are query parameters
 
 	// the position of the query parameter marker (if present)
-	auto qmark_position = strnchr(msg->url.str, '?', msg->url.len) - msg->url.str;
+	auto qmark_index = strnchr(msg->url.str, '?', msg->url.len) - msg->url.str;
 
 	// if strnchr returns nullptr the result is negative, else is positive
-	if (qmark_position > 0) {
+	if (qmark_index > 0) {
 		// confine the parameters in a single stringREf excluding the '?'
-		StringRef query_parameters = {msg->url.str + qmark_position + 1, msg->url.len - (size_t)(qmark_position)-1};
-		parse_options(&query_parameters, addToParams, "&", '=', msg);
+		StringRef query_parameters = {msg->url.str + qmark_index + 1, msg->url.len - (size_t)(qmark_index)-1};
+		parse_options(&query_parameters, add_to_params, "&", '=', msg);
 
 		// limit thw url to before the '?'
-		msg->url.len -= msg->url.len - (size_t)(qmark_position);
+		msg->url.len -= (size_t)(qmark_index);
 	}
 
 	parse_options(raw_header, add_to_options, "\r\n", ':', msg);
@@ -125,7 +125,7 @@ void decompile_message(InboundHttpMessage *msg) {
 	auto content_type = msg->header_options[RQ_CONTENT_TYPE];
 
 	// the content type indicates how parameters are showed
-	if (is_empty(&content_type)) {
+	if (strrefblnk(&content_type)) {
 		return;
 	}
 
@@ -133,11 +133,11 @@ void decompile_message(InboundHttpMessage *msg) {
 	if (strncmp("application/x-www-form-urlencoded", content_type.str, content_type.len) == 0) {
 		// the fields are separated from each others with a "&" and key -> value are separated with "="
 		// plus they are encoded as a URL
-		parse_options(&msg->body, addToParams, "&", '=', msg);
+		parse_options(&msg->body, add_to_params, "&", '=', msg);
 
 		// type two plain text
 	} else if (strncmp("text/plain", content_type.str, content_type.len) == 0) {
-		parse_options(&msg->body, addToParams, "\r\n", '=', msg);
+		parse_options(&msg->body, add_to_params, "\r\n", '=', msg);
 
 		// part three multipart form-data
 	} else if (strnstr("multipart/form-data;", content_type.str, content_type.len) != nullptr) {
@@ -169,21 +169,21 @@ StringOwn compile_message(const OutboundHttpMessage *msg) {
 	// The value to modify are at
 	//                             11
 	//                   012345678901
-	char statusLine[] = "HTTP/1.0 XXX ";
-	auto phrase       = get_reason_phrase(msg->status_code);
+	char status_line[] = "HTTP/1.0 XXX ";
+	auto phrase        = get_reason_phrase(msg->status_code);
 
 	// A symbolic name for how long the status line is
-	const int STATUS_LINE_LEN = sizeof(statusLine) - 1;
+	const int STATUS_LINE_LEN = sizeof(status_line) - 1;
 
 	// the 2 is for the \r\n separator of the body
 	// the other +2 if for the status line \r\n
-	auto msgLen = STATUS_LINE_LEN + phrase.len + 2 + msg->header_len + 2 + msg->body.len;
+	auto msg_len = STATUS_LINE_LEN + phrase.len + 2 + msg->header_len + 2 + msg->body.len;
 
 	// the entire message length
-	char *res = malloc(msgLen);
-	memset(res, '\0', msgLen);
+	char *res = malloc(msg_len);
+	memset(res, '\0', msg_len);
 
-	memcpy(res, statusLine, STATUS_LINE_LEN);
+	memcpy(res, status_line, STATUS_LINE_LEN);
 	memcpy(res + STATUS_LINE_LEN, phrase.str, phrase.len);
 	memcpy(res + STATUS_LINE_LEN + phrase.len, "\r\n", 2);
 
@@ -222,7 +222,7 @@ StringOwn compile_message(const OutboundHttpMessage *msg) {
 	memcpy(writer, msg->body.str, msg->body.len);
 	writer += msg->body.len;
 
-	return (StringOwn){res, msgLen};
+	return (StringOwn){res, msg_len};
 }
 
 u_char get_method_code(const StringRef *request_method) {
@@ -268,13 +268,11 @@ u_char get_parameter_code(const StringRef *parameter) {
 	return (u_char)(-1);
 }
 
-void parse_options(const StringRef *segment, void (*fun)(StringRef a, StringRef b, InboundHttpMessage *ctx), const char *chunkSep, const char itemSep, InboundHttpMessage *ctx) {
+void parse_options(const StringRef *segment, void (*fun)(StringRef a, StringRef b, InboundHttpMessage *ctx), const char *chunk_sep, const char item_sep, InboundHttpMessage *ctx) {
 
-	// parse the remaining header options
+	const auto add_len = strlen(chunk_sep); // the lenght to move after the string is found
 
-	const auto addLen = strlen(chunkSep); // the lenght to move after the string is found
-
-	auto       start_options        = strnchr(segment->str, *chunkSep, segment->len) + addLen; // the plus 1 is needed to start after the \r\n
+	auto       start_options        = strnstr(segment->str, chunk_sep, segment->len) + add_len; // the plus 1 is needed to start after the \r\n
 	size_t     len_to_start_options = (size_t)(start_options - segment->str);
 	StringRef  chunk                = {start_options, len_to_start_options};
 	const auto limit                = segment->str + segment->len;
@@ -282,15 +280,15 @@ void parse_options(const StringRef *segment, void (*fun)(StringRef a, StringRef 
 
 	while (chunk.str < limit) {
 
-		auto crlf = strnchr(chunk.str, *chunkSep, limit_len);
+		auto separator = strnstr(chunk.str, chunk_sep, limit_len);
 
-		if (crlf == nullptr) {
+		if (separator == nullptr) {
 			chunk.len = limit_len;
 		} else {
-			chunk.len = (size_t)(crlf - chunk.str);
+			chunk.len = (size_t)(separator - chunk.str);
 		}
 
-		auto sep = strnchr(chunk.str, itemSep, chunk.len);
+		auto sep = strnchr(chunk.str, item_sep, chunk.len);
 		if (sep == nullptr) {
 			log_malformed_parameter(&chunk);
 		} else {
@@ -304,16 +302,16 @@ void parse_options(const StringRef *segment, void (*fun)(StringRef a, StringRef 
 			val = trim(&val);
 
 			// check if we actually have a key, the value can be empty
-			if (strncmp(key.str, "", 1)) {
+			if (strrefblnk(&key)) {
 				// finally put it in the map
 				fun(key, val, ctx);
 			}
 		}
 
 		// at the end of the chunk
-		chunk.str = chunk.str + chunk.len + addLen; // move at the end of the string, over the ampersand
-		limit_len -= chunk.len + addLen;            // recalculate the limitLen (limitLen = limitLen - len - 1) -> limitLen = limitLen - (len + 1)
-		chunk.len = 0;                              // just to be sure
+		chunk.str = chunk.str + chunk.len + add_len; // move at the end of the string, over the ampersand
+		limit_len -= chunk.len + add_len;            // recalculate the limitLen (limitLen = limitLen - len - 1) -> limitLen = limitLen - (len + 1)
+		chunk.len = 0;                               // just to be sure
 	}
 }
 

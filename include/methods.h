@@ -7,7 +7,7 @@
 
 typedef struct {
 	SSL   *ssl;
-	Socket clientSocket;
+	Socket client_socket;
 } ResolverData;
 
 static const ResolverData EMPTY_RESOLVER_DATA = {nullptr, INVALID_SOCKET};
@@ -64,9 +64,9 @@ void setup_content_types(MiniMap_StringRef_StringRef *mime_types);
 /**
  * Initilizes the default directory variable with the given string
  *
- * @param str the string used to intializer the baseDirectory internal variable
+ * @param str the string used to intializer the base_directory internal variable
  */
-void setup_methods(StringRef *str);
+void setup_methods(StringRef *base_directory);
 /**
  * sets result as the mime type correct for the give fyle extension
  *
