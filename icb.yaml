@@ -1,0 +1,36 @@
+compiler:
+  compiler_style: gcc
+  compiler_exe: gcc
+  linker_exe: g++
+
+directories:
+  project_dir: .
+  exe_path_name: bin/sns
+  include_dirs: [include]
+  source_dirs: [src]
+  temp_dir: obj
+
+default:
+  libraries_dirs: []
+  libraries_names: [dl, z, crypto, ssl, netTcpSslDebug]
+
+debug:
+  compiler_args: -g3 -std=c23 -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -fsanitize=address -fsanitize=leak -pthread
+  linker_args: -fsanitize=address -fsanitize=leak
+
+analyze:
+  compiler_args: -g3 -std=c23 -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -pthread -fanalyzer
+  linker_args:
+
+no-asan:
+  compiler_args: -g3 -std=c23 -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -pthread
+  linker_args:
+
+no-threads:
+  compiler_args: -g3 -std=c23 -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -DNO_THREADING -Wshadow -Wextra -fsanitize=address -fsanitize=leak
+  linker_args: -fsanitize=address -fsanitize=leak
+
+release:
+  compiler_args: -Ofast -DNDEBUG -g3 -std=c23 -pthread
+  linker_args:
+  libraries_names: [dl, z, crypto, ssl, netTcpSsl]
