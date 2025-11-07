@@ -1,10 +1,12 @@
+#include "MiniVector_u_char.h"
+
+#include "logger.h"
+#include "utils.h"
+
+#include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-
-// 
-
-#include "MiniVector_u_char.h"
 
 #define MiniVector MiniVector_u_char
 
@@ -18,6 +20,7 @@ MiniVector MiniVector_u_char_make(const size_t initial_count) {
 	    .capacity = capacity * sizeof(u_char),
 	    .count    = 0,
 	};
+	TEST_ALLOC(res.data)
 
 	// copy elision
 	return res;
@@ -42,7 +45,7 @@ void MiniVector_u_char_grow(MiniVector *vec) {
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 abd others
 }
 
-bool MiniVector_u_char_get(const MiniVector *vec, const size_t index, u_char* result) {
+bool MiniVector_u_char_get(const MiniVector *vec, const size_t index, u_char *result) {
 
 	if (index >= vec->count) {
 		// invalid pos
@@ -52,7 +55,6 @@ bool MiniVector_u_char_get(const MiniVector *vec, const size_t index, u_char* re
 	*result = *(vec->data + index);
 	return true;
 }
-
 
 void MiniVector_u_char_set(MiniVector *vec, const size_t index, const u_char *element) {
 
@@ -94,7 +96,6 @@ void MiniVector_u_char_insert(MiniVector *vec, const size_t index, const u_char 
 	// finally write the data
 	MiniVector_u_char_set(vec, index, element);
 }
-
 
 void MiniVector_u_char_remove(MiniVector *vec, const size_t index) {
 

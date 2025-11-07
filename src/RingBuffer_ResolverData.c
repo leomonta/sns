@@ -2,6 +2,11 @@
 
 #include "RingBuffer_ResolverData.h"
 
+#include "logger.h"
+#include "utils.h"
+
+#include <errno.h>
+
 #define RingBuffer RingBuffer_ResolverData
 
 #define GROW_RATE 2
@@ -15,6 +20,7 @@ RingBuffer RingBuffer_ResolverData_make(const size_t initial_count) {
 	    .stored = 0,
 	    .count  = capacity,
 	};
+	TEST_ALLOC(res.data)
 
 	// copy elision
 	return res;
@@ -35,6 +41,7 @@ void RingBuffer_ResolverData_grow(RingBuffer *rngb) {
 
 	rngb->data = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(ResolverData));
 	rngb->count *= GROW_RATE;
+	TEST_ALLOC(rngb->data)
 	// for why 2 and not 1.6 or 1.5
 	// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 and others
@@ -81,7 +88,6 @@ bool RingBuffer_ResolverData_retrieve(RingBuffer *rngb, ResolverData *result) {
 	return true;
 }
 
-
 void RingBuffer_ResolverData_append(RingBuffer *rngb, const ResolverData *element) {
 	if (rngb->stored == rngb->count) {
 		RingBuffer_ResolverData_grow(rngb);
@@ -94,7 +100,7 @@ void RingBuffer_ResolverData_append(RingBuffer *rngb, const ResolverData *elemen
 	++rngb->stored;
 }
 
-bool RingBuffer_ResolverData_peek(const RingBuffer *rngb, ResolverData* result) {
+bool RingBuffer_ResolverData_peek(const RingBuffer *rngb, ResolverData *result) {
 
 	if (rngb->stored == 0) {
 		// no data

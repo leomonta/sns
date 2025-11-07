@@ -34,7 +34,8 @@ int Head(const InboundHttpMessage *request, OutboundHttpMessage *response) {
 	// info about the file requested, to not recheck later
 	int file_info = FILE_FOUND;
 
-	StringOwn dst             = {malloc(request->url.len + 1), request->url.len + 1};
+	StringOwn dst = {malloc(request->url.len + 1), request->url.len + 1};
+	TEST_ALLOC(dst.str)
 	dst.str[request->url.len] = '\0';
 
 	// since the source is always longer or the same length of the output i can decode in-place
@@ -42,10 +43,11 @@ int Head(const InboundHttpMessage *request, OutboundHttpMessage *response) {
 	dst.len = strlen(dst.str);
 
 	// allocate space for, the base dir + the filename + index.html that might be added on top
-	size_t    file_str_len = resources.base_directory.len + dst.len + INDEX_HTML_LEN + 1;
-	StringOwn file         = {malloc(file_str_len), file_str_len};
+	size_t    file_str_len = resources.base_directory.len + dst.len + INDEX_HTML_LEN;
+	StringOwn file         = {malloc(file_str_len + 1), file_str_len};
+	TEST_ALLOC(file.str)
 
-	file.str[file_str_len - 1] = '\0';
+	file.str[file_str_len] = '\0';
 
 	strncpy(file.str, resources.base_directory.str, resources.base_directory.len);
 	size_t file_end = resources.base_directory.len;
@@ -112,8 +114,6 @@ void Get(const InboundHttpMessage *request, OutboundHttpMessage *response) {
 		uncompressed = Not_Found_Page;
 		do_free      = false;
 	}
-
-	// else defer free (uncompressed.str)
 
 	StringOwn compressed = {nullptr, 0};
 	if (uncompressed.len != 0) {
@@ -186,26 +186,37 @@ StringOwn get_content(const StringOwn *path, const int file_info) {
 
 	StringOwn content = {nullptr, 0};
 
-	// FIXME: loading the entire file inside memory, this is bad.
-	if (file_info == FILE_FOUND || file_info == FILE_IS_DIR_FOUND) {
-
-		FILE *f = fopen(path->str, "rb");
-
-		if (f == nullptr) {
-			llog(LOG_ERROR, "[FILE] Could not read file %*s: %s\n", path->len, path->str, strerror(errno));
-			return content;
-		} else {
-			fseek(f, 0, SEEK_END);
-			content.len = (size_t)ftell(f);
-			fseek(f, 0, SEEK_SET);
-			content.str = malloc(content.len + 1);
-			if (content.str) {
-				fread(content.str, 1, content.len, f);
-			}
-			fclose(f);
-			content.str[content.len - 1] = '\0';
-		}
+	// nothing to see here folks
+	if (file_info != FILE_FOUND && file_info != FILE_IS_DIR_FOUND) {
+		return content;
 	}
+
+	// FIXME: loading the entire file inside memory, is this bad?
+	FILE *f = fopen(path->str, "rb");
+	// DEFER fclose(f)
+
+	if (f == nullptr) {
+		llog(LOG_ERROR, "[FILE] Could not read file %*s: %s\n", path->len, path->str, strerror(errno));
+		return content;
+	}
+
+	fseek(f, 0, SEEK_END);
+	content.len = (size_t)ftell(f);
+
+	// empty file, no need to malloc anything (thank you analyzer)
+	if (content.len == 0) {
+		fclose(f);
+		return content;
+	}
+
+	fseek(f, 0, SEEK_SET);
+	content.str = malloc(content.len + 1);
+	TEST_ALLOC(content.str)
+	if (content.str) {
+		fread(content.str, 1, content.len, f);
+	}
+	fclose(f);
+	content.str[content.len] = '\0';
 
 	/*
 	if (content.len == 0) {

@@ -6,10 +6,9 @@
 
 #include <errno.h>
 #include <signal.h>
-#include <stdio.h>
 #include <sslConn.h>
+#include <stdio.h>
 #include <tcpConn.h>
-
 
 int main(const int argc, const char *argv[]) {
 
@@ -154,7 +153,7 @@ CliArgs parse_args(const int argc, const char *argv[]) {
 		[[fallthrough]];
 
 	case 2:
-		args.base_dir = (StringRef) {argv[1], strlen(argv[1])};
+		args.base_dir = (StringRef){argv[1], strlen(argv[1])};
 		llog(LOG_DEBUG, "[CLI] Read directory %s from cli args\n", argv[1]);
 		break;
 	case 1:

@@ -5,6 +5,7 @@
 #include "constants.h"
 #include "utils.h"
 
+#include <errno.h>
 #include <logger.h>
 #include <stdio.h>
 
@@ -21,6 +22,7 @@ InboundHttpMessage parse_InboundMessage(const char *str) {
 
 	// save the message in a local pointer so i don't rely on std::string allocation plus a null terminator
 	char *temp = malloc(msg_len + 1);
+	TEST_ALLOC(temp)
 	memcpy(temp, str, msg_len);
 	temp[msg_len] = 0;
 
@@ -173,7 +175,7 @@ StringOwn compile_message(const OutboundHttpMessage *msg) {
 	auto phrase        = get_reason_phrase(msg->status_code);
 
 	// A symbolic name for how long the status line is
-	const int STATUS_LINE_LEN = sizeof(status_line) - 1;
+	const size_t STATUS_LINE_LEN = sizeof(status_line) - 1;
 
 	// the 2 is for the \r\n separator of the body
 	// the other +2 if for the status line \r\n
@@ -181,6 +183,7 @@ StringOwn compile_message(const OutboundHttpMessage *msg) {
 
 	// the entire message length
 	char *res = malloc(msg_len);
+	TEST_ALLOC(res)
 	memset(res, '\0', msg_len);
 
 	memcpy(res, status_line, STATUS_LINE_LEN);
@@ -270,13 +273,13 @@ u_char get_parameter_code(const StringRef *parameter) {
 
 void parse_options(const StringRef *segment, void (*fun)(StringRef a, StringRef b, InboundHttpMessage *ctx), const char *chunk_sep, const char item_sep, InboundHttpMessage *ctx) {
 
-	const auto add_len = strlen(chunk_sep); // the lenght to move after the string is found
+	const size_t add_len = strlen(chunk_sep); // the lenght to move after the string is found
 
-	auto       start_options        = strnstr(segment->str, chunk_sep, segment->len) + add_len; // the plus 1 is needed to start after the \r\n
-	size_t     len_to_start_options = (size_t)(start_options - segment->str);
-	StringRef  chunk                = {start_options, len_to_start_options};
-	const auto limit                = segment->str + segment->len;
-	auto       limit_len            = segment->len - len_to_start_options;
+	auto        start_options        = strnstr(segment->str, chunk_sep, segment->len) + add_len; // the plus 1 is needed to start after the \r\n
+	size_t      len_to_start_options = (size_t)(start_options - segment->str);
+	StringRef   chunk                = {start_options, len_to_start_options};
+	const char *limit                = segment->str + segment->len;
+	auto        limit_len            = segment->len - len_to_start_options;
 
 	while (chunk.str < limit) {
 

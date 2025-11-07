@@ -4,6 +4,12 @@
 
 #include <string.h>
 
+#define TEST_ALLOC(ptr)                                                                             \
+	if (ptr == NULL) {                                                                              \
+		llog(LOG_FATAL, "[ALLOCATION] Allocation returned NULL: %d, %s\n", errno, strerror(errno)); \
+		exit(1);                                                                                    \
+	}
+
 /**
  * simply get the time formetted following RFC822 regulation on GMT time
  *

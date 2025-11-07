@@ -2,6 +2,11 @@
 
 #include "RingBuffer_#T#.h"
 
+#include "logger.h"
+#include "utils.h"
+
+#include <errno.h>
+
 #define RingBuffer RingBuffer_#T#
 
 #define GROW_RATE 2
@@ -15,6 +20,7 @@ RingBuffer RingBuffer_#T#_make(const size_t initial_count) {
 	    .stored = 0,
 	    .count  = capacity,
 	};
+	TEST_ALLOC(res.data)
 
 	// copy elision
 	return res;
@@ -35,6 +41,7 @@ void RingBuffer_#T#_grow(RingBuffer *rngb) {
 
 	rngb->data = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(T));
 	rngb->count *= GROW_RATE;
+	TEST_ALLOC(rngb->data)
 	// for why 2 and not 1.6 or 1.5
 	// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 and others

@@ -6,3 +6,4 @@ compile_commands.json
 results.json
 .cache
 Makefile
+icb.yaml

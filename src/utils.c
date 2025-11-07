@@ -3,6 +3,7 @@
 #include "logger.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -251,12 +252,14 @@ bool strrefblnk(const StringRef *str_ref) {
 
 char *copy_StringOwn(const StringOwn *str) {
 	auto cpy = malloc(str->len);
+	TEST_ALLOC(cpy)
 	memcpy(cpy, str->str, str->len);
 	return cpy;
 }
 
 char *copy_StringRef(const StringRef *str) {
 	auto cpy = malloc(str->len);
+	TEST_ALLOC(cpy)
 	memcpy(cpy, str->str, str->len);
 	return cpy;
 }
