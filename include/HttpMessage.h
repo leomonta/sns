@@ -2,20 +2,10 @@
 #include "MiniMap_StringRef_StringRef.h"
 #include "MiniMap_u_char_StringOwn.h"
 
-typedef unsigned char u_char;
-typedef unsigned short u_short;
-
-/*
-I use two representation of an http message for 2 reasons,
-1. the inbound include the entire raw message allocated, message used by every stringRef in the struct,
- the outbound message does not contain the raw message, the parameters (form or query), the requested url and the request method,
- but makes use of a numeric status code, these differences make the outbound one much smaller
-
-2. the inbound can make use of a lot of const strings, the outbound cannot
-*/
+#include <stdint.h>
 
 // http method code
-typedef enum : u_char {
+typedef enum : uint8_t {
 	HTTP_INVALID_METHOD,
 	HTTP_GET,
 	HTTP_HEAD,
@@ -27,9 +17,9 @@ typedef enum : u_char {
 	HTTP_TRACE,
 	HTTP_PATCH,
 	HTTP_ENUM_LEN,
-} HTTP_Methods;
+} HTTP_Method;
 
-typedef enum : u_char {
+typedef enum : uint8_t {
 	HTTP_VER_UNKN,
 	HTTP_VER_09,
 	HTTP_VER_10,
@@ -37,9 +27,9 @@ typedef enum : u_char {
 	HTTP_VER_2,
 	HTTP_VER_3,
 	HTTP_VER_ENUM_LEN,
-} HTTP_Versions;
+} HTTP_Version;
 
-typedef enum : u_char {
+typedef enum : uint8_t {
 	// ReQuest options
 	RQ_A_IM,
 	RQ_ACCEPT,
@@ -85,7 +75,7 @@ typedef enum : u_char {
 	RQ_ENUM_LEN,
 } HTTPHeaderRequestOption;
 
-typedef enum : u_char {
+typedef enum : uint8_t {
 	// ResPonse Options
 	RP_ACCEPT_CH,
 	RP_ACCESS_CONTROL_ALLOW_ORIGIN,
@@ -138,9 +128,18 @@ typedef enum : u_char {
 	RP_ENUM_LEN,
 } HTTPHeaderResponseOption;
 
+/*
+ * I use two representation of an http message for 2 reasons,
+ * 1. the inbound include the entire raw message allocated, message used by every stringRef in the struct,
+ * the outbound message does not contain the raw message, the parameters (form or query), the requested url and the request method,
+ * but makes use of a numeric status code, these differences make the outbound one much smaller
+ *
+ * 2. the inbound can make use of a lot of const strings, the outbound cannot
+ */
+
 typedef struct {
-	u_char                      method;                      // the appropriate http method, GET, POST, PATCH
-	u_char                      version;                     // the version of the http header (1.0, 1.1, 2.0, ...)
+	uint8_t                     method;                      // the appropriate http method, GET, POST, PATCH
+	uint8_t                     version;                     // the version of the http header (1.0, 1.1, 2.0, ...)
 	char                       *raw_message_a;               // the c string containing the entire header, the _a means it's heap allocated
 	size_t                      header_len;                  // how many bytes are there in the header
 	MiniMap_StringRef_StringRef parameters;                  // contain the data sent in the forms and query parameters
@@ -150,9 +149,8 @@ typedef struct {
 } InboundHttpMessage;
 
 typedef struct {
-
-	u_short                  status_code;    // 200, 404, 500, etc etc
-	u_char                   version;        // the version of the http header (1.0, 1.1, 2.0, ...)
+	uint16_t                 status_code;    // 200, 404, 500, etc etc
+	uint8_t                  version;        // the version of the http header (1.0, 1.1, 2.0, ...)
 	MiniMap_u_char_StringOwn header_options; // represent the header as the collection of the single options -> value
 	size_t                   header_len;     // how many bytes are there in the header
 	StringOwn                body;           // the content of the message, what the message is about
