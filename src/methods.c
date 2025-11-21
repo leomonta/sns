@@ -64,7 +64,7 @@ int Head(const InboundHttpMessage *request, OutboundHttpMessage *response) {
 	auto        errCode = stat(file.str, &file_stat);
 
 	if (errCode != 0) {
-		llog(LOG_WARNING, "[SERVER] File requested (%s) not found, %s\n", file, strerror(errno));
+		llog(LOG_WARNING, "[SERVER] File requested (%*s) not found, %s\n", (int)file.len, file.str, strerror(errno));
 		file_info = FILE_NOT_FOUND;
 	}
 
@@ -106,7 +106,7 @@ void Get(const InboundHttpMessage *request, OutboundHttpMessage *response) {
 	auto file_info = Head(request, response);
 
 	StringOwn proxy        = get_content(&response->resource_name, file_info);
-	StringRef uncompressed = *((StringRef *)(&proxy));
+	StringRef uncompressed = {proxy.str, proxy.len};
 	bool      do_free      = true;
 	if (uncompressed.len == 0) {
 		llog(LOG_WARNING, "[SERVER] File not found. Loading deafult Error 404 page\n");
@@ -117,7 +117,7 @@ void Get(const InboundHttpMessage *request, OutboundHttpMessage *response) {
 
 	StringOwn compressed = {nullptr, 0};
 	if (uncompressed.len != 0) {
-		compress_gz((StringRef *)&uncompressed, &compressed);
+		compress_gz(&uncompressed, &compressed);
 		llog(LOG_DEBUG, "[SERVER] Compressing response body\n");
 
 		if (file_info == FILE_IS_DIR_NOT_FOUND) {
@@ -196,7 +196,7 @@ StringOwn get_content(const StringOwn *path, const int file_info) {
 	// DEFER fclose(f)
 
 	if (f == nullptr) {
-		llog(LOG_ERROR, "[FILE] Could not read file %*s: %s\n", path->len, path->str, strerror(errno));
+		llog(LOG_ERROR, "[FILE] Could not read file %*s: %s\n", (int)path->len, path->str, strerror(errno));
 		return content;
 	}
 

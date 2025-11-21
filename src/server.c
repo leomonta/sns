@@ -27,9 +27,12 @@ const char *method_str[] = {
 };
 
 void SIGPIPE_handler(int os) {
-	llog(LOG_FATAL, "[SIGPIPE] Received a sigpipe %s\n", os);
+	llog(LOG_FATAL, "[SIGPIPE] Received a sigpipe %d\n", os);
 }
 
+#ifndef NO_THREADING
+[[noreturn]]
+#endif
 void *proxy_acc_req(void *ptr) {
 	accept_requests((RuntimeInfo *)(ptr));
 #ifdef NO_THREADING
@@ -39,6 +42,9 @@ void *proxy_acc_req(void *ptr) {
 #endif
 }
 
+#ifndef NO_THREADING
+[[noreturn]]
+#endif
 void *proxy_res_req(void *ptr) {
 	ThreadPool *pool = (ThreadPool *)(ptr);
 
@@ -164,7 +170,7 @@ void setup(SNSSettings settings, RuntimeInfo *res) {
 		exit(1);
 	}
 
-	llog(LOG_INFO, "[SERVER] Listening on %*s:%d\n", settings.base_dir.len, settings.base_dir.str, settings.tcp_port);
+	llog(LOG_INFO, "[SERVER] Listening on %*s:%d\n", (int)settings.base_dir.len, settings.base_dir.str, settings.tcp_port);
 
 	// initializing the ssl connection data
 	SSL_initialize();

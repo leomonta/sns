@@ -6,8 +6,8 @@ compiler:
 
 directories:
   project_dir: .
-  include_dirs: [include]
   exe_path_name: bin/libsns.a
+  include_dirs: [include]
   source_dirs: [src]
   temp_dir: obj
 
@@ -17,7 +17,7 @@ default:
   linker_args: rcs
 
 debug:
-  compiler_args: -g3 -std=c23 -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -fsanitize=address -fsanitize=leak -pthread
+  compiler_args: -g3 -std=c23 -Wall -Wconversion -Wshadow -Wextra -Wuninitialized -Wmissing-format-attribute -fstack-protector-strong -Wimplicit-fallthrough=5 -Wmisleading-indentation -Wstrict-overflow=5 -Wstringop-overflow=4 -Wunknown-pragmas -Wsuggest-attribute=pure -Wsuggest-attribute=cold -Wsuggest-attribute=noreturn -Wsuggest-attribute=malloc -fstrict-aliasing -fsanitize=address -fsanitize=leak -pthread
 
 analyze:
   compiler_args: -g3 -std=c23 -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -pthread -fanalyzer

@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 void log_malformed_parameter(const StringRef *str_ref) {
-	llog(LOG_WARNING, "Malformed parameter -> '%*s' \n", str_ref->len, str_ref->str);
+	llog(LOG_WARNING, "Malformed parameter -> '%*s' \n", (int) str_ref->len, str_ref->str);
 }
 
 InboundHttpMessage parse_InboundMessage(const char *str) {
