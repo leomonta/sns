@@ -157,6 +157,8 @@ typedef struct {
 	StringOwn                resource_name;  // the internal complete name for the resource present in the body
 } OutboundHttpMessage;
 
+typedef void (*MessageProcessor)(const HTTP_Method *method, const InboundHttpMessage *in_message, OutboundHttpMessage *out_message);
+
 InboundHttpMessage parse_InboundMessage(const char *str);
 
 void destroy_InboundHttpMessage(InboundHttpMessage *mex);
