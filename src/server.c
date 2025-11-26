@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <tcpConn.h>
 
+// only for logging purposes
 const char *method_str[] = {
     "INVALID",
     "GET",
@@ -139,7 +140,7 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket) {
 		}
 
 		// make the message a single formatted string
-		auto res = compile_message(&response);
+		auto res = compose_message(&response);
 		// llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%*s\n", res.len, res.str);
 
 		// ------------------------------------------------------------------ SEND

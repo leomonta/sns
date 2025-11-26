@@ -170,7 +170,7 @@ void destroy_OutboundHttpMessage(OutboundHttpMessage *mex);
  * @param rawHeader the StringRef containing the header as a char* string
  * @param msg the httpMessage to store the information extracted
  */
-void decompile_header(const StringRef *raw_header, InboundHttpMessage *msg);
+void decompose_header(const StringRef *raw_header, InboundHttpMessage *msg);
 
 /**
  * Analyzes the incoming request for form data / other parameters and puts the result in the given message
@@ -178,7 +178,7 @@ void decompile_header(const StringRef *raw_header, InboundHttpMessage *msg);
  * @param cType content Type (e.g. multipart form-data, plain text, url encoded)
  * @param msg the message to analyze
  */
-void decompile_message(InboundHttpMessage *msg);
+void decompose_message(InboundHttpMessage *msg);
 
 /**
  * Unite the header and the body in a single message and returns it
@@ -187,7 +187,7 @@ void decompile_message(InboundHttpMessage *msg);
  * @param msg the message containing the header options and, eventually, the body
  * @return the 'compiled' message
  */
-StringOwn compile_message(const OutboundHttpMessage *msg);
+StringOwn compose_message(const OutboundHttpMessage *msg);
 
 /**
  * Given a String representing the request method (GET, POST, PATCH, ...) returns the relative code

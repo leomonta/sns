@@ -48,9 +48,9 @@ InboundHttpMessage parse_InboundMessage(const char *str) {
 	// now i have the two stringRefs to the body and the header
 
 	// extract metadata parameters and other stuff
-	decompile_header(&header, &res);
+	decompose_header(&header, &res);
 
-	decompile_message(&res);
+	decompose_message(&res);
 
 	return res;
 }
@@ -84,7 +84,7 @@ void add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 	MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val, equal_StringRef);
 }
 
-void decompile_header(const StringRef *raw_header, InboundHttpMessage *msg) {
+void decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 
 	// the first line should be "METHOD URL HTTP/Version"
 
@@ -121,7 +121,7 @@ void decompile_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	parse_options(raw_header, add_to_options, "\r\n", ':', msg);
 }
 
-void decompile_message(InboundHttpMessage *msg) {
+void decompose_message(InboundHttpMessage *msg) {
 	// if the client is sending some form data or other type od data we need to parse that
 
 	auto content_type = msg->header_options[RQ_CONTENT_TYPE];
@@ -165,7 +165,7 @@ void decompile_message(InboundHttpMessage *msg) {
 	}
 }
 
-StringOwn compile_message(const OutboundHttpMessage *msg) {
+StringOwn compose_message(const OutboundHttpMessage *msg) {
 
 	// I preconstruct the status line so i don't have to do multiple allocations and string concatenations
 	// The value to modify are at
