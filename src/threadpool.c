@@ -2,8 +2,9 @@
 
 #include "RingBuffer_ResolverData.h"
 #include "logger.h"
-#include "methods.h"
 #include "server.h"
+#include "RingBuffer_ResolverData.h"
+
 
 #include <errno.h>
 #include <fcntl.h>
@@ -12,6 +13,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tcpConn.h>
+
+struct ThreadPool {
+	RingBuffer_ResolverData ring_buffer;  // the jobs arranged in a threadBuffer
+	sem_t                   sempahore;    // semaphore to decide how many can get in the critical section
+	pthread_mutex_t         mutex;        // mutex to enter the critical section
+	size_t                  thread_count; // num of threads allocated in *threads
+	pthread_t              *threads;      // array of the pthreads started, it will not change once the tpoll is created
+	bool                    stop;         // should the threads stop
+};
 
 ThreadPool *initialize_threadpool(const size_t thread_count, ThreadPool *res) {
 

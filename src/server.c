@@ -1,8 +1,8 @@
 #include "server.h"
 
+#include "HttpMessage.h"
 #include "StringRef.h"
 #include "logger.h"
-#include "methods.h"
 #include "threadpool.h"
 
 #include <errno.h>
@@ -129,15 +129,8 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket) {
 		OutboundHttpMessage response = {};
 		response.header_options      = MiniMap_u_char_StringOwn_make(16);
 
-		switch (mex.method) {
-		case HTTP_HEAD:
-			Head(&mex, &response);
-			break;
-
-		case HTTP_GET:
-			Get(&mex, &response);
-			break;
-		}
+		// TODO:
+		// check the messge processors
 
 		// make the message a single formatted string
 		auto res = compose_message(&response);
@@ -158,9 +151,6 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket) {
 }
 
 void setup(SNSSettings settings, RuntimeInfo *res) {
-
-	// initializing methods data
-	setup_methods(&settings.base_dir);
 
 	errno = 0;
 

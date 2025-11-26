@@ -1,5 +1,6 @@
 #pragma once
 
+#include "StringRef.h"
 #include "threadpool.h"
 
 #include <sslConn.h>

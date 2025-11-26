@@ -6,7 +6,6 @@
 #include <semaphore.h>
 #include <sslConn.h>
 #include <stddef.h>
-#include <tcpConn.h>
 
 /**
  * A thread pool created exclusively for managing the resolveRequest function
