@@ -138,23 +138,23 @@ typedef enum : uint8_t {
  */
 
 typedef struct {
-	uint8_t                     method;                      // the appropriate http method, GET, POST, PATCH
-	uint8_t                     version;                     // the version of the http header (1.0, 1.1, 2.0, ...)
 	char                       *raw_message_a;               // the c string containing the entire header, the _a means it's heap allocated
 	size_t                      header_len;                  // how many bytes are there in the header
 	MiniMap_StringRef_StringRef parameters;                  // contain the data sent in the forms and query parameters
 	StringRef                   header_options[RQ_ENUM_LEN]; // an 'hash map' where to store the decoded header options
 	StringRef                   url;                         // the resource asked from the client
 	StringRef                   body;                        // the content of the message, what the message is about
+	uint8_t                     method;                      // the appropriate http method, GET, POST, PATCH
+	uint8_t                     version;                     // the version of the http header (1.0, 1.1, 2.0, ...)
 } InboundHttpMessage;
 
 typedef struct {
-	uint16_t                 status_code;    // 200, 404, 500, etc etc
-	uint8_t                  version;        // the version of the http header (1.0, 1.1, 2.0, ...)
 	MiniMap_u_char_StringOwn header_options; // represent the header as the collection of the single options -> value
 	size_t                   header_len;     // how many bytes are there in the header
 	StringOwn                body;           // the content of the message, what the message is about
 	StringOwn                resource_name;  // the internal complete name for the resource present in the body
+	uint16_t                 status_code;    // 200, 404, 500, etc etc
+	uint8_t                  version;        // the version of the http header (1.0, 1.1, 2.0, ...)
 } OutboundHttpMessage;
 
 typedef void (*MessageProcessor)(const HTTP_Method *method, const InboundHttpMessage *in_message, OutboundHttpMessage *out_message);

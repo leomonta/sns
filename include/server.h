@@ -8,16 +8,16 @@
 
 // this shouldn't be here but it makes sense for preventing cyclic include
 typedef struct {
-	pthread_t  request_acceptor;
-	Socket     server_socket;
 	SSL_CTX   *ssl_context;
-	time_t     start_time;
 	ThreadPool thread_pool;
+	pthread_t  request_acceptor;
+	time_t     start_time;
+	Socket     server_socket;
 } RuntimeInfo;
 
 typedef struct {
-	unsigned short tcp_port;
 	StringRef      base_dir;
+	unsigned short tcp_port;
 } SNSSettings;
 
 void SIGPIPE_handler(int os);

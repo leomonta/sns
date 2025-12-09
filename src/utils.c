@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#define ZLIB_CONST
 #include <zlib.h>
 
 static char buffer[80];
@@ -93,7 +94,7 @@ bool compress_gz(const StringRef *data, StringOwn *output) {
 		return false;
 	}
 
-	deflate_s.next_in  = (Bytef *)data->str;
+	deflate_s.next_in  = (const Bytef *)data->str;
 	deflate_s.avail_in = (uInt)data->len;
 
 	output->len = 0;

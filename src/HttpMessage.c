@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 void log_malformed_parameter(const StringRef *str_ref) {
-	llog(LOG_WARNING, "Malformed parameter -> '%*s' \n", (int) str_ref->len, str_ref->str);
+	llog(LOG_WARNING, "Malformed parameter -> '%*s' \n", (int)str_ref->len, str_ref->str);
 }
 
 InboundHttpMessage parse_InboundMessage(const char *str) {
@@ -225,7 +225,11 @@ StringOwn compose_message(const OutboundHttpMessage *msg) {
 	memcpy(writer, msg->body.str, msg->body.len);
 	writer += msg->body.len;
 
-	return (StringOwn){res, msg_len};
+	StringOwn r = {
+	    .str = res,
+	    .len = msg_len,
+	};
+	return r;
 }
 
 u_char get_method_code(const StringRef *request_method) {
@@ -379,13 +383,14 @@ void add_header_option(const HTTPHeaderResponseOption option, const StringRef *v
 
 	StringOwn cpy = {
 	    copy_StringRef(&t),
-	    len};
+	    len,
+	};
 
 	// if something is already present at the requested position
 	StringOwn old = {};
 	auto      res = MiniMap_u_char_StringOwn_get(&msg->header_options, &option, compare_u_char, &old);
 
-	// this spilt if is because there might be an insertion of a stringref with nullptr but size > 0
+	// this spilt if is here because there might be an insertion of a stringref with nullptr but size > 0
 
 	// something was present, need to unreserve the space it reserved
 	if (res) {

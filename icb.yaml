@@ -17,17 +17,20 @@ default:
   linker_args: rcs
 
 debug:
-  compiler_args: -g3 -std=c23 -Wall -Wconversion -Wshadow -Wextra -Wuninitialized -Wmissing-format-attribute -fstack-protector-strong -Wimplicit-fallthrough=5 -Wmisleading-indentation -Wstrict-overflow=5 -Wstringop-overflow=4 -Wunknown-pragmas -Wsuggest-attribute=pure -Wsuggest-attribute=cold -Wsuggest-attribute=noreturn -Wsuggest-attribute=malloc -fstrict-aliasing -fsanitize=address -fsanitize=leak -pthread
+  compiler_args: -ggdb3 -std=c23 -Wall -Wconversion -Wshadow -Wextra -Wuninitialized -Wimplicit-fallthrough=5 -Wmisleading-indentation -Wstrict-overflow=5 -Wstringop-overflow=4 -Wunknown-pragmas -Wsuggest-attribute=pure -Wsuggest-attribute=cold -Wsuggest-attribute=noreturn -Wsuggest-attribute=const -Wsuggest-attribute=format -Wsuggest-attribute=malloc -Wstrict-aliasing -Wbad-function-cast -Wcast-qual -Wcast-align -Wcast-function-type -Wwrite-strings -Wlogical-op -fstack-protector-strong -fstrict-aliasing -fsanitize=address -fsanitize=leak -fsanitize=undefined -pthread
 
 analyze:
-  compiler_args: -g3 -std=c23 -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -pthread -fanalyzer
+  compiler_args: -ggdb3 -std=c23 -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -pthread -fanalyzer
   libraries_names: [netTcpSslDebugNoAsan, logger]
 
 no-asan:
-  compiler_args: -g3 -std=c23 -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -pthread
+  compiler_args: -ggdb3 -std=c23 -Wno-unknown-pragmas -Wall -Wconversion -Wshadow -Wextra -pthread
 
 no-threads:
-  compiler_args: -g3 -std=c23 -Wno-missing-field-initializers -Wno-unknown-pragmas -Wall -Wconversion -DNO_THREADING -Wshadow -Wextra -fsanitize=address -fsanitize=leak
+  compiler_args: -ggdb3 -std=c23 -Wno-unknown-pragmas -Wall -Wconversion -DNO_THREADING -Wshadow -Wextra -fsanitize=address -fsanitize=leak
+
+extra: 
+  compiler_args: -Wpadded
 
 release:
   compiler_args: -Ofast -DNDEBUG -g3 -std=c23 -pthread
