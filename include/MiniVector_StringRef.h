@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-//
+// 
 
 #include "StringRef.h"
 
@@ -46,7 +46,7 @@ void MiniVector_StringRef_grow(MiniVector *vec);
  *
  * @return the pointer to the element at pos index
  */
-bool MiniVector_StringRef_get(const MiniVector *vec, const size_t index, StringRef* result);
+bool MiniVector_StringRef_get(const MiniVector *vec, const size_t index, StringRef *result);
 
 /**
  * Set the element at index to the element given

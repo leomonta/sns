@@ -1,6 +1,6 @@
 #pragma once
 
-// template <K, V, I>
+// 
 
 #include "MiniVector_uint32_t.h"
 #include "MiniVector_MessageProcessor.h"

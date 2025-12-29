@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-//
+// 
 
 typedef unsigned char u_char;
 
@@ -46,7 +46,7 @@ void MiniVector_u_char_grow(MiniVector *vec);
  *
  * @return the pointer to the element at pos index
  */
-bool MiniVector_u_char_get(const MiniVector *vec, const size_t index, u_char* result);
+bool MiniVector_u_char_get(const MiniVector *vec, const size_t index, u_char *result);
 
 /**
  * Set the element at index to the element given

@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-// template <T, I>
+// 
 
 #include "HttpMessage.h"
 

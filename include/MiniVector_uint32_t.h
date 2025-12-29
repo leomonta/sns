@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-//template <T, I>
+// 
 
 #include <stdint.h>
 
@@ -46,7 +46,7 @@ void MiniVector_uint32_t_grow(MiniVector *vec);
  *
  * @return the pointer to the element at pos index
  */
-bool MiniVector_uint32_t_get(const MiniVector *vec, const size_t index, uint32_t* result);
+bool MiniVector_uint32_t_get(const MiniVector *vec, const size_t index, uint32_t *result);
 
 /**
  * Set the element at index to the element given

@@ -4,18 +4,18 @@
 
 // 
 
-#include "MiniVector_u_char.h"
+#include "MiniVector_MessageProcessor.h"
 
-#define MiniVector MiniVector_u_char
+#define MiniVector MiniVector_MessageProcessor
 
 #define GROW_RATE 2
 
-MiniVector MiniVector_u_char_make(const size_t initial_count) {
+MiniVector MiniVector_MessageProcessor_make(const size_t initial_count) {
 	auto capacity = initial_count == 0 ? 10 : initial_count;
 
 	MiniVector res = {
-	    .data     = malloc(capacity * sizeof(u_char)),
-	    .capacity = capacity * sizeof(u_char),
+	    .data     = malloc(capacity * sizeof(MessageProcessor)),
+	    .capacity = capacity * sizeof(MessageProcessor),
 	    .count    = 0,
 	};
 
@@ -23,7 +23,7 @@ MiniVector MiniVector_u_char_make(const size_t initial_count) {
 	return res;
 }
 
-void MiniVector_u_char_destroy(MiniVector *vec) {
+void MiniVector_MessageProcessor_destroy(MiniVector *vec) {
 
 	free(vec->data);
 
@@ -33,7 +33,7 @@ void MiniVector_u_char_destroy(MiniVector *vec) {
 	vec->count    = 0;
 }
 
-void MiniVector_u_char_grow(MiniVector *vec) {
+void MiniVector_MessageProcessor_grow(MiniVector *vec) {
 
 	vec->data = realloc(vec->data, vec->capacity * GROW_RATE);
 	vec->capacity *= GROW_RATE;
@@ -42,7 +42,7 @@ void MiniVector_u_char_grow(MiniVector *vec) {
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 abd others
 }
 
-bool MiniVector_u_char_get(const MiniVector *vec, const size_t index, u_char* result) {
+bool MiniVector_MessageProcessor_get(const MiniVector *vec, const size_t index, MessageProcessor* result) {
 
 	if (index >= vec->count) {
 		// invalid pos
@@ -54,30 +54,30 @@ bool MiniVector_u_char_get(const MiniVector *vec, const size_t index, u_char* re
 }
 
 
-void MiniVector_u_char_set(MiniVector *vec, const size_t index, const u_char *element) {
+void MiniVector_MessageProcessor_set(MiniVector *vec, const size_t index, const MessageProcessor *element) {
 
 	if (index < vec->count) {
-		memcpy(vec->data + index, element, sizeof(u_char));
+		memcpy(vec->data + index, element, sizeof(MessageProcessor));
 	}
 }
 
-void MiniVector_u_char_append(MiniVector *vec, const u_char *element) {
-	if (vec->count == vec->capacity / sizeof(u_char)) {
-		MiniVector_u_char_grow(vec);
+void MiniVector_MessageProcessor_append(MiniVector *vec, const MessageProcessor *element) {
+	if (vec->count == vec->capacity / sizeof(MessageProcessor)) {
+		MiniVector_MessageProcessor_grow(vec);
 	}
 
-	memcpy(vec->data + vec->count, element, sizeof(u_char));
+	memcpy(vec->data + vec->count, element, sizeof(MessageProcessor));
 
 	++(vec->count);
 }
 
-void MiniVector_u_char_insert(MiniVector *vec, const size_t index, const u_char *element) {
+void MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, const MessageProcessor *element) {
 	if (index >= vec->count) {
 		// invalid position
 		return;
 	}
 
-	if (vec->count == vec->capacity / sizeof(u_char)) {
+	if (vec->count == vec->capacity / sizeof(MessageProcessor)) {
 		// i have to grow
 		// I am doing double work here (in case realloc cannot extend the given pointer)
 		// either realloc copies everything and then I move part of the array further OR
@@ -85,18 +85,18 @@ void MiniVector_u_char_insert(MiniVector *vec, const size_t index, const u_char 
 		// If I were to malloc new memory I would not incur in a double copy BUT i would miss out on a potential easy realloc
 		// So the decision lies on the distribution of good realloc vs bad realloc
 		// but I don't have the data to know this. So I'll just go with grow (realloc)
-		MiniVector_u_char_grow(vec);
+		MiniVector_MessageProcessor_grow(vec);
 	}
 
 	// god bless memmove
 	memmove(vec->data + index + 1, vec->data + index, vec->count - index);
 
 	// finally write the data
-	MiniVector_u_char_set(vec, index, element);
+	MiniVector_MessageProcessor_set(vec, index, element);
 }
 
 
-void MiniVector_u_char_remove(MiniVector *vec, const size_t index) {
+void MiniVector_MessageProcessor_remove(MiniVector *vec, const size_t index) {
 
 	// we cant just overwrite the position to erase when
 	// index is out of bound, > count or
@@ -108,7 +108,7 @@ void MiniVector_u_char_remove(MiniVector *vec, const size_t index) {
 
 	if (index < vec->count - 1) {
 		// just copy over it, no need to do anything else really
-		memcpy(vec->data + index, vec->data + index + 1, (vec->count - index - 1) * sizeof(u_char));
+		memcpy(vec->data + index, vec->data + index + 1, (vec->count - index - 1) * sizeof(MessageProcessor));
 	}
 
 	--vec->count;

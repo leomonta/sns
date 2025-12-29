@@ -88,6 +88,7 @@ bool RingBuffer_ResolverData_retrieve(RingBuffer *rngb, ResolverData *result) {
 	return true;
 }
 
+
 void RingBuffer_ResolverData_append(RingBuffer *rngb, const ResolverData *element) {
 	if (rngb->stored == rngb->count) {
 		RingBuffer_ResolverData_grow(rngb);
@@ -100,7 +101,7 @@ void RingBuffer_ResolverData_append(RingBuffer *rngb, const ResolverData *elemen
 	++rngb->stored;
 }
 
-bool RingBuffer_ResolverData_peek(const RingBuffer *rngb, ResolverData *result) {
+bool RingBuffer_ResolverData_peek(const RingBuffer *rngb, ResolverData* result) {
 
 	if (rngb->stored == 0) {
 		// no data
