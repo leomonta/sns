@@ -5,7 +5,7 @@
 
 //
 
-#include "methods.h"
+#include "ResolverData.h"
 
 #define RingBuffer RingBuffer_ResolverData
 

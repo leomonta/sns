@@ -4,12 +4,13 @@
 
 #define MiniMap MiniMap_StringRef_StringRef
 
-MiniMap MiniMap_StringRef_StringRef_make(const size_t initial_count) {
+MiniMap MiniMap_StringRef_StringRef_make(const size_t initial_count, bool (*eq)(const StringRef *, const StringRef *)) {
 
 	MiniMap res;
 
 	res.keys   = MiniVector_StringRef_make(initial_count);
 	res.values = MiniVector_StringRef_make(initial_count);
+	res.eq_fun = eq;
 
 	return res;
 }
@@ -20,13 +21,13 @@ void MiniMap_StringRef_StringRef_destroy(MiniMap *map) {
 	MiniVector_StringRef_destroy(&map->values);
 }
 
-bool MiniMap_StringRef_StringRef_replace(MiniMap *map, const StringRef *key, const StringRef *value, bool (*eq)(const StringRef *, const StringRef *)) {
+bool MiniMap_StringRef_StringRef_replace(MiniMap *map, const StringRef *key, const StringRef *value) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
-		if (eq(map->keys.data + i, key)) {
+		if (map->eq_fun(map->keys.data + i, key)) {
 
 			// replace it
 			MiniVector_StringRef_set(&map->values, i, value);
@@ -37,13 +38,13 @@ bool MiniMap_StringRef_StringRef_replace(MiniMap *map, const StringRef *key, con
 	return false;
 }
 
-bool MiniMap_StringRef_StringRef_get(const MiniMap *map, const StringRef *key, bool (*eq)(const StringRef *, const StringRef *), StringRef* result) {
+bool MiniMap_StringRef_StringRef_get(const MiniMap *map, const StringRef *key, StringRef *result) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
-		if (eq(map->keys.data + i, key)) {
+		if (map->eq_fun(map->keys.data + i, key)) {
 
 			*result = *(map->values.data + i);
 			return true;
@@ -53,13 +54,13 @@ bool MiniMap_StringRef_StringRef_get(const MiniMap *map, const StringRef *key, b
 	return false;
 }
 
-void MiniMap_StringRef_StringRef_set(MiniMap *map, const StringRef *key, const StringRef *value, bool (*eq)(const StringRef *, const StringRef *)) {
+void MiniMap_StringRef_StringRef_set(MiniMap *map, const StringRef *key, const StringRef *value) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
-		if (eq(map->keys.data + i, key)) {
+		if (map->eq_fun(map->keys.data + i, key)) {
 
 			// replace it
 			MiniVector_StringRef_set(&map->values, i, value);
@@ -72,12 +73,12 @@ void MiniMap_StringRef_StringRef_set(MiniMap *map, const StringRef *key, const S
 	MiniVector_StringRef_append(&map->values, value);
 }
 
-bool MiniMap_StringRef_StringRef_remove(MiniMap *map, const StringRef *key, bool (*eq)(const StringRef *, const StringRef *)) {
+bool MiniMap_StringRef_StringRef_remove(MiniMap *map, const StringRef *key) {
 
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
-		if (eq(map->keys.data + i, key)) {
+		if (map->eq_fun(map->keys.data + i, key)) {
 
 			MiniVector_StringRef_remove(&map->keys, i);
 			MiniVector_StringRef_remove(&map->values, i);

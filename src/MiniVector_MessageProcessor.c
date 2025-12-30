@@ -56,7 +56,7 @@ bool MiniVector_MessageProcessor_get(const MiniVector *vec, const size_t index, 
 
 void MiniVector_MessageProcessor_set(MiniVector *vec, const size_t index, const MessageProcessor *element) {
 
-	if (index < vec->count) {
+	if (index < vec->count && element != nullptr) {
 		memcpy(vec->data + index, element, sizeof(MessageProcessor));
 	}
 }

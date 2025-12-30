@@ -1,6 +1,7 @@
 #include "server.h"
 
 #include "HttpMessage.h"
+#include "ResolverData.h"
 #include "StringRef.h"
 #include "logger.h"
 #include "threadpool.h"
@@ -114,6 +115,10 @@ void accept_requests(RuntimeInfo *rti) {
 	}
 }
 
+bool compare_u_char(const u_char *lhs, const u_char *rhs) {
+	return *lhs == *rhs;
+}
+
 void resolve_request(SSL *ssl_connection, const Socket client_socket) {
 
 	// ---------------------------------------------------------------------- RECEIVE
@@ -127,7 +132,7 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket) {
 		llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[mex.method]);
 
 		OutboundHttpMessage response = {};
-		response.header_options      = MiniMap_u_char_StringOwn_make(16);
+		response.header_options      = MiniMap_u_char_StringOwn_make(16, compare_u_char);
 
 		// TODO:
 		// check the messge processors

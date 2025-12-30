@@ -56,7 +56,7 @@ bool MiniVector_StringRef_get(const MiniVector *vec, const size_t index, StringR
 
 void MiniVector_StringRef_set(MiniVector *vec, const size_t index, const StringRef *element) {
 
-	if (index < vec->count) {
+	if (index < vec->count && element != nullptr) {
 		memcpy(vec->data + index, element, sizeof(StringRef));
 	}
 }

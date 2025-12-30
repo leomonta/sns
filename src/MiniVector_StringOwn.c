@@ -56,7 +56,7 @@ bool MiniVector_StringOwn_get(const MiniVector *vec, const size_t index, StringO
 
 void MiniVector_StringOwn_set(MiniVector *vec, const size_t index, const StringOwn *element) {
 
-	if (index < vec->count) {
+	if (index < vec->count && element != nullptr) {
 		memcpy(vec->data + index, element, sizeof(StringOwn));
 	}
 }

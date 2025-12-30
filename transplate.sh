@@ -30,7 +30,7 @@ do
 	templetizer -i template/src/MiniMap.c -o src/MiniMap_u_char_StringOwn.c -t u_char StringOwn
 
 	printf "RingBuffer.h StringOwn\n"
-	templetizer -i template/include/RingBuffer.h -o include/RingBuffer_ResolverData.h -t ResolverData '#include "methods.h"'
+	templetizer -i template/include/RingBuffer.h -o include/RingBuffer_ResolverData.h -t ResolverData '#include "ResolverData.h"'
 	printf "RingBuffer.c StringOwn\n"
 	templetizer -i template/src/RingBuffer.c -o src/RingBuffer_ResolverData.c -t ResolverData
 
@@ -44,10 +44,10 @@ do
 	printf "MiniVector.c MessageProcessor\n"
 	templetizer -i template/src/MiniVector.c -o src/MiniVector_MessageProcessor.c -t MessageProcessor
 
-	printf "miniMap.h uint32_t MessageProcessor\n"
-	templetizer -i template/include/MiniMap.h -o include/MiniMap_uint32_t_MessageProcessor.h -t uint32_t MessageProcessor ''
-	printf "miniMap.c uint32_t MessageProcessor\n"
-	templetizer -i template/src/MiniMap.c -o src/MiniMap_uint32_t_MessageProcessor.c -t uint32_t MessageProcessor
+	printf "miniMap.h StringRef MessageProcessor\n"
+	templetizer -i template/include/MiniMap.h -o include/MiniMap_StringRef_MessageProcessor.h -t StringRef MessageProcessor ''
+	printf "miniMap.c StringRef MessageProcessor\n"
+	templetizer -i template/src/MiniMap.c -o src/MiniMap_StringRef_MessageProcessor.c -t StringRef MessageProcessor
 
 	printf "\n"
 

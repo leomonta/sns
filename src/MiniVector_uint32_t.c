@@ -56,7 +56,7 @@ bool MiniVector_uint32_t_get(const MiniVector *vec, const size_t index, uint32_t
 
 void MiniVector_uint32_t_set(MiniVector *vec, const size_t index, const uint32_t *element) {
 
-	if (index < vec->count) {
+	if (index < vec->count && element != nullptr) {
 		memcpy(vec->data + index, element, sizeof(uint32_t));
 	}
 }

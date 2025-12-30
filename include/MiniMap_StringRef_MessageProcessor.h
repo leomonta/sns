@@ -1,18 +1,18 @@
 #pragma once
 
-// template <K, V, I>
+// 
 
-#include "MiniVector_#K#.h"
-#include "MiniVector_#V#.h"
+#include "MiniVector_StringRef.h"
+#include "MiniVector_MessageProcessor.h"
 
-I
 
-#define MiniMap MiniMap_#K#_#V#
+
+#define MiniMap MiniMap_StringRef_MessageProcessor
 
 typedef struct {
-	MiniVector_#K# keys;
-	MiniVector_#V# values;
-	bool (*eq_fun)(const K *, const K *);
+	MiniVector_StringRef keys;
+	MiniVector_MessageProcessor values;
+	bool (*eq_fun)(const StringRef *, const StringRef *);
 } MiniMap;
 
 /**
@@ -23,14 +23,14 @@ typedef struct {
  *
  * @return a built MiniMap
  */
-MiniMap MiniMap_#K#_#V#_make(const size_t initial_count, bool (*eq)(const K *, const K *));
+MiniMap MiniMap_StringRef_MessageProcessor_make(const size_t initial_count, bool (*eq)(const StringRef *, const StringRef *));
 
 /**
  * Frees up all the resources allocated by the miniMap
  *
  * @param[in] `map` the MiniMap to destroy
  */
-void MiniMap_#K#_#V#_destroy(MiniMap *map);
+void MiniMap_StringRef_MessageProcessor_destroy(MiniMap *map);
 
 /**
  * Replace the value at the given key with the given value and returns true.
@@ -42,7 +42,7 @@ void MiniMap_#K#_#V#_destroy(MiniMap *map);
  *
  * @return true if the value at key was replaced
  */
-bool MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value);
+bool MiniMap_StringRef_MessageProcessor_replace(MiniMap *map, const StringRef *key, const MessageProcessor *value);
 
 /**
  * Get the value corresponding to the giving key
@@ -53,7 +53,7 @@ bool MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value);
  *
  * @return a pointer the value associated with the given key, or nullptr if the key is not present in the map
  */
-bool MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V* result);
+bool MiniMap_StringRef_MessageProcessor_get(const MiniMap *map, const StringRef *key, MessageProcessor* result);
 
 /**
  * Insert a value into the hash map trhough its relative key
@@ -64,7 +64,7 @@ bool MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V* result);
  * @param[in] `key` the key relative for the value, the key is applied directly, no hash function is applied, thus the hashing step should be done before
  * @param[in] `value` the value to associate to the given key
  */
-void MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value);
+void MiniMap_StringRef_MessageProcessor_set(MiniMap *map, const StringRef *key, const MessageProcessor *value);
 
 /**
  * Attempts to remove the key and its relative value
@@ -75,6 +75,6 @@ void MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value);
  *
  * @return if the key value pair has been removed
  */
-bool MiniMap_#K#_#V#_remove(MiniMap *map, const K *key);
+bool MiniMap_StringRef_MessageProcessor_remove(MiniMap *map, const StringRef *key);
 
 #undef MiniMap

@@ -56,7 +56,7 @@ bool MiniVector_u_char_get(const MiniVector *vec, const size_t index, u_char* re
 
 void MiniVector_u_char_set(MiniVector *vec, const size_t index, const u_char *element) {
 
-	if (index < vec->count) {
+	if (index < vec->count && element != nullptr) {
 		memcpy(vec->data + index, element, sizeof(u_char));
 	}
 }

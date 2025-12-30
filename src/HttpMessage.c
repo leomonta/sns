@@ -27,7 +27,7 @@ InboundHttpMessage parse_InboundMessage(const char *str) {
 	temp[msg_len] = 0;
 
 	res.raw_message_a = temp;
-	res.parameters    = MiniMap_StringRef_StringRef_make(10);
+	res.parameters    = MiniMap_StringRef_StringRef_make(10, equal_StringRef);
 
 	// body and header are divided by two newlines
 	auto msg_separator = strstr(res.raw_message_a, "\r\n\r\n");
@@ -81,7 +81,7 @@ void add_to_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 }
 
 void add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
-	MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val, equal_StringRef);
+	MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val);
 }
 
 void decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
@@ -365,10 +365,6 @@ void http::parseFormData(const std::string &params, std::string &divisor, std::u
 }
 */
 
-bool compare_u_char(const u_char *lhs, const u_char *rhs) {
-	return *lhs == *rhs;
-}
-
 void add_header_option(const HTTPHeaderResponseOption option, const StringRef *value, OutboundHttpMessage *msg) {
 
 	auto opt = header_response_options_str[option];
@@ -388,7 +384,7 @@ void add_header_option(const HTTPHeaderResponseOption option, const StringRef *v
 
 	// if something is already present at the requested position
 	StringOwn old = {};
-	auto      res = MiniMap_u_char_StringOwn_get(&msg->header_options, &option, compare_u_char, &old);
+	auto      res = MiniMap_u_char_StringOwn_get(&msg->header_options, &option, &old);
 
 	// this spilt if is here because there might be an insertion of a stringref with nullptr but size > 0
 
@@ -402,7 +398,7 @@ void add_header_option(const HTTPHeaderResponseOption option, const StringRef *v
 			free(old.str);
 		}
 	}
-	MiniMap_u_char_StringOwn_set(&msg->header_options, &option, &cpy, compare_u_char);
+	MiniMap_u_char_StringOwn_set(&msg->header_options, &option, &cpy);
 
 	// account the bytes that will be added later
 	//                 name     ': ' value '\r\n'

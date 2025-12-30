@@ -56,7 +56,7 @@ bool MiniVector_#T#_get(const MiniVector *vec, const size_t index, T* result) {
 
 void MiniVector_#T#_set(MiniVector *vec, const size_t index, const T *element) {
 
-	if (index < vec->count) {
+	if (index < vec->count && element != nullptr) {
 		memcpy(vec->data + index, element, sizeof(T));
 	}
 }
