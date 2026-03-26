@@ -140,6 +140,6 @@ char *copy_StringRef(const StringRef *str);
  *
  * @return a heap allocated string that represents the given number
  */
-StringOwn num_to_string(size_t number);
+StringRef num_to_string(size_t number);
 
 StringRef get_reason_phrase(unsigned short statusCode);

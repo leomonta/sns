@@ -2,6 +2,7 @@
 
 #include "logger.h"
 
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -10,7 +11,8 @@
 #define ZLIB_CONST
 #include <zlib.h>
 
-static char buffer[80];
+static thread_local char buffer[80];
+static thread_local char digits_str_buffer[41]; // enough to represent 2^128, null terminator and then some
 
 StringRef getUTC() {
 
@@ -207,7 +209,6 @@ size_t strnlen(const char *str, const size_t count) {
 	}
 
 	return res;
-
 }
 
 StringRef trim(StringRef *str_ref) {
@@ -292,19 +293,20 @@ unsigned char get_num_digits(size_t n) {
 	return r;
 }
 
-StringOwn num_to_string(size_t number) {
+StringRef num_to_string(size_t number) {
 
 	unsigned digits = get_num_digits(number);
 
-	char *str = malloc(digits);
+	char *str = digits_str_buffer;
 
 	// < digits cause (unsigned 0 - 1 = UINT_MAX)
-	for (unsigned i = digits - 1; i < digits; --i) {
+	for (size_t i = (digits - 1); i < digits; --i) {
 		str[i] = (char)(number % 10) + '0';
 		number = number / 10;
 	}
+	str[digits] = '\0';
 
-	return (StringOwn){str, digits};
+	return (StringRef){str, digits};
 }
 
 StringRef get_reason_phrase(unsigned short statusCode) {
@@ -394,4 +396,3 @@ StringRef get_reason_phrase(unsigned short statusCode) {
 		return CAST_STRINGREF("UNKN");
 	}
 }
-
