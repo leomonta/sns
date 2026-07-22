@@ -25,11 +25,12 @@ typedef struct {
  * Create a thread pool on the heap and returns it.
  * It also start tCount threads with the proxy_resReq function
  *
- * @param[in] thread_count the number of concurrent threads to start
- * @param[out] res the thread pool to initialize
+ * @param[in] `thread_count` the number of concurrent threads to start
+ * @param[in] `fun` the function to call for thread workers
+ * @param[out] `res` the thread pool to initialize
  * @return the modified thread pool
  */
-ThreadPool *initialize_threadpool(const size_t thread_count, ThreadPool *res);
+ThreadPool *initialize_threadpool(const size_t thread_count, void *(*fun)(void *), ThreadPool *res);
 
 /**
  * Free all the resource allocated in the given thrad pool

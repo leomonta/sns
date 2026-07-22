@@ -309,6 +309,11 @@ StringRef num_to_string(size_t number) {
 	return (StringRef){str, digits};
 }
 
+bool compare_u_char(const unsigned char *lhs, const unsigned char *rhs) {
+	return *lhs == *rhs;
+}
+
+
 StringRef get_reason_phrase(unsigned short statusCode) {
 
 	switch (statusCode) {

@@ -142,4 +142,13 @@ char *copy_StringRef(const StringRef *str);
  */
 StringRef num_to_string(size_t number);
 
+/**
+ * returnrs if the two null terminated strings are equal
+ *
+ * @param[in] `lhs`, `rhs` the strings to compare
+ *
+ * @return true if they are identical, false otherwise
+ */
+bool compare_u_char(const unsigned char *lhs, const unsigned char *rhs);
+
 StringRef get_reason_phrase(unsigned short statusCode);

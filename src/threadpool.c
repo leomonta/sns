@@ -2,7 +2,6 @@
 
 #include "RingBuffer_ResolverData.h"
 #include "logger.h"
-#include "server.h"
 #include "RingBuffer_ResolverData.h"
 
 
@@ -23,7 +22,7 @@ struct ThreadPool {
 	bool                    stop;         // should the threads stop
 };
 
-ThreadPool *initialize_threadpool(const size_t thread_count, ThreadPool *res) {
+ThreadPool *initialize_threadpool(const size_t thread_count, void *(*fun)(void *), ThreadPool *res) {
 
 	// init linked list
 	res->ring_buffer  = RingBuffer_ResolverData_make(thread_count);
@@ -61,7 +60,7 @@ ThreadPool *initialize_threadpool(const size_t thread_count, ThreadPool *res) {
 	res->threads = malloc(thread_count * sizeof(pthread_t));
 
 	for (size_t i = 0; i < thread_count; ++i) {
-		errCode = pthread_create(&res->threads[res->thread_count], NULL, proxy_res_req, (void *)(res));
+		errCode = pthread_create(&res->threads[res->thread_count], NULL, fun, (void *)(res));
 		switch (errCode) {
 		case EINVAL:
 			// since I don't use attr for the pthread this should never happen
