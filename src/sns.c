@@ -24,34 +24,35 @@ void SIGPIPE_handler(int os) {
 }
 
 void register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server) {
-	MiniMap_StringRef_MessageProcessor_set(&server->mapped_function, route_name, fun);
+	MiniMap_StringRef_MessageProcessor_set(&server->mapped_functions, route_name, fun);
 }
 
-void accept_requests(ServerInfo *rti) {
+void accept_requests(SNSServer *server) {
 	Socket client = INVALID_SOCKET;
 
 	struct pollfd ss = {
-	    .fd      = rti->server_socket,
+	    .fd      = server->info.server_socket,
 	    .events  = POLLIN,
 	    .revents = 0,
 	};
 
 	// Receive until the peer shuts down the connection
-	while (!rti->thread_pool.stop) {
+	while (!server->info.thread_pool.stop) {
 
 		// infinetly wait for the socket to become usable
 		poll(&ss, 1, -1);
 
-		client = TCP_accept_client(rti->server_socket);
+		client = TCP_accept_client(server->info.server_socket);
 
 		if (client == -1) {
 			// no client tried to connect
 			continue;
 		}
 
-		auto ssl_connection = SSL_create_connection(rti->ssl_context, client);
+		auto ssl_connection = SSL_create_connection(server->info.ssl_context, client);
 
 		if (ssl_connection == nullptr) {
+			TCP_shutdown_socket(client);
 			continue;
 		}
 
@@ -63,17 +64,17 @@ void accept_requests(ServerInfo *rti) {
 
 		llog(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
 
-		ResolverData t_data = {ssl_connection, client};
+		ResolverData t_data = {ssl_connection, client, &server->mapped_functions};
 
 #ifdef NO_THREADING
 		proxy_res_req(t_data);
 #else
-		enqueue_threadpool(&rti->thread_pool, &t_data);
+		enqueue_threadpool(&server->info.thread_pool, &t_data);
 #endif
 	}
 }
 
-void resolve_request(SSL *ssl_connection, const Socket client_socket) {
+void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_StringRef_MessageProcessor *mapped_function) {
 
 	// ---------------------------------------------------------------------- RECEIVE
 	char *request        = nullptr;
@@ -88,9 +89,9 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket) {
 		OutboundHttpMessage response = {};
 		response.header_options      = MiniMap_u_char_StringOwn_make(16, compare_u_char);
 
-		// TODO:
-		// check the messge processors
-		// server->
+		MessageProcessor processor = nullptr;
+	auto v = (StringRef){"", 0};
+		MiniMap_StringRef_MessageProcessor_get(mapped_function, &v, &processor);
 
 		// make the message a single formatted string
 		auto res = compose_message(&response);
@@ -114,7 +115,7 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket) {
 [[noreturn]]
 #endif
 void *proxy_acc_req(void *ptr) {
-	accept_requests((ServerInfo *)(ptr));
+	accept_requests((SNSServer *)(ptr));
 #ifdef NO_THREADING
 	return nullptr;
 #else
@@ -137,7 +138,7 @@ void *proxy_res_req(void *ptr) {
 			continue;
 		}
 
-		resolve_request(data.ssl, data.client_socket);
+		resolve_request(data.ssl, data.client_socket, data.mapped_function);
 	}
 
 #ifdef NO_THREADING
@@ -184,9 +185,9 @@ void SNSstart(SNSServer *server) {
 	server->info.thread_pool.stop = false;
 
 #ifdef NO_THREADING
-	proxy_acc_req(rti);
+	proxy_acc_req(server);
 #else
-	pthread_create(&server->info.request_acceptor, NULL, proxy_acc_req, &server->info);
+	pthread_create(&server->info.request_acceptor, NULL, proxy_acc_req, server);
 #endif
 
 	llog(LOG_DEBUG, "[SERVER] Request acceptor thread Started\n");

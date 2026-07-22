@@ -19,7 +19,7 @@ typedef struct {
 } SNSSettings;
 
 typedef struct {
-	MiniMap_StringRef_MessageProcessor mapped_function;
+	MiniMap_StringRef_MessageProcessor mapped_functions;
 	SNSSettings                        settings;
 	ServerInfo                         info;
 } SNSServer;
