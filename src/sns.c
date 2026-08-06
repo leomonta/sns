@@ -83,26 +83,24 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 	// received some bytes
 	if (bytes_received > 0) {
 
-		InboundHttpMessage mex = parse_InboundMessage(request);
-		llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[mex.method]);
+		InboundHttpMessage inbound_mex = parse_InboundMessage(request);
+		llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[inbound_mex.method]);
 
-		OutboundHttpMessage response = {};
-		response.header_options      = MiniMap_u_char_StringOwn_make(16, compare_u_char);
+		OutboundHttpMessage outbound_mex = {};
+		outbound_mex.header_options      = MiniMap_u_char_StringOwn_make(16, compare_u_char);
+		outbound_mex.version             = HTTP_VER_10;
 
-		MessageProcessor processor = nullptr;
-	auto v = (StringRef){"", 0};
-		MiniMap_StringRef_MessageProcessor_get(mapped_function, &v, &processor);
 
 		// make the message a single formatted string
-		auto res = compose_message(&response);
 		// llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%*s\n", res.len, res.str);
+		auto res = compose_message(&outbound_mex);
 
 		// ------------------------------------------------------------------ SEND
 		// acknowledge the segment back to the sender
 		SSL_send_record(ssl_connection, res.str, res.len);
 
-		destroy_OutboundHttpMessage(&response);
-		destroy_InboundHttpMessage(&mex);
+		destroy_OutboundHttpMessage(&outbound_mex);
+		destroy_InboundHttpMessage(&inbound_mex);
 		free(res.str);
 	}
 
@@ -111,22 +109,14 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 	SSL_destroy_connection(ssl_connection);
 }
 
-#ifndef NO_THREADING
-[[noreturn]]
-#endif
-void *proxy_acc_req(void *ptr) {
+// Yes, these two could be conbines into a single #ifdef but this is clearer
+
+SNS_NO_RETURN void *proxy_acc_req(void *ptr) {
 	accept_requests((SNSServer *)(ptr));
-#ifdef NO_THREADING
-	return nullptr;
-#else
-	pthread_exit(NULL);
-#endif
+	SNS_THREAD_RETURN;
 }
 
-#ifndef NO_THREADING
-[[noreturn]]
-#endif
-void *proxy_res_req(void *ptr) {
+SNS_NO_RETURN void *proxy_res_req(void *ptr) {
 	ThreadPool *pool = (ThreadPool *)(ptr);
 
 	while (!pool->stop) {
@@ -141,11 +131,7 @@ void *proxy_res_req(void *ptr) {
 		resolve_request(data.ssl, data.client_socket, data.mapped_function);
 	}
 
-#ifdef NO_THREADING
-	return nullptr;
-#else
-	pthread_exit(NULL);
-#endif
+	SNS_THREAD_RETURN;
 }
 
 void setup(SNSServer *server) {

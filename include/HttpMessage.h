@@ -144,20 +144,19 @@ typedef struct {
 	StringRef                   header_options[RQ_ENUM_LEN]; // an 'hash map' where to store the decoded header options
 	StringRef                   url;                         // the resource asked from the client
 	StringRef                   body;                        // the content of the message, what the message is about
-	uint8_t                     method;                      // the appropriate http method, GET, POST, PATCH
-	uint8_t                     version;                     // the version of the http header (1.0, 1.1, 2.0, ...)
+	HTTP_Method                 method;                      // the appropriate http method, GET, POST, PATCH
+	HTTP_Version                version;                     // the version of the http header (1.0, 1.1, 2.0, ...)
 } InboundHttpMessage;
 
 typedef struct {
 	MiniMap_u_char_StringOwn header_options; // represent the header as the collection of the single options -> value
 	size_t                   header_len;     // how many bytes are there in the header
 	StringOwn                body;           // the content of the message, what the message is about
-	StringOwn                resource_name;  // the internal complete name for the resource present in the body
 	uint16_t                 status_code;    // 200, 404, 500, etc etc
-	uint8_t                  version;        // the version of the http header (1.0, 1.1, 2.0, ...)
+	HTTP_Version             version;        // the version of the http header (1.0, 1.1, 2.0, ...)
 } OutboundHttpMessage;
 
-typedef void (*MessageProcessor)(const HTTP_Method *method, const InboundHttpMessage *in_message, OutboundHttpMessage *out_message);
+typedef void (*MessageProcessor)(const InboundHttpMessage *in_message, OutboundHttpMessage *out_message);
 
 InboundHttpMessage parse_InboundMessage(const char *str);
 
@@ -195,7 +194,7 @@ StringOwn compose_message(const OutboundHttpMessage *msg);
  * @param requestMethod the StringRef containing the method requested
  * @return the code representing the relative method
  */
-u_char get_method_code(const StringRef *request_method);
+HTTP_Method get_method_code(const StringRef *request_method);
 
 /**
  * Given a string representing the request http version (0., 1.0, 1.1) returns the relative code
@@ -203,7 +202,7 @@ u_char get_method_code(const StringRef *request_method);
  * @param httpVersion the StringRef containing the httpVersion
  * @return the code representing the relative version
  */
-u_char get_version_code(const StringRef *http_version);
+HTTP_Version get_version_code(const StringRef *http_version);
 
 /**
  * Given a string representing an header options (Content-type, Content-length, ...)
@@ -238,11 +237,3 @@ void parse_options(const StringRef *segment, void (*fun)(StringRef a, StringRef 
  * @param msg the httpMessage that contains the header options map
  */
 void add_header_option(const HTTPHeaderResponseOption option, const StringRef *value, OutboundHttpMessage *msg);
-
-/**
- * Simple makes sure that a copy of the passed stringRef is inserted in the url of the http message
- *
- * @param val the value to copy and insert
- * @param msg the message to insert it in
- */
-void set_filename(const StringRef *val, OutboundHttpMessage *msg);

@@ -121,7 +121,7 @@ ResolverData dequeue_threadpool(ThreadPool *tpool) {
 	ResolverData res;
 
 	if (tpool->ring_buffer.stored == 0) {
-		res = (ResolverData){nullptr, INVALID_SOCKET};
+		res = (ResolverData){nullptr, INVALID_SOCKET, nullptr};
 	} else {
 		RingBuffer_ResolverData_retrieve(&tpool->ring_buffer, &res);
 	}
