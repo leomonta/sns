@@ -54,6 +54,14 @@ bool MiniMap_u_char_StringOwn_get(const MiniMap *map, const u_char *key, StringO
 	return false;
 }
 
+bool MiniMap_u_char_StringOwn_get_by_index(const MiniMap *map, const size_t index, u_char *key, StringOwn* value) {
+
+	auto const a = MiniVector_StringOwn_get(&map->values, index, value);
+	auto const b = MiniVector_u_char_get(&map->keys, index, key);
+
+	return a && b;
+}
+
 void MiniMap_u_char_StringOwn_set(MiniMap *map, const u_char *key, const StringOwn *value) {
 
 	// find it

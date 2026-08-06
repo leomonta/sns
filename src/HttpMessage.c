@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 void log_malformed_parameter(const StringRef *str_ref) {
-	llog(LOG_WARNING, "Malformed parameter -> '%*s' \n", (int)str_ref->len, str_ref->str);
+	llog(LOG_WARNING, "Malformed parameter -> '%*s'\n", CLAMP_TO_POSITIVE_INT(str_ref->len), str_ref->str);
 }
 
 InboundHttpMessage parse_InboundMessage(const char *str) {
@@ -73,7 +73,6 @@ void destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
 
 	MiniMap_u_char_StringOwn_destroy(&mex->header_options);
 	free(mex->body.str);
-	free(mex->resource_name.str);
 }
 
 void add_to_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
@@ -232,7 +231,7 @@ StringOwn compose_message(const OutboundHttpMessage *msg) {
 	return r;
 }
 
-u_char get_method_code(const StringRef *request_method) {
+HTTP_Method get_method_code(const StringRef *request_method) {
 
 	if (request_method->len == 0) {
 		return HTTP_INVALID_METHOD;
@@ -249,7 +248,7 @@ u_char get_method_code(const StringRef *request_method) {
 	return HTTP_INVALID_METHOD;
 }
 
-u_char get_version_code(const StringRef *http_version) {
+HTTP_Version get_version_code(const StringRef *http_version) {
 
 	if (http_version->len == 0) {
 		return HTTP_VER_UNKN;
@@ -403,8 +402,4 @@ void add_header_option(const HTTPHeaderResponseOption option, const StringRef *v
 	// account the bytes that will be added later
 	//                 name     ': ' value '\r\n'
 	msg->header_len += (opt.len + 2 + cpy.len + 2);
-}
-
-void set_filename(const StringRef *val, OutboundHttpMessage *msg) {
-	msg->resource_name = (StringOwn){copy_StringRef(val), val->len};
 }

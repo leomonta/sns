@@ -5,6 +5,16 @@
 #include <errno.h>
 #include <logger.h>
 #include <poll.h>
+#include <regex.h>
+
+#ifndef NO_THREADING
+#	define SNS_NO_RETURN     [[noreturn]]
+#	define SNS_THREAD_RETURN pthread_exit(NULL)
+#else
+#	define SNS_NO_RETURN
+#	define SNS_THREAD_RETURN return nullptr;
+#endif
+
 // only for logging purposes
 const char *method_str[] = {
     "INVALID",
@@ -74,6 +84,58 @@ void accept_requests(SNSServer *server) {
 	}
 }
 
+MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_MessageProcessor *mapped_function) {
+
+	// static / simple route case
+	MessageProcessor vv;
+	auto const       res = MiniMap_StringRef_MessageProcessor_get(mapped_function, url, &vv);
+
+	if (res) {
+		return vv;
+	}
+
+#define INTERNAL_BUFF_SIZE 255
+
+	char buff[INTERNAL_BUFF_SIZE + 1] = {0};
+
+	auto const sz = mapped_function->keys.count;
+
+	for (size_t i = 0; i < sz; ++i) {
+		// take a key value pair
+		StringRef  kk;
+		auto const err = MiniMap_StringRef_MessageProcessor_get_by_index(mapped_function, i, &kk, &vv);
+		if (err) {
+			continue;
+		}
+
+		// regcomp wants a null terminated string
+		// But I don't want to allocate an arbitrary str.len + 1 array to ensure that the key is null terminated
+		// so I'll limit the length to 255 and use the aforedeclarated `buff`
+		size_t safe_size = kk.len > INTERNAL_BUFF_SIZE ? INTERNAL_BUFF_SIZE : kk.len;
+		memcpy(buff, kk.str, safe_size);
+		buff[safe_size] = '\0'; // since safe_size is always at max the size of the buff, this is always safe
+
+		// build the regex
+		regex_t regex;
+		auto    errcode = regcomp(&regex, buff, REG_EXTENDED | REG_NOSUB);
+		if (errcode != 0) {
+			regerror(errcode, &regex, buff, INTERNAL_BUFF_SIZE + 1);
+			llog(LOG_WARNING, "[FINDING RESOLVER] Regex compilation failed for pattern '%*s' failed with error: %s\n", CLAMP_TO_POSITIVE_INT(kk.len), kk.str, buff);
+		}
+
+		errcode = regexec(&regex, url->str, 0, nullptr, 0);
+
+		// I actually care only about if there was a match of not
+		regfree(&regex);
+		if (errcode != REG_NOMATCH) {
+			return vv;
+		}
+	}
+
+	llog(LOG_WARNING, "[FINDING RESOLVER] Could not find any matching processor '%*s'\n", CLAMP_TO_POSITIVE_INT(url->len), url->str);
+	return nullptr;
+}
+
 void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_StringRef_MessageProcessor *mapped_function) {
 
 	// ---------------------------------------------------------------------- RECEIVE
@@ -90,10 +152,14 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 		outbound_mex.header_options      = MiniMap_u_char_StringOwn_make(16, compare_u_char);
 		outbound_mex.version             = HTTP_VER_10;
 
+		MessageProcessor processor = findProcessor(&inbound_mex.url, mapped_function);
+		if (processor != nullptr) {
+			processor(&inbound_mex, &outbound_mex);
+		}
 
 		// make the message a single formatted string
-		// llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%*s\n", res.len, res.str);
 		auto res = compose_message(&outbound_mex);
+		llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
 
 		// ------------------------------------------------------------------ SEND
 		// acknowledge the segment back to the sender
@@ -145,7 +211,7 @@ void setup(SNSServer *server) {
 		exit(1);
 	}
 
-	llog(LOG_INFO, "[SERVER] Listening on %*s:%d\n", (int)server->settings.base_dir.len, server->settings.base_dir.str, server->settings.tcp_port);
+	llog(LOG_INFO, "[SERVER] Listening on %*s:%d\n", CLAMP_TO_POSITIVE_INT(server->settings.base_dir.len), server->settings.base_dir.str, server->settings.tcp_port);
 
 	// initializing the ssl connection data
 	SSL_initialize();

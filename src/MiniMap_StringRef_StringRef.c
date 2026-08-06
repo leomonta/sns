@@ -54,6 +54,14 @@ bool MiniMap_StringRef_StringRef_get(const MiniMap *map, const StringRef *key, S
 	return false;
 }
 
+bool MiniMap_StringRef_StringRef_get_by_index(const MiniMap *map, const size_t index, StringRef *key, StringRef* value) {
+
+	auto const a = MiniVector_StringRef_get(&map->values, index, value);
+	auto const b = MiniVector_StringRef_get(&map->keys, index, key);
+
+	return a && b;
+}
+
 void MiniMap_StringRef_StringRef_set(MiniMap *map, const StringRef *key, const StringRef *value) {
 
 	// find it

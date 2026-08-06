@@ -3,6 +3,9 @@
 #include "StringRef.h"
 
 #include <string.h>
+#include <limits.h>
+
+#define CLAMP_TO_POSITIVE_INT(sz) sz > INT_MAX ? INT_MAX - 1 : (int)(sz)
 
 #define TEST_ALLOC(ptr)                                                                             \
 	if (ptr == NULL) {                                                                              \

@@ -54,6 +54,14 @@ bool MiniMap_StringRef_MessageProcessor_get(const MiniMap *map, const StringRef 
 	return false;
 }
 
+bool MiniMap_StringRef_MessageProcessor_get_by_index(const MiniMap *map, const size_t index, StringRef *key, MessageProcessor* value) {
+
+	auto const a = MiniVector_MessageProcessor_get(&map->values, index, value);
+	auto const b = MiniVector_StringRef_get(&map->keys, index, key);
+
+	return a && b;
+}
+
 void MiniMap_StringRef_MessageProcessor_set(MiniMap *map, const StringRef *key, const MessageProcessor *value) {
 
 	// find it

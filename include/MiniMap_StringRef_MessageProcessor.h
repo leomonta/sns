@@ -56,6 +56,18 @@ bool MiniMap_StringRef_MessageProcessor_replace(MiniMap *map, const StringRef *k
 bool MiniMap_StringRef_MessageProcessor_get(const MiniMap *map, const StringRef *key, MessageProcessor* result);
 
 /**
+ * Get the value corresponding to the giving key
+ *
+ * @param[in] `map` the map to get the value from
+ * @param[in] `index` the index of the entry to return
+ * @param[out] `key` the key at the specified index
+ * @param[out] `result` where to place the value associated with the given array
+ *
+ * @return a pointer the value associated with the given key, or nullptr if the key is not present in the map
+ */
+bool MiniMap_StringRef_MessageProcessor_get_by_index(const MiniMap *map, const size_t index, StringRef *key, MessageProcessor* result);
+
+/**
  * Insert a value into the hash map trhough its relative key
  * if the key is present replaces the stored value with the given one
  * else appends both key and value
