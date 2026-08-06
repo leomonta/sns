@@ -86,15 +86,15 @@ void accept_requests(SNSServer *server) {
 
 MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_MessageProcessor *mapped_function) {
 
+#define INTERNAL_BUFF_SIZE 255
+
 	// static / simple route case
 	MessageProcessor vv;
-	auto const       res = MiniMap_StringRef_MessageProcessor_get(mapped_function, url, &vv);
+	auto             res = MiniMap_StringRef_MessageProcessor_get(mapped_function, url, &vv);
 
 	if (res) {
 		return vv;
 	}
-
-#define INTERNAL_BUFF_SIZE 255
 
 	char buff[INTERNAL_BUFF_SIZE + 1] = {0};
 
@@ -133,6 +133,12 @@ MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_Mes
 	}
 
 	llog(LOG_WARNING, "[FINDING RESOLVER] Could not find any matching processor '%*s'\n", CLAMP_TO_POSITIVE_INT(url->len), url->str);
+
+	res = MiniMap_StringRef_MessageProcessor_get(mapped_function, url, &vv);
+	if (res) {
+		llog(LOG_WARNING, "[FINDING RESOLVER] Going for the default MessageProcessor\n");
+		return vv;
+	}
 	return nullptr;
 }
 
@@ -155,19 +161,19 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 		MessageProcessor processor = findProcessor(&inbound_mex.url, mapped_function);
 		if (processor != nullptr) {
 			processor(&inbound_mex, &outbound_mex);
+
+			// make the message a single formatted string
+			auto res = compose_message(&outbound_mex);
+			llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
+
+			// ---------------------------------------------------------------------- SEND
+			// acknowledge the segment back to the sender
+			SSL_send_record(ssl_connection, res.str, res.len);
+			free(res.str);
 		}
-
-		// make the message a single formatted string
-		auto res = compose_message(&outbound_mex);
-		llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
-
-		// ------------------------------------------------------------------ SEND
-		// acknowledge the segment back to the sender
-		SSL_send_record(ssl_connection, res.str, res.len);
 
 		destroy_OutboundHttpMessage(&outbound_mex);
 		destroy_InboundHttpMessage(&inbound_mex);
-		free(res.str);
 	}
 
 	TCP_shutdown_socket(client_socket);

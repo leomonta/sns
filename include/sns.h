@@ -29,6 +29,7 @@ typedef struct {
  *
  * @param[in] `route_name` the plain name of the route to intercept,
  * 	nullptr for any route that is not already matched by another mapping
+ * 	the route_name string is limited to 255 characters
  * @param[in] `fun` the function to be called to manage the http reqeust,
  * 	nullptr to remove the mapping
  * @oaram[in] `SNSServer` the server where to apply the mapping
