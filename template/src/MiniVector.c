@@ -91,6 +91,8 @@ void MiniVector_#T#_insert(MiniVector *vec, const size_t index, const T *element
 	// god bless memmove
 	memmove(vec->data + index + 1, vec->data + index, vec->count - index);
 
+	++(vec->count);
+
 	// finally write the data
 	MiniVector_#T#_set(vec, index, element);
 }

@@ -91,6 +91,8 @@ void MiniVector_uint32_t_insert(MiniVector *vec, const size_t index, const uint3
 	// god bless memmove
 	memmove(vec->data + index + 1, vec->data + index, vec->count - index);
 
+	++(vec->count);
+
 	// finally write the data
 	MiniVector_uint32_t_set(vec, index, element);
 }

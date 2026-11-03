@@ -91,6 +91,8 @@ void MiniVector_u_char_insert(MiniVector *vec, const size_t index, const u_char 
 	// god bless memmove
 	memmove(vec->data + index + 1, vec->data + index, vec->count - index);
 
+	++(vec->count);
+
 	// finally write the data
 	MiniVector_u_char_set(vec, index, element);
 }

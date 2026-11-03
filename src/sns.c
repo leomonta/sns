@@ -120,7 +120,7 @@ MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_Mes
 		auto    errcode = regcomp(&regex, buff, REG_EXTENDED | REG_NOSUB);
 		if (errcode != 0) {
 			regerror(errcode, &regex, buff, INTERNAL_BUFF_SIZE + 1);
-			llog(LOG_WARNING, "[FINDING RESOLVER] Regex compilation failed for pattern '%*s' failed with error: %s\n", CLAMP_TO_POSITIVE_INT(kk.len), kk.str, buff);
+			llog(LOG_WARNING, "[FINDING RESOLVER] Regex compilation failed for pattern '%.*s' failed with error: %s\n", CLAMP_TO_POSITIVE_INT(kk.len), kk.str, buff);
 		}
 
 		errcode = regexec(&regex, url->str, 0, nullptr, 0);
@@ -132,7 +132,7 @@ MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_Mes
 		}
 	}
 
-	llog(LOG_WARNING, "[FINDING RESOLVER] Could not find any matching processor '%*s'\n", CLAMP_TO_POSITIVE_INT(url->len), url->str);
+	llog(LOG_WARNING, "[FINDING RESOLVER] Could not find any matching processor '%.*s'\n", CLAMP_TO_POSITIVE_INT(url->len), url->str);
 
 	res = MiniMap_StringRef_MessageProcessor_get(mapped_function, url, &vv);
 	if (res) {
@@ -152,6 +152,7 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 	if (bytes_received > 0) {
 
 		InboundHttpMessage inbound_mex = parse_InboundMessage(request);
+		free(request);
 		llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[inbound_mex.method]);
 
 		OutboundHttpMessage outbound_mex = {};
@@ -164,7 +165,7 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 
 			// make the message a single formatted string
 			auto res = compose_message(&outbound_mex);
-			llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
+			llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%.*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
 
 			// ---------------------------------------------------------------------- SEND
 			// acknowledge the segment back to the sender
@@ -217,7 +218,7 @@ void setup(SNSServer *server) {
 		exit(1);
 	}
 
-	llog(LOG_INFO, "[SERVER] Listening on %*s:%d\n", CLAMP_TO_POSITIVE_INT(server->settings.base_dir.len), server->settings.base_dir.str, server->settings.tcp_port);
+	llog(LOG_INFO, "[SERVER] Listening on %.*s:%d\n", CLAMP_TO_POSITIVE_INT(server->settings.base_dir.len), server->settings.base_dir.str, server->settings.tcp_port);
 
 	// initializing the ssl connection data
 	SSL_initialize();

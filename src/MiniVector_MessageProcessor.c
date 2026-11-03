@@ -91,6 +91,8 @@ void MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, con
 	// god bless memmove
 	memmove(vec->data + index + 1, vec->data + index, vec->count - index);
 
+	++(vec->count);
+
 	// finally write the data
 	MiniVector_MessageProcessor_set(vec, index, element);
 }
