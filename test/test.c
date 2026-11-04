@@ -1,3 +1,4 @@
+#include "HttpMessage.h"
 #include <stdio.h>
 #ifndef DO_TEST
 #	error "This source file should only be processed when doing tests"
@@ -31,6 +32,18 @@ bool test_trim(const char* to_be_trimmed, const char* trimmed) {
 	return b;
 }
 
+void do_nothing(StringRef a, StringRef b, InboundHttpMessage *c) {
+	llog(LOG_DEBUG, "%.*s = %.*s\n", CLAMP_TO_POSITIVE_INT(a.len), a.str, CLAMP_TO_POSITIVE_INT(b.len), b.str);
+}
+
+bool test_parse_options(const char * str) {
+
+	const StringRef ref = TO_STRINGREF2(str);
+	
+	auto __ = parse_options(&ref, do_nothing, "&", '=', nullptr);
+	return true;
+}
+
 int main() {
 	size_t tests_passed = 0;
 	size_t total_tests  = 0;
@@ -44,6 +57,7 @@ int main() {
 	TEST(test_num_to_string(STRING(12312319)));
 	TEST(test_num_to_string(STRING(0)));
 	TEST(test_num_to_string(STRING(18446744073709551615)));
+	TEST(test_num_to_string(STRING(1846744073709551615)));
 	TEST(test_num_to_string(STRING(1698)));
 	TEST(test_num_to_string(STRING(56516)));
 	TEST(test_num_to_string(STRING(41698874651)));
@@ -63,6 +77,9 @@ int main() {
 	TEST(test_trim("	asd 	", "asd"));
 	TEST(test_trim("	 	", ""));
 	TEST(test_trim(" ", ""));
+
+	TEST(test_parse_options("a=b&c=d&e=f"));
+	TEST(test_parse_options("a=bf"));
 
 	llog(LOG_INFO, "%zu tests passed out of %zu. Pass rate of %.3f%%\n", tests_passed, total_tests, ((double)tests_passed / (double)total_tests) * 100);
 	return 0;

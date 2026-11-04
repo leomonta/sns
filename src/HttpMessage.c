@@ -325,7 +325,7 @@ errcode parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 
 		// if the chunk separator was found that will dictate the length, else the chunk will be rest of the window (i.e. the rest of the data)
 		if (separator != nullptr) {
-			chunk.len = (size_t)(separator + chunk_sep_len - window.str);
+			chunk.len = (size_t)(separator - window.str);
 		}
 
 		auto sep = strnchr(chunk.str, item_sep, chunk.len);
@@ -348,9 +348,9 @@ errcode parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 		}
 
 		// start again at the end of the chunk
-		window.str = separator + chunk_sep_len; // this + `chunk_sep_len` skips the chunk so the next search does not find it again,
-		                                        // and also advances sligthly the window, pushing it out of segment and triggering the exit condition when there is no more data to parse
-		window.len -= chunk.len;
+		window.str = chunk.str + chunk.len + chunk_sep_len; // this + `chunk_sep_len` skips the chunk so the next search does not find it again,
+		                                                    // and also advances sligthly the window, pushing it out of segment and triggering the exit condition when there is no more data to parse
+		window.len -= chunk.len + chunk_sep_len;
 	}
 
 	return NO_ERROR;
