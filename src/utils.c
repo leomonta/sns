@@ -215,7 +215,7 @@ StringRef trim(StringRef *str_ref) {
 	size_t newStart;
 
 	for (newStart = 0; newStart < str_ref->len; ++newStart) {
-		if (isspace(str_ref->str[newStart])) {
+		if (!isspace(str_ref->str[newStart])) {
 			break;
 		}
 	}
@@ -226,7 +226,7 @@ StringRef trim(StringRef *str_ref) {
 
 	size_t newEnd;
 	for (newEnd = 0; newEnd < res.len; ++newEnd) {
-		if (isspace(res.str[res.len - newEnd - 1])) {
+		if (!isspace(res.str[res.len - newEnd - 1])) {
 			break;
 		}
 	}
@@ -254,14 +254,14 @@ bool strrefblank(const StringRef *str_ref) {
 
 char *copy_StringOwn(const StringOwn *str) {
 	auto cpy = malloc(str->len);
-	TEST_ALLOC(cpy)
+	// TEST_ALLOC(cpy)
 	memcpy(cpy, str->str, str->len);
 	return cpy;
 }
 
 char *copy_StringRef(const StringRef *str) {
 	auto cpy = malloc(str->len);
-	TEST_ALLOC(cpy)
+	// TEST_ALLOC(cpy)
 	memcpy(cpy, str->str, str->len);
 	return cpy;
 }

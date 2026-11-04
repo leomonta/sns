@@ -1,6 +1,6 @@
 #include <stdio.h>
 #ifndef DO_TEST
-#	error "This source file should only be processed when doing tests, "
+#	error "This source file should only be processed when doing tests"
 #else
 
 #	include "utils.h"
@@ -15,6 +15,19 @@ bool test_num_to_string(size_t t, const char *s) {
 	StringRef res = num_to_string(t);
 	bool      b   = strcmp(s, res.str) == 0;
 	llog(LOG_DEBUG, "%s == %s, %s\n", res.str, s, b ? "Success" : "Failure");
+	return b;
+}
+
+bool test_trim(const char* to_be_trimmed, const char* trimmed) {
+
+	StringRef to_be = TO_STRINGREF2(to_be_trimmed);
+	StringRef is = TO_STRINGREF2(trimmed);
+
+	auto res = trim(&to_be);
+
+	bool b = equal_StringRef(&res, &is);
+	llog(LOG_DEBUG, "%.*s == %s, %s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str, trimmed, b ? "Success" : "Failure");
+
 	return b;
 }
 
@@ -41,6 +54,15 @@ int main() {
 	TEST(test_num_to_string(STRING(591648519815)));
 	TEST(test_num_to_string(STRING(6534154849)));
 	TEST(test_num_to_string(STRING(66513186)));
+
+	TEST(test_trim("asd", "asd"));
+	TEST(test_trim("      asd", "asd"));
+	TEST(test_trim("      asd        ", "asd"));
+	TEST(test_trim("asd        ", "asd"));
+	TEST(test_trim("	asd        ", "asd"));
+	TEST(test_trim("	asd 	", "asd"));
+	TEST(test_trim("	 	", ""));
+	TEST(test_trim(" ", ""));
 
 	llog(LOG_INFO, "%zu tests passed out of %zu. Pass rate of %.3f%%\n", tests_passed, total_tests, ((double)tests_passed / (double)total_tests) * 100);
 	return 0;

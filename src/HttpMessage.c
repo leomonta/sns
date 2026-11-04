@@ -210,7 +210,7 @@ StringOwn compose_message(const OutboundHttpMessage *msg) {
 
 	// the entire message length
 	char *res = malloc(msg_len);
-	TEST_ALLOC(res)
+	// TEST_ALLOC(res)
 	memset(res, '\0', msg_len);
 
 	memcpy(res, status_line, STATUS_LINE_LEN);

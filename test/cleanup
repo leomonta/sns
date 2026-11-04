@@ -1,8 +1,4 @@
 #!/bin/bash
 
 #compile
-# gcc test.c -llogger -o test.out
-# execute
 ./test.out
-# remove
-rm test.out

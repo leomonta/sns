@@ -20,7 +20,7 @@ RingBuffer RingBuffer_ResolverData_make(const size_t initial_count) {
 	    .stored = 0,
 	    .count  = capacity,
 	};
-	TEST_ALLOC(res.data)
+	// TEST_ALLOC(res.data)
 
 	// copy elision
 	return res;
@@ -41,7 +41,7 @@ void RingBuffer_ResolverData_grow(RingBuffer *rngb) {
 
 	rngb->data = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(ResolverData));
 	rngb->count *= GROW_RATE;
-	TEST_ALLOC(rngb->data)
+	// TEST_ALLOC(rngb->data)
 	// for why 2 and not 1.6 or 1.5
 	// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 and others

@@ -118,17 +118,17 @@ MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_Mes
 
 		// build the regex
 		regex_t regex;
-		auto    errcode = regcomp(&regex, buff, REG_EXTENDED | REG_NOSUB);
-		if (errcode != 0) {
-			regerror(errcode, &regex, buff, INTERNAL_BUFF_SIZE + 1);
+		auto    code = regcomp(&regex, buff, REG_EXTENDED | REG_NOSUB);
+		if (code != 0) {
+			regerror(code, &regex, buff, INTERNAL_BUFF_SIZE + 1);
 			llog(LOG_WARNING, "[FINDING RESOLVER] Regex compilation failed for pattern '%.*s' failed with error: %s\n", CLAMP_TO_POSITIVE_INT(kk.len), kk.str, buff);
 		}
 
-		errcode = regexec(&regex, url->str, 0, nullptr, 0);
+		code = regexec(&regex, url->str, 0, nullptr, 0);
 
 		// I actually care only about if there was a match of not
 		regfree(&regex);
-		if (errcode != REG_NOMATCH) {
+		if (code != REG_NOMATCH) {
 			return vv;
 		}
 	}
