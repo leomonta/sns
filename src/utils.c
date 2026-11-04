@@ -215,7 +215,7 @@ StringRef trim(StringRef *str_ref) {
 	size_t newStart;
 
 	for (newStart = 0; newStart < str_ref->len; ++newStart) {
-		if (str_ref->str[newStart] != ' ') {
+		if (isspace(str_ref->str[newStart])) {
 			break;
 		}
 	}
@@ -226,7 +226,7 @@ StringRef trim(StringRef *str_ref) {
 
 	size_t newEnd;
 	for (newEnd = 0; newEnd < res.len; ++newEnd) {
-		if (res.str[res.len - newEnd - 1] != ' ') {
+		if (isspace(res.str[res.len - newEnd - 1])) {
 			break;
 		}
 	}
@@ -235,14 +235,14 @@ StringRef trim(StringRef *str_ref) {
 	return res;
 }
 
-bool strrefblnk(const StringRef *str_ref) {
+bool strrefblank(const StringRef *str_ref) {
 
 	if (str_ref->len == 0) {
 		return true;
 	}
 
 	for (size_t i = 0; i < str_ref->len; ++i) {
-		// is space check for
+		// isspace checks for
 		// space, horizontal tab, and whitespaces (\n \r \v \f)
 		if (!isspace(str_ref->str[i])) {
 			return false;

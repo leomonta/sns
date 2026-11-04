@@ -6,6 +6,7 @@
 #include <logger.h>
 #include <poll.h>
 #include <regex.h>
+#include <signal.h>
 
 #ifndef NO_THREADING
 #	define SNS_NO_RETURN     [[noreturn]]
@@ -30,7 +31,7 @@ const char *method_str[] = {
 };
 
 void SIGPIPE_handler(int os) {
-	llog(LOG_FATAL, "[SIGPIPE] Received a sigpipe %d\n", os);
+	llog(LOG_INFO, "[SIGPIPE] Received a sigpipe %d\n", os);
 }
 
 void register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server) {
@@ -151,7 +152,9 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 	// received some bytes
 	if (bytes_received > 0) {
 
-		InboundHttpMessage inbound_mex = parse_InboundMessage(request);
+
+		InboundHttpMessage inbound_mex;
+		auto res = parse_InboundMessage(request, &inbound_mex);
 		free(request);
 		llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[inbound_mex.method]);
 
@@ -210,6 +213,8 @@ SNS_NO_RETURN void *proxy_res_req(void *ptr) {
 void setup(SNSServer *server) {
 
 	errno = 0;
+
+	signal(SIGPIPE, SIGPIPE_handler);
 
 	// initializing the tcp Server
 	server->info.server_socket = TCP_initialize_server(server->settings.tcp_port, 4);

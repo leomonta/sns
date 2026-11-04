@@ -2,15 +2,15 @@
 
 #include "StringRef.h"
 
-#include <string.h>
 #include <limits.h>
+#include <string.h>
 
 #define CLAMP_TO_POSITIVE_INT(sz) sz > INT_MAX ? INT_MAX - 1 : (int)(sz)
 
 #define TEST_ALLOC(ptr)                                                                             \
 	if (ptr == NULL) {                                                                              \
 		llog(LOG_FATAL, "[ALLOCATION] Allocation returned NULL: %d, %s\n", errno, strerror(errno)); \
-		exit(1);                                                                                    \
+		return FAILED_ALLOCATION;                                                                   \
 	}
 
 /**
@@ -115,7 +115,7 @@ StringRef trim(StringRef *strRef);
  *
  * @return true if the string is empty
  */
-bool strrefblnk(const StringRef *strRef);
+bool strrefblank(const StringRef *strRef);
 
 /**
  * given a sringref mallocs a copy of the string and returns it

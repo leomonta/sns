@@ -1,6 +1,7 @@
 #pragma once
 #include "MiniMap_StringRef_StringRef.h"
 #include "MiniMap_u_char_StringOwn.h"
+#include "errcode.h"
 
 #include <stdint.h>
 
@@ -158,7 +159,9 @@ typedef struct {
 
 typedef void (*MessageProcessor)(const InboundHttpMessage *in_message, OutboundHttpMessage *out_message);
 
-InboundHttpMessage parse_InboundMessage(const char *str);
+typedef void (*OptionsProcessor)(StringRef a, StringRef b, InboundHttpMessage *ctx);
+
+ERRFUNC parse_InboundMessage(const char *str, InboundHttpMessage *mex);
 
 void destroy_InboundHttpMessage(InboundHttpMessage *mex);
 void destroy_OutboundHttpMessage(OutboundHttpMessage *mex);
@@ -169,7 +172,7 @@ void destroy_OutboundHttpMessage(OutboundHttpMessage *mex);
  * @param rawHeader the StringRef containing the header as a char* string
  * @param msg the httpMessage to store the information extracted
  */
-void decompose_header(const StringRef *raw_header, InboundHttpMessage *msg);
+ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg);
 
 /**
  * Analyzes the incoming request for form data / other parameters and puts the result in the given message
@@ -177,7 +180,7 @@ void decompose_header(const StringRef *raw_header, InboundHttpMessage *msg);
  * @param cType content Type (e.g. multipart form-data, plain text, url encoded)
  * @param msg the message to analyze
  */
-void decompose_message(InboundHttpMessage *msg);
+ERRFUNC decompose_message(InboundHttpMessage *msg);
 
 /**
  * Unite the header and the body in a single message and returns it
@@ -213,7 +216,8 @@ HTTP_Version get_version_code(const StringRef *http_version);
 u_char get_parameter_code(const StringRef *parameter);
 
 /**
- * Given an a string parses it using 'chunkSep' and 'itemSep' and then applies the given function
+ * Given an a string in the shape ...is...CS...is...CS...is...
+ * Where `is' is `item_separator` and `CS` is `chunk_seperator`
  *
  * The reason this function makes use of a function pointer + 2 separators is because the code needed to parse header options and some
  * form parameters is the same except these parameters
@@ -222,8 +226,10 @@ u_char get_parameter_code(const StringRef *parameter);
  * @param fun a function that given key, value and the httpMessage inserts them in the correct map
  * @param chunkSep a string that delimits the separation of chunks (e.g. a single header option, a form value)
  * @param itemSep a char to separate the chunk in key and value (e.g. ':', '=')
+ *
+ * @return NO_ERR (0) if no error was found
  */
-void parse_options(const StringRef *segment, void (*fun)(StringRef a, StringRef b, InboundHttpMessage *ctx), const char *chunk_seperator, const char item_separator, InboundHttpMessage *ctx);
+ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, const char *chunk_seperator, const char item_separator, InboundHttpMessage *ctx);
 
 // void      parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
 
