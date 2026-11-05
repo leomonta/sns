@@ -1,5 +1,9 @@
 #include "errcode.h"
 
+#include "logger.h"
+
+#include <assert.h>
+
 const char *get_pretty_error(ErrCode code) {
 
 	switch (code) {
@@ -19,4 +23,9 @@ const char *get_pretty_error(ErrCode code) {
 	case PARSING_HEADER__MALFORMED_REQUEST_LINE:
 		return "Unknown values in the request line";
 	}
+
+	llog(LOG_FATAL, "YOU FORGOT TO SPECIFY EACH SWITCH LABEL FOR ERRCODE\n");
+	assert(false);
+
+	return "";
 }

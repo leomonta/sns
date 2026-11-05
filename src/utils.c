@@ -78,10 +78,6 @@ ERRFUNC url_decode(StringOwn *dst, const StringRef *src) {
 		}
 	}
 
-	if (write_index == dst->len) {
-		--write_index;
-	}
-	// write the new length
 	dst->len = write_index;
 
 	return NO_ERROR;

@@ -1,7 +1,6 @@
 #include "HttpMessage.h"
 
 #include "MiniMap_StringRef_StringRef.h"
-
 #include "StringRef.h"
 #include "constants.h"
 #include "utils.h"
@@ -59,6 +58,7 @@ void destroy_InboundHttpMessage(InboundHttpMessage *mex) {
 
 	if (mex->raw_message_a != nullptr) {
 		free(mex->raw_message_a);
+		mex->raw_message_a = nullptr;
 	}
 
 	MiniMap_StringRef_StringRef_destroy(&mex->parameters);
@@ -75,7 +75,21 @@ void destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
 	free(mex->body.str);
 }
 
-void add_to_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
+void add_to_header_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
+
+	// this ref -> own is fine since I know that the underling data is not const and is from a request
+	StringOwn decoded = {(char *)(key.str), key.len};
+	auto err = url_decode(&decoded, &key);
+	if (err != NO_ERROR) {
+		return;
+	}
+
+	decoded = (StringOwn){(char *)(val.str), val.len};
+	err = url_decode(&decoded, &key);
+	if (err != NO_ERROR) {
+		return;
+	}
+
 	const auto index = get_parameter_code(&key);
 	if (index >= RQ_ENUM_LEN) {
 		llog(LOG_WARNING, "[HEADER] Could not recognize parameter '%.*s = %.*s'\n", CLAMP_TO_POSITIVE_INT(key.len), key.str, CLAMP_TO_POSITIVE_INT(val.len), val.str);
@@ -129,28 +143,25 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 		return PARSING_HEADER__MALFORMED_REQUEST;
 	}
 
-	char *mem = malloc(url.len);
-	TEST_ALLOC(mem);
-	msg->url_a = (StringOwn){mem, url.len};
-
-	url_decode(&msg->url_a, &url);
-
 	// Now checks if there are query parameters
 
 	// the position of the query parameter marker (if present)
-	auto qmark_index = strnchr(msg->url_a.str, '?', msg->url_a.len);
+	auto qmark_index = strnchr(msg->url.str, '?', msg->url.len);
 
 	// if strnchr returns nullptr the result is negative, else is positive
 	if (qmark_index != nullptr) {
 		// confine the parameters in a single stringREf excluding the '?'
-		StringRef  query_parameters = {qmark_index + 1, msg->url_a.len - (size_t)(qmark_index - msg->url_a.str) - 1};
-		const auto err              = parse_options(&query_parameters, add_to_params, "&", '=', msg);
+		StringRef query_parameters = {qmark_index + 1, msg->url.len - (size_t)(qmark_index - msg->url.str) - 1};
+		auto      err              = parse_options(&query_parameters, add_to_params, "&", '=', msg);
 
 		RET_IF_ERR(err)
 
 		// limit the url to before the '?'
-		msg->url_a.len = (size_t)(qmark_index - msg->url_a.str);
+		msg->url.len = (size_t)(qmark_index - msg->url.str);
 	}
+
+	auto err = url_decode(&msg->url, &url);
+	RET_IF_ERR(err);
 
 	if (endline == raw_header->str + raw_header->len) {
 		// there are no header options, just return
@@ -159,7 +170,7 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 
 	StringRef header_options = {endline + 2, raw_header->len - (size_t)(endline - raw_header->str) - 2};
 
-	return parse_options(&header_options, add_to_options, "\r\n", ':', msg);
+	return parse_options(&header_options, add_to_header_options, "\r\n", ':', msg);
 }
 
 ERRFUNC decompose_message(InboundHttpMessage *msg) {
@@ -328,7 +339,6 @@ ErrCode parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 	const char *segment_end   = segment->str + segment->len;
 	const auto  chunk_sep_len = strlen(chunk_sep);
 
-	assert(chunk_sep_len > 0); // for when the string is a compile time constant
 	if (chunk_sep_len <= 0) {
 		return PARSING__NULL_CHUNK_SEPARATOR;
 	}
