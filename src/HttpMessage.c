@@ -16,7 +16,7 @@ void log_malformed_oprion(const StringRef *str_ref) {
 
 ERRFUNC parse_InboundMessage(const char *str, InboundHttpMessage *mex) {
 
-	memset(mex, '0', sizeof(InboundHttpMessage));
+	*mex = (InboundHttpMessage){};
 
 	// use strlen so i'm sure it's not counting the null terminator
 	auto msg_len = strlen(str);
@@ -33,30 +33,23 @@ ERRFUNC parse_InboundMessage(const char *str, InboundHttpMessage *mex) {
 	// body and header are divided by two newlines
 	auto msg_separator = strstr(mex->raw_message_a, "\r\n\r\n");
 
-	if (msg_separator == nullptr) {
+	if (msg_separator == NULL) {
 		return PARSING__MALFORMED_REQUEST;
 	}
 
 	unsigned long header_len = (unsigned long)(msg_separator - mex->raw_message_a);
 
-	StringRef header;
-
-	// strstr return 0 if nothing is found or the given pointer if it is an empty string
-	if (msg_separator == 0 || msg_separator == mex->raw_message_a) {
-		header    = (StringRef){nullptr, 0};
-		mex->body = (StringRef){nullptr, 0};
-	} else {
-		header    = (StringRef){mex->raw_message_a, header_len};
-		mex->body = (StringRef){mex->raw_message_a + header_len + 4, msg_len - header_len - 4};
-	}
+	StringRef header = (StringRef){mex->raw_message_a, header_len};
+	mex->body        = (StringRef){mex->raw_message_a + header_len + 4, msg_len - header_len - 4};
 
 	// now i have the two stringRefs to the body and the header
 
 	// extract metadata parameters and other stuff
-	const auto res = decompose_header(&header, mex);
+	auto res = decompose_header(&header, mex);
 	RET_IF_ERR(res)
 
-	decompose_message(mex);
+	res = decompose_message(mex);
+	RET_IF_ERR(res)
 
 	return NO_ERROR;
 }
@@ -83,8 +76,9 @@ void destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
 
 void add_to_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 	const auto index = get_parameter_code(&key);
-	if (index < 0 || index > RQ_ENUM_LEN) {
+	if (index >= RQ_ENUM_LEN) {
 		llog(LOG_WARNING, "[HEADER] Could not recognize parameter '%.*s = %.*s'\n", CLAMP_TO_POSITIVE_INT(key.len), key.str, CLAMP_TO_POSITIVE_INT(val.len), val.str);
+		return;
 	}
 	ctx->header_options[index] = val;
 }
@@ -97,32 +91,35 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 
 	// the first line should be "METHOD URL HTTP/Version"
 
-	//  0 |1|    2
+	//  0 |1|    2   | [optional]
 	// GET / HTTP/1.1\r\n
-	ptrdiff_t first_space_len = strnchr(raw_header->str, ' ', raw_header->len) - raw_header->str; // gets me until the space after the method verb
-	if (first_space_len < 0) {
+	const char *first_space = strnchr(raw_header->str, ' ', raw_header->len);
+	if (first_space == nullptr) {
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
-	const char *after_first_space = raw_header->str + first_space_len + 1;
-	ptrdiff_t   second_space_len  = strnchr(after_first_space, ' ', raw_header->len) - after_first_space; // until the space after the URL
-	if (second_space_len < 0) {
+	const StringRef after_first_space = {first_space + 1, raw_header->len - (size_t)(first_space - raw_header->str) - 1}; // move after the first space, and account for that in the length
+	const char     *second_space      = strnchr(after_first_space.str, ' ', after_first_space.len);
+	if (second_space == nullptr) {
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
-	const char *after_second_space = raw_header->str + first_space_len + second_space_len + 2;
-	ptrdiff_t   endline_len        = strnstr(raw_header->str, "\r\n", raw_header->len) - after_second_space; // until the first newline
-	if (endline_len < 0) {
-		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
+	// const char *after_second_space_ = raw_header->str + first_space_len + second_space_len + 2;
+	const StringRef after_second_space = {second_space + 1, after_first_space.len - (size_t)(second_space - after_first_space.str) - 1}; // move after the second space, and account for that in the length
+	const char     *endline_len        = strnstr(raw_header->str, "\r\n", raw_header->len);
+	if (endline_len == nullptr) {
+		// a request line is without \r\n so it's ok
+		// but that means that the header stops here so the endline is at the raw_header end
+		endline_len = raw_header->str + raw_header->len;
 	}
 
 	// temporary stringRefs
-	StringRef method_ref  = {raw_header->str, (size_t)first_space_len};
-	StringRef version_ref = {after_second_space, (size_t)endline_len};
+	StringRef method_ref  = {raw_header->str, (size_t)(first_space - raw_header->str)};
+	StringRef version_ref = {second_space + 1, (size_t)(endline_len - second_space) - 1};
 
 	// actually storing the values in the object
 	msg->method  = get_method_code(&method_ref);
-	msg->url     = (StringRef){after_first_space, (size_t)second_space_len};
+	msg->url     = (StringRef){first_space + 1, (size_t)(second_space - first_space) - 1};
 	msg->version = get_version_code(&version_ref);
 
 	// Now checks if there are query parameters
@@ -142,7 +139,14 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 		msg->url.len = (size_t)(qmark_index);
 	}
 
-	return parse_options(raw_header, add_to_options, "\r\n", ':', msg);
+	if (endline_len == raw_header->str + raw_header->len) {
+		// there are no header options, just return
+		return NO_ERROR;
+	}
+
+	StringRef header_options = {raw_header->str + endline_len + 2, raw_header->len - (size_t)(endline_len) + 2};
+
+	return parse_options(&header_options, add_to_options, "\r\n", ':', msg);
 }
 
 ERRFUNC decompose_message(InboundHttpMessage *msg) {

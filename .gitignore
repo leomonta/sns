@@ -7,3 +7,4 @@ results.json
 .cache
 Makefile
 icb.yaml
+test/test.out
