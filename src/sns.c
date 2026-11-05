@@ -154,7 +154,7 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 
 
 		InboundHttpMessage inbound_mex;
-		auto res = parse_InboundMessage(request, &inbound_mex);
+		parse_InboundMessage(request, &inbound_mex);
 		free(request);
 		llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[inbound_mex.method]);
 

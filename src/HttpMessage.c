@@ -34,7 +34,7 @@ ERRFUNC parse_InboundMessage(const char *str, InboundHttpMessage *mex) {
 	auto msg_separator = strstr(mex->raw_message_a, "\r\n\r\n");
 
 	if (msg_separator == NULL) {
-		return PARSING__MALFORMED_REQUEST;
+		return PARSING_HEADER__MALFORMED_REQUEST;
 	}
 
 	unsigned long header_len = (unsigned long)(msg_separator - mex->raw_message_a);
@@ -106,21 +106,27 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 
 	// const char *after_second_space_ = raw_header->str + first_space_len + second_space_len + 2;
 	const StringRef after_second_space = {second_space + 1, after_first_space.len - (size_t)(second_space - after_first_space.str) - 1}; // move after the second space, and account for that in the length
-	const char     *endline_len        = strnstr(raw_header->str, "\r\n", raw_header->len);
-	if (endline_len == nullptr) {
+	const char     *endline            = strnstr(after_second_space.str, "\r\n", after_second_space.len);
+	if (endline == nullptr) {
 		// a request line is without \r\n so it's ok
 		// but that means that the header stops here so the endline is at the raw_header end
-		endline_len = raw_header->str + raw_header->len;
+		endline = raw_header->str + raw_header->len;
 	}
 
 	// temporary stringRefs
 	StringRef method_ref  = {raw_header->str, (size_t)(first_space - raw_header->str)};
-	StringRef version_ref = {second_space + 1, (size_t)(endline_len - second_space) - 1};
+	StringRef version_ref = {second_space + 1, (size_t)(endline - second_space) - 1};
 
 	// actually storing the values in the object
-	msg->method  = get_method_code(&method_ref);
+	msg->method = get_method_code(&method_ref);
+	if (msg->method == HTTP_INVALID_METHOD) {
+		return PARSING_HEADER__MALFORMED_REQUEST;
+	}
 	msg->url     = (StringRef){first_space + 1, (size_t)(second_space - first_space) - 1};
 	msg->version = get_version_code(&version_ref);
+	if (msg->version == HTTP_VER_UNKN) {
+		return PARSING_HEADER__MALFORMED_REQUEST;
+	}
 
 	// Now checks if there are query parameters
 
@@ -139,12 +145,12 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 		msg->url.len = (size_t)(qmark_index);
 	}
 
-	if (endline_len == raw_header->str + raw_header->len) {
+	if (endline == raw_header->str + raw_header->len) {
 		// there are no header options, just return
 		return NO_ERROR;
 	}
 
-	StringRef header_options = {raw_header->str + endline_len + 2, raw_header->len - (size_t)(endline_len) + 2};
+	StringRef header_options = {endline + 2, raw_header->len - (size_t)(endline - raw_header->str) - 2};
 
 	return parse_options(&header_options, add_to_options, "\r\n", ':', msg);
 }
@@ -160,13 +166,15 @@ ERRFUNC decompose_message(InboundHttpMessage *msg) {
 	}
 
 	// type one, url encoded
-	if (strncmp("application/x-www-form-urlencoded", content_type.str, content_type.len) == 0) {
+	StringRef form_urlencoded = TO_STRINGREF("application/x-www-form-urlencoded");
+	StringRef text_plain      = TO_STRINGREF("text/plain");
+	if (equal_StringRef(&form_urlencoded, &content_type)) {
 		// the fields are separated from each others with a "&" and key -> value are separated with "="
 		// plus they are encoded as a URL
 		return parse_options(&msg->body, add_to_params, "&", '=', msg);
 
 		// type two, plain text
-	} else if (strncmp("text/plain", content_type.str, content_type.len) == 0) {
+	} else if (equal_StringRef(&text_plain, &content_type)) {
 		return parse_options(&msg->body, add_to_params, "\r\n", '=', msg);
 
 		// type three, multipart form-data
@@ -174,20 +182,19 @@ ERRFUNC decompose_message(InboundHttpMessage *msg) {
 		// find the divisor
 		//               0              |      1
 		// multipart/form-data; boundary=----asdwadawd
-		// auto divisor = split(cType, "=")[1];
-		auto eq = strnchr(content_type.str, '=', content_type.len);
+		// auto eq = strnchr(content_type.str, '=', content_type.len);
 		// sometimes the boundary is encolsed in quotes, take care of this case
-		if (eq == nullptr) {
-			llog(LOG_WARNING, "Malformed multipart form data, no '='\n");
-			return PARSING__MALFORMED_MULTIPART_FORMDATA;
-		}
-
-		StringRef divisor = {eq, (size_t)(eq - content_type.str)};
-
-		if (*eq == '"') {
-			++divisor.str;
-			--divisor.len;
-		}
+		// if (eq == nullptr) {
+		// 	llog(LOG_WARNING, "Malformed multipart form data, no '='\n");
+		// 	return PARSING__MALFORMED_MULTIPART_FORMDATA;
+		// }
+		//
+		// StringRef divisor = {eq, (size_t)(eq - content_type.str)};
+		//
+		// if (*eq == '"') {
+		// 	++divisor.str;
+		// 	--divisor.len;
+		// }
 
 		llog(LOG_ERROR, "[PARSING] Multipart formdata not implemented\n");
 		// http::parseFormData(body, divisor, parameters);

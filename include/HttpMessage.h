@@ -140,7 +140,6 @@ typedef enum : uint8_t {
 
 typedef struct {
 	char                       *raw_message_a;               // the c string containing the entire header, the _a means it's heap allocated
-	size_t                      header_len;                  // how many bytes are there in the header
 	MiniMap_StringRef_StringRef parameters;                  // contain the data sent in the forms and query parameters
 	StringRef                   header_options[RQ_ENUM_LEN]; // an 'hash map' where to store the decoded header options
 	StringRef                   url;                         // the resource asked from the client
