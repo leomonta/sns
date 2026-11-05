@@ -20,7 +20,13 @@
 #define TO_STRINGREF(str) \
 	(StringRef){str, sizeof(str) - 1}
 
-#define CAST_STRINGREF(str) (StringRef){str, strlen(str)}
+#define TO_STRINGVIEW(str) \
+	(StringView){str, sizeof(str) - 1}
+
+#define CAST_STRINGREF(str)      \
+	(StringRef) {            \
+		str, strlen(str) \
+	}
 
 // Owning string
 typedef struct {
@@ -30,9 +36,18 @@ typedef struct {
 
 // Non owning substring
 typedef struct {
-	const char *str;
+	char *str;
 	size_t      len;
 } StringRef;
 
+// Non modifiable substring
+typedef struct {
+	const char *const str;
+	const size_t      len;
+} StringView;
+
 bool equal_StringOwn(const StringOwn *lhs, const StringOwn *rhs);
+
 bool equal_StringRef(const StringRef *lhs, const StringRef *rhs);
+
+bool equal_StringView(const StringView *lhs, const StringView *rhs);

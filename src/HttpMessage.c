@@ -79,13 +79,13 @@ void add_to_header_options(StringRef key, StringRef val, InboundHttpMessage *ctx
 
 	// this ref -> own is fine since I know that the underling data is not const and is from a request
 	StringOwn decoded = {(char *)(key.str), key.len};
-	auto err = url_decode(&decoded, &key);
+	auto      err     = url_decode(&decoded, &key);
 	if (err != NO_ERROR) {
 		return;
 	}
 
 	decoded = (StringOwn){(char *)(val.str), val.len};
-	err = url_decode(&decoded, &key);
+	err     = url_decode(&decoded, &key);
 	if (err != NO_ERROR) {
 		return;
 	}
@@ -113,14 +113,14 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
-	const StringRef after_first_space = {first_space + 1, raw_header->len - (size_t)(first_space - raw_header->str) - 1}; // move after the first space, and account for that in the length
+	const StringView after_first_space = {first_space + 1, raw_header->len - (size_t)(first_space - raw_header->str) - 1}; // move after the first space, and account for that in the length
 	const char     *second_space      = strnchr(after_first_space.str, ' ', after_first_space.len);
 	if (second_space == nullptr) {
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
 	// const char *after_second_space_ = raw_header->str + first_space_len + second_space_len + 2;
-	const StringRef after_second_space = {second_space + 1, after_first_space.len - (size_t)(second_space - after_first_space.str) - 1}; // move after the second space, and account for that in the length
+	const StringView after_second_space = {second_space + 1, after_first_space.len - (size_t)(second_space - after_first_space.str) - 1}; // move after the second space, and account for that in the length
 	const char     *endline            = strnstr(after_second_space.str, "\r\n", after_second_space.len);
 	if (endline == nullptr) {
 		// a request line is without \r\n so it's ok
@@ -129,15 +129,15 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	}
 
 	// temporary stringRefs
-	StringRef method_ref  = {raw_header->str, (size_t)(first_space - raw_header->str)};
-	StringRef version_ref = {second_space + 1, (size_t)(endline - second_space) - 1};
+	StringView method_ref  = {raw_header->str, (size_t)(first_space - raw_header->str)};
+	StringView version_ref = {second_space + 1, (size_t)(endline - second_space) - 1};
 
 	// actually storing the values in the object
 	msg->method = get_method_code(&method_ref);
 	if (msg->method == HTTP_INVALID_METHOD) {
 		return PARSING_HEADER__MALFORMED_REQUEST;
 	}
-	StringRef url = {first_space + 1, (size_t)(second_space - first_space) - 1};
+	StringRef url = {raw_header->str + after_first_space.len + 1, (size_t)(second_space - first_space) - 1};
 	msg->version  = get_version_code(&version_ref);
 	if (msg->version == HTTP_VER_UNKN) {
 		return PARSING_HEADER__MALFORMED_REQUEST;
@@ -184,8 +184,8 @@ ERRFUNC decompose_message(InboundHttpMessage *msg) {
 	}
 
 	// type one, url encoded
-	StringRef form_urlencoded = TO_STRINGREF("application/x-www-form-urlencoded");
-	StringRef text_plain      = TO_STRINGREF("text/plain");
+	StringView form_urlencoded = TO_STRINGVIEW("application/x-www-form-urlencoded");
+	StringView text_plain      = TO_STRINGVIEW("text/plain");
 	if (equal_StringRef(&form_urlencoded, &content_type)) {
 		// the fields are separated from each others with a "&" and key -> value are separated with "="
 		// plus they are encoded as a URL
@@ -290,7 +290,7 @@ StringOwn compose_message(const OutboundHttpMessage *msg) {
 	return r;
 }
 
-HTTP_Method get_method_code(const StringRef *request_method) {
+HTTP_Method get_method_code(const StringView *request_method) {
 
 	if (request_method->len == 0) {
 		return HTTP_INVALID_METHOD;
@@ -299,7 +299,7 @@ HTTP_Method get_method_code(const StringRef *request_method) {
 	// since the codes are sequential starting from 1
 	// the 0 is for an invalid http method / verb
 	for (u_char i = 1; i < HTTP_ENUM_LEN; ++i) {
-		if (equal_StringRef(request_method, &methods_str[i])) {
+		if (equal_StringView(request_method, &methods_str[i])) {
 			return i;
 		}
 	}
@@ -307,14 +307,14 @@ HTTP_Method get_method_code(const StringRef *request_method) {
 	return HTTP_INVALID_METHOD;
 }
 
-HTTP_Version get_version_code(const StringRef *http_version) {
+HTTP_Version get_version_code(const StringView *http_version) {
 
 	if (http_version->len == 0) {
 		return HTTP_VER_UNKN;
 	}
 
 	for (u_char i = 1; i < HTTP_VER_ENUM_LEN; ++i) {
-		if (equal_StringRef(http_version, &versions_str[i])) {
+		if (equal_StringView(http_version, &versions_str[i])) {
 			return i;
 		}
 	}
@@ -324,8 +324,10 @@ HTTP_Version get_version_code(const StringRef *http_version) {
 
 u_char get_parameter_code(const StringRef *parameter) {
 
+	StringView parm_view = {parameter->str, parameter->len};
+
 	for (u_char i = 0; i < RQ_ENUM_LEN; ++i) {
-		if (equal_StringRef(parameter, &header_request_options_str[i])) {
+		if (equal_StringView(&parm_view, &header_request_options_str[i])) {
 			return i;
 		}
 	}
@@ -364,9 +366,9 @@ ErrCode parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 		} else {
 
 			// everything is fine here
-			size_t    pos = (size_t)(sep - chunk.str);      // get the pointer difference from the start of the chunk and the position of the 'item_sep'
-			StringRef key = {chunk.str, pos};               // from the start of the chunk to before the 'item_sep'
-			StringRef val = {sep + 1, chunk.len - pos - 1}; // from after the 'item_sep' to the end of the chunk
+			size_t    pos = (size_t)(sep - chunk.str);                  // get the pointer difference from the start of the chunk and the position of the 'item_sep'
+			StringRef key = {chunk.str, pos};                           // from the start of the chunk to before the 'item_sep'
+			StringRef val = {chunk.str + pos + 1, chunk.len - pos - 1}; // from after the 'item_sep' to the end of the chunk
 
 			key = trim(&key);
 			val = trim(&val);

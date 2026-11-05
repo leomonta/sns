@@ -196,7 +196,7 @@ StringOwn compose_message(const OutboundHttpMessage *msg);
  * @param requestMethod the StringRef containing the method requested
  * @return the code representing the relative method
  */
-HTTP_Method get_method_code(const StringRef *request_method);
+HTTP_Method get_method_code(const StringView *request_method);
 
 /**
  * Given a string representing the request http version (0., 1.0, 1.1) returns the relative code
@@ -204,7 +204,7 @@ HTTP_Method get_method_code(const StringRef *request_method);
  * @param httpVersion the StringRef containing the httpVersion
  * @return the code representing the relative version
  */
-HTTP_Version get_version_code(const StringRef *http_version);
+HTTP_Version get_version_code(const StringView *http_version);
 
 /**
  * Given a string representing an header options (Content-type, Content-length, ...)

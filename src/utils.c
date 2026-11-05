@@ -319,90 +319,90 @@ bool compare_u_char(const unsigned char *lhs, const unsigned char *rhs) {
 }
 
 
-StringRef get_reason_phrase(unsigned short statusCode) {
+StringView get_reason_phrase(unsigned short statusCode) {
 
 	switch (statusCode) {
 	case 100:
-		return TO_STRINGREF("Continue");
+		return TO_STRINGVIEW("Continue");
 	case 101:
-		return TO_STRINGREF("Switching Protocols");
+		return TO_STRINGVIEW("Switching Protocols");
 	case 200:
-		return TO_STRINGREF("OK");
+		return TO_STRINGVIEW("OK");
 	case 201:
-		return TO_STRINGREF("Created");
+		return TO_STRINGVIEW("Created");
 	case 202:
-		return TO_STRINGREF("Accepted");
+		return TO_STRINGVIEW("Accepted");
 	case 203:
-		return TO_STRINGREF("Non-Authoritative Information");
+		return TO_STRINGVIEW("Non-Authoritative Information");
 	case 204:
-		return TO_STRINGREF("No Content");
+		return TO_STRINGVIEW("No Content");
 	case 205:
-		return TO_STRINGREF("Reset Content");
+		return TO_STRINGVIEW("Reset Content");
 	case 206:
-		return TO_STRINGREF("Partial Content");
+		return TO_STRINGVIEW("Partial Content");
 	case 300:
-		return TO_STRINGREF("Multiple Choices");
+		return TO_STRINGVIEW("Multiple Choices");
 	case 301:
-		return TO_STRINGREF("Moved Permanently");
+		return TO_STRINGVIEW("Moved Permanently");
 	case 302:
-		return TO_STRINGREF("Found");
+		return TO_STRINGVIEW("Found");
 	case 303:
-		return TO_STRINGREF("See Other");
+		return TO_STRINGVIEW("See Other");
 	case 304:
-		return TO_STRINGREF("Not Modified");
+		return TO_STRINGVIEW("Not Modified");
 	case 305:
-		return TO_STRINGREF("Use Proxy");
+		return TO_STRINGVIEW("Use Proxy");
 	case 307:
-		return TO_STRINGREF("Temporary Redirect");
+		return TO_STRINGVIEW("Temporary Redirect");
 	case 400:
-		return TO_STRINGREF("Bad Request");
+		return TO_STRINGVIEW("Bad Request");
 	case 401:
-		return TO_STRINGREF("Unauthorized");
+		return TO_STRINGVIEW("Unauthorized");
 	case 402:
-		return TO_STRINGREF("Payment Required");
+		return TO_STRINGVIEW("Payment Required");
 	case 403:
-		return TO_STRINGREF("Forbidden");
+		return TO_STRINGVIEW("Forbidden");
 	case 404:
-		return TO_STRINGREF("Not Found");
+		return TO_STRINGVIEW("Not Found");
 	case 405:
-		return TO_STRINGREF("Method Not Allowed");
+		return TO_STRINGVIEW("Method Not Allowed");
 	case 406:
-		return TO_STRINGREF("Not Acceptable");
+		return TO_STRINGVIEW("Not Acceptable");
 	case 407:
-		return TO_STRINGREF("Proxy Authentication Required");
+		return TO_STRINGVIEW("Proxy Authentication Required");
 	case 408:
-		return TO_STRINGREF("Request Time-out");
+		return TO_STRINGVIEW("Request Time-out");
 	case 409:
-		return TO_STRINGREF("Conflict");
+		return TO_STRINGVIEW("Conflict");
 	case 410:
-		return TO_STRINGREF("Gone");
+		return TO_STRINGVIEW("Gone");
 	case 411:
-		return TO_STRINGREF("Length Required");
+		return TO_STRINGVIEW("Length Required");
 	case 412:
-		return TO_STRINGREF("Precondition Failed");
+		return TO_STRINGVIEW("Precondition Failed");
 	case 413:
-		return TO_STRINGREF("Request Entity Too Large");
+		return TO_STRINGVIEW("Request Entity Too Large");
 	case 414:
-		return TO_STRINGREF("Request-URI Too Large");
+		return TO_STRINGVIEW("Request-URI Too Large");
 	case 415:
-		return TO_STRINGREF("Unsupported Media Type");
+		return TO_STRINGVIEW("Unsupported Media Type");
 	case 416:
-		return TO_STRINGREF("Requested range not satisfiable");
+		return TO_STRINGVIEW("Requested range not satisfiable");
 	case 417:
-		return TO_STRINGREF("Expectation Failed");
+		return TO_STRINGVIEW("Expectation Failed");
 	case 500:
-		return TO_STRINGREF("Internal Server Error");
+		return TO_STRINGVIEW("Internal Server Error");
 	case 501:
-		return TO_STRINGREF("Not Implemented");
+		return TO_STRINGVIEW("Not Implemented");
 	case 502:
-		return TO_STRINGREF("Bad Gateway");
+		return TO_STRINGVIEW("Bad Gateway");
 	case 503:
-		return TO_STRINGREF("Service Unavailable");
+		return TO_STRINGVIEW("Service Unavailable");
 	case 504:
-		return TO_STRINGREF("Gateway Time-out");
+		return TO_STRINGVIEW("Gateway Time-out");
 	case 505:
-		return TO_STRINGREF("HTTP Version not supported");
+		return TO_STRINGVIEW("HTTP Version not supported");
 	default:
-		return TO_STRINGREF("UNKN");
+		return TO_STRINGVIEW("UNKN");
 	}
 }

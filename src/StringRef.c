@@ -17,3 +17,11 @@ bool equal_StringRef(const StringRef *lhs, const StringRef *rhs) {
 
 	return strncmp(lhs->str, rhs->str, lhs->len) == 0;
 }
+
+bool equal_StringView(const StringView *lhs, const StringView *rhs) {
+	if (lhs->len != rhs->len) {
+		return false;
+	}
+
+	return strncmp(lhs->str, rhs->str, lhs->len) == 0;
+}
