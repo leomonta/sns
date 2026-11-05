@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StringRef.h"
+#include "errcode.h"
 
 #include <limits.h>
 #include <string.h>
@@ -16,7 +17,7 @@
 /**
  * simply get the time formetted following RFC822 regulation on GMT time
  *
- * @return a strig containing the date
+ * @return a static thread local strig containing the date
  */
 StringRef getUTC();
 
@@ -32,7 +33,7 @@ StringRef getUTC();
  * @param[in] `dst` where to put the decoded strin
  * @param[in] `src` the string to decode
  */
-void url_decode(StringOwn *dst, const StringRef *src);
+ERRFUNC url_decode(StringOwn *dst, const StringRef *src);
 
 /**
  * compress given data to gzip
@@ -139,9 +140,9 @@ char *copy_StringRef(const StringRef *str);
 /**
  * Return the string representation of the given number
  *
- * @param[in] `number` the numbero to converto to string
+ * @param[in] `number` the numbero to convert to string
  *
- * @return a heap allocated string that represents the given number
+ * @return a static thread local string that represents the given number
  */
 StringRef num_to_string(size_t number);
 

@@ -18,10 +18,7 @@
 
 // to be used with string directly
 #define TO_STRINGREF(str) \
-	{str, sizeof(str) - 1}
-
-#define TO_STRINGREF2(str) \
-	{str, strlen(str)}
+	(StringRef){str, sizeof(str) - 1}
 
 #define CAST_STRINGREF(str) (StringRef){str, strlen(str)}
 

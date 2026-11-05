@@ -1,6 +1,7 @@
 #include "HttpMessage.h"
 
 #include "MiniMap_StringRef_StringRef.h"
+
 #include "StringRef.h"
 #include "constants.h"
 #include "utils.h"
@@ -10,7 +11,7 @@
 #include <logger.h>
 #include <stdio.h>
 
-void log_malformed_oprion(const StringRef *str_ref) {
+void log_malformed_option(const StringRef *str_ref) {
 	llog(LOG_WARNING, "Malformed option -> '%.*s'\n", CLAMP_TO_POSITIVE_INT(str_ref->len), str_ref->str);
 }
 
@@ -122,27 +123,33 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	if (msg->method == HTTP_INVALID_METHOD) {
 		return PARSING_HEADER__MALFORMED_REQUEST;
 	}
-	msg->url     = (StringRef){first_space + 1, (size_t)(second_space - first_space) - 1};
-	msg->version = get_version_code(&version_ref);
+	StringRef url = {first_space + 1, (size_t)(second_space - first_space) - 1};
+	msg->version  = get_version_code(&version_ref);
 	if (msg->version == HTTP_VER_UNKN) {
 		return PARSING_HEADER__MALFORMED_REQUEST;
 	}
 
+	char *mem = malloc(url.len);
+	TEST_ALLOC(mem);
+	msg->url_a = (StringOwn){mem, url.len};
+
+	url_decode(&msg->url_a, &url);
+
 	// Now checks if there are query parameters
 
 	// the position of the query parameter marker (if present)
-	auto qmark_index = strnchr(msg->url.str, '?', msg->url.len) - msg->url.str;
+	auto qmark_index = strnchr(msg->url_a.str, '?', msg->url_a.len);
 
 	// if strnchr returns nullptr the result is negative, else is positive
-	if (qmark_index > 0) {
+	if (qmark_index != nullptr) {
 		// confine the parameters in a single stringREf excluding the '?'
-		StringRef  query_parameters = {msg->url.str + qmark_index + 1, msg->url.len - (size_t)(qmark_index)-1};
+		StringRef  query_parameters = {qmark_index + 1, msg->url_a.len - (size_t)(qmark_index - msg->url_a.str) - 1};
 		const auto err              = parse_options(&query_parameters, add_to_params, "&", '=', msg);
 
 		RET_IF_ERR(err)
 
-		// limit thw url to before the '?'
-		msg->url.len = (size_t)(qmark_index);
+		// limit the url to before the '?'
+		msg->url_a.len = (size_t)(qmark_index - msg->url_a.str);
 	}
 
 	if (endline == raw_header->str + raw_header->len) {
@@ -207,8 +214,8 @@ StringOwn compose_message(const OutboundHttpMessage *msg) {
 
 	// I preconstruct the status line so i don't have to do multiple allocations and string concatenations
 	// The value to modify are at
-	//                             11
-	//                   012345678901
+	//                              11
+	//                    012345678901
 	char status_line[] = "HTTP/1.0 XXX ";
 	auto phrase        = get_reason_phrase(msg->status_code);
 
@@ -260,8 +267,10 @@ StringOwn compose_message(const OutboundHttpMessage *msg) {
 	memcpy(writer, "\r\n", 2);
 	writer += 2;
 
-	memcpy(writer, msg->body.str, msg->body.len);
-	writer += msg->body.len;
+	if (msg->body.len > 0) {
+		memcpy(writer, msg->body.str, msg->body.len);
+		writer += msg->body.len;
+	}
 
 	StringOwn r = {
 	    .str = res,
@@ -313,7 +322,7 @@ u_char get_parameter_code(const StringRef *parameter) {
 	return (u_char)(-1);
 }
 
-errcode parse_options(const StringRef *segment, const OptionsProcessor fun, const char *chunk_sep, const char item_sep, InboundHttpMessage *ctx) {
+ErrCode parse_options(const StringRef *segment, const OptionsProcessor fun, const char *chunk_sep, const char item_sep, InboundHttpMessage *ctx) {
 
 	StringRef   window        = {segment->str, segment->len};
 	const char *segment_end   = segment->str + segment->len;
@@ -341,7 +350,7 @@ errcode parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 
 		auto sep = strnchr(chunk.str, item_sep, chunk.len);
 		if (sep == nullptr) {
-			log_malformed_oprion(&chunk);
+			log_malformed_option(&chunk);
 		} else {
 
 			// everything is fine here

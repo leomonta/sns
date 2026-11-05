@@ -11,6 +11,7 @@
 #define ZLIB_CONST
 #include <zlib.h>
 
+// these are thread local to prevent an allocation, if the values need to persist past a print, or similar, they need to be stored somewhere else
 static thread_local char buffer[80];
 static thread_local char digits_str_buffer[41]; // enough to represent 2^128, null terminator and then some
 
@@ -30,7 +31,7 @@ StringRef getUTC() {
 	return (StringRef){buffer, 80};
 }
 
-void url_decode(StringOwn *dst, const StringRef *src) {
+ERRFUNC url_decode(StringOwn *dst, const StringRef *src) {
 
 	char a, b;
 
@@ -40,10 +41,10 @@ void url_decode(StringOwn *dst, const StringRef *src) {
 	while (read_index < src->len && write_index < dst->len) {
 
 		// html whatever thingy to decode
-		if (src->str[read_index] == '%' && read_index < src->len + 2) {
+		if (src->str[read_index] == '%' && read_index + 2 < src->len) {
 			a = src->str[read_index + 1];
 			b = src->str[read_index + 2];
-			if (isxdigit(a) && isxdigit(b)) {
+			if (isxdigit((unsigned char)a) && isxdigit((unsigned char)b)) {
 				if (a >= 'a') {
 					a -= 'a' - 'A';
 				}
@@ -63,6 +64,8 @@ void url_decode(StringOwn *dst, const StringRef *src) {
 				dst->str[write_index] = (char)(16 * a) + b;
 				write_index++;
 				read_index += 3;
+			} else {
+				return PARSING_HEADER__MALFORMED_URL_ENCODING;
 			}
 		} else if (src->str[read_index] == '+') {
 			dst->str[write_index] = ' ';
@@ -75,7 +78,13 @@ void url_decode(StringOwn *dst, const StringRef *src) {
 		}
 	}
 
-	dst->str[write_index] = '\0';
+	if (write_index == dst->len) {
+		--write_index;
+	}
+	// write the new length
+	dst->len = write_index;
+
+	return NO_ERROR;
 }
 
 bool compress_gz(const StringRef *data, StringOwn *output) {
@@ -318,86 +327,86 @@ StringRef get_reason_phrase(unsigned short statusCode) {
 
 	switch (statusCode) {
 	case 100:
-		return CAST_STRINGREF("Continue");
+		return TO_STRINGREF("Continue");
 	case 101:
-		return CAST_STRINGREF("Switching Protocols");
+		return TO_STRINGREF("Switching Protocols");
 	case 200:
-		return CAST_STRINGREF("OK");
+		return TO_STRINGREF("OK");
 	case 201:
-		return CAST_STRINGREF("Created");
+		return TO_STRINGREF("Created");
 	case 202:
-		return CAST_STRINGREF("Accepted");
+		return TO_STRINGREF("Accepted");
 	case 203:
-		return CAST_STRINGREF("Non-Authoritative Information");
+		return TO_STRINGREF("Non-Authoritative Information");
 	case 204:
-		return CAST_STRINGREF("No Content");
+		return TO_STRINGREF("No Content");
 	case 205:
-		return CAST_STRINGREF("Reset Content");
+		return TO_STRINGREF("Reset Content");
 	case 206:
-		return CAST_STRINGREF("Partial Content");
+		return TO_STRINGREF("Partial Content");
 	case 300:
-		return CAST_STRINGREF("Multiple Choices");
+		return TO_STRINGREF("Multiple Choices");
 	case 301:
-		return CAST_STRINGREF("Moved Permanently");
+		return TO_STRINGREF("Moved Permanently");
 	case 302:
-		return CAST_STRINGREF("Found");
+		return TO_STRINGREF("Found");
 	case 303:
-		return CAST_STRINGREF("See Other");
+		return TO_STRINGREF("See Other");
 	case 304:
-		return CAST_STRINGREF("Not Modified");
+		return TO_STRINGREF("Not Modified");
 	case 305:
-		return CAST_STRINGREF("Use Proxy");
+		return TO_STRINGREF("Use Proxy");
 	case 307:
-		return CAST_STRINGREF("Temporary Redirect");
+		return TO_STRINGREF("Temporary Redirect");
 	case 400:
-		return CAST_STRINGREF("Bad Request");
+		return TO_STRINGREF("Bad Request");
 	case 401:
-		return CAST_STRINGREF("Unauthorized");
+		return TO_STRINGREF("Unauthorized");
 	case 402:
-		return CAST_STRINGREF("Payment Required");
+		return TO_STRINGREF("Payment Required");
 	case 403:
-		return CAST_STRINGREF("Forbidden");
+		return TO_STRINGREF("Forbidden");
 	case 404:
-		return CAST_STRINGREF("Not Found");
+		return TO_STRINGREF("Not Found");
 	case 405:
-		return CAST_STRINGREF("Method Not Allowed");
+		return TO_STRINGREF("Method Not Allowed");
 	case 406:
-		return CAST_STRINGREF("Not Acceptable");
+		return TO_STRINGREF("Not Acceptable");
 	case 407:
-		return CAST_STRINGREF("Proxy Authentication Required");
+		return TO_STRINGREF("Proxy Authentication Required");
 	case 408:
-		return CAST_STRINGREF("Request Time-out");
+		return TO_STRINGREF("Request Time-out");
 	case 409:
-		return CAST_STRINGREF("Conflict");
+		return TO_STRINGREF("Conflict");
 	case 410:
-		return CAST_STRINGREF("Gone");
+		return TO_STRINGREF("Gone");
 	case 411:
-		return CAST_STRINGREF("Length Required");
+		return TO_STRINGREF("Length Required");
 	case 412:
-		return CAST_STRINGREF("Precondition Failed");
+		return TO_STRINGREF("Precondition Failed");
 	case 413:
-		return CAST_STRINGREF("Request Entity Too Large");
+		return TO_STRINGREF("Request Entity Too Large");
 	case 414:
-		return CAST_STRINGREF("Request-URI Too Large");
+		return TO_STRINGREF("Request-URI Too Large");
 	case 415:
-		return CAST_STRINGREF("Unsupported Media Type");
+		return TO_STRINGREF("Unsupported Media Type");
 	case 416:
-		return CAST_STRINGREF("Requested range not satisfiable");
+		return TO_STRINGREF("Requested range not satisfiable");
 	case 417:
-		return CAST_STRINGREF("Expectation Failed");
+		return TO_STRINGREF("Expectation Failed");
 	case 500:
-		return CAST_STRINGREF("Internal Server Error");
+		return TO_STRINGREF("Internal Server Error");
 	case 501:
-		return CAST_STRINGREF("Not Implemented");
+		return TO_STRINGREF("Not Implemented");
 	case 502:
-		return CAST_STRINGREF("Bad Gateway");
+		return TO_STRINGREF("Bad Gateway");
 	case 503:
-		return CAST_STRINGREF("Service Unavailable");
+		return TO_STRINGREF("Service Unavailable");
 	case 504:
-		return CAST_STRINGREF("Gateway Time-out");
+		return TO_STRINGREF("Gateway Time-out");
 	case 505:
-		return CAST_STRINGREF("HTTP Version not supported");
+		return TO_STRINGREF("HTTP Version not supported");
 	default:
-		return CAST_STRINGREF("UNKN");
+		return TO_STRINGREF("UNKN");
 	}
 }

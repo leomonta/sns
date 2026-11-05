@@ -162,7 +162,8 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 		outbound_mex.header_options      = MiniMap_u_char_StringOwn_make(16, compare_u_char);
 		outbound_mex.version             = HTTP_VER_10;
 
-		MessageProcessor processor = findProcessor(&inbound_mex.url, mapped_function);
+		StringRef url =  {inbound_mex.url_a.str, inbound_mex.url_a.len};
+		MessageProcessor processor = findProcessor(&url, mapped_function);
 		if (processor != nullptr) {
 			processor(&inbound_mex, &outbound_mex);
 

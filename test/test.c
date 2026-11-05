@@ -21,8 +21,8 @@ bool test_num_to_string(size_t t, const char *s) {
 
 bool test_trim(const char* to_be_trimmed, const char* trimmed) {
 
-	StringRef to_be = TO_STRINGREF2(to_be_trimmed);
-	StringRef is = TO_STRINGREF2(trimmed);
+	StringRef to_be = CAST_STRINGREF(to_be_trimmed);
+	StringRef is = CAST_STRINGREF(trimmed);
 
 	auto res = trim(&to_be);
 
@@ -38,7 +38,7 @@ void do_nothing(StringRef a, StringRef b, InboundHttpMessage *c) {
 
 bool test_parse_options(const char * str) {
 
-	const StringRef ref = TO_STRINGREF2(str);
+	const StringRef ref = CAST_STRINGREF(str);
 	
 	auto __ = parse_options(&ref, do_nothing, "&", '=', nullptr);
 	return true;
