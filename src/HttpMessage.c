@@ -121,6 +121,7 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 		// a request line without \r\n so it's ok
 		// but that means that the reuest line is the entire header
 		request_line_len = raw_header->len;
+		request_line_end = raw_header->str + raw_header->len;
 	} else {
 		request_line_len = (size_t)(request_line_end - raw_header->str);
 	}
@@ -132,14 +133,16 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
-	const StringView after_first_space = {first_space + 1, raw_header->len - (size_t)(first_space - raw_header->str) - 1}; // move after the first space, and account for that in the length
+	const StringView after_first_space = {first_space + 1, request_line.len - (size_t)(first_space - request_line.str) - 1}; // move after the first space, and account for that in the length
 	const char      *second_space      = strnchr(after_first_space.str, ' ', after_first_space.len);
 	if (second_space == nullptr) {
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
-	// temporary stringRefs
-	StringView method_ref  = {raw_header->str, (size_t)(first_space - raw_header->str)};
+
+	// the method start at the start of the header and is long the distance between the start and the first space
+	StringView method_ref  = {request_line.str, (size_t)(first_space - request_line.str)};
+	// the versiont start after the second space and is long the distance between the second and the end of the request lien
 	StringView version_ref = {second_space + 1, (size_t)(request_line_end - second_space) - 1};
 
 	// actually storing the values in the object
@@ -151,7 +154,8 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	if (msg->version == HTTP_VER_UNKN) {
 		return PARSING_HEADER__MALFORMED_REQUEST;
 	}
-	msg->url = (StringRef){raw_header->str + (first_space - raw_header->str) + 1, (size_t)(second_space - first_space) - 1};
+	// the url is 1 char after the method, and long the distance between the two spaces - 1
+	msg->url = (StringRef){request_line.str + method_ref.len + 1, (size_t)(second_space - first_space) - 1};
 
 	// Now checks if there are query parameters
 	// the position of the query parameter marker (if present)
@@ -166,6 +170,10 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 
 		// limit the url to before the '?'
 		msg->url.len = query_start;
+	}
+
+	if (msg->url.len == 0) {
+		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
 	StringView url_v = {msg->url.str, msg->url.len};
