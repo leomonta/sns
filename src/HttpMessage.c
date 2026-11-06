@@ -77,19 +77,7 @@ void destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
 
 void add_to_header_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 
-	// this ref -> own is fine since I know that the underling data is not const and is from a request
 	StringView key_v = {key.str, key.len};
-	auto       err   = url_decode(&key, &key_v, true);
-	if (err != NO_ERROR) {
-		return;
-	}
-
-	StringView val_v = {val.str, val.len};
-	err              = url_decode(&val, &val_v, true);
-	if (err != NO_ERROR) {
-		return;
-	}
-
 	const auto index = get_header_options_code(&key_v);
 	if (index >= RQ_ENUM_LEN) {
 		llog(LOG_WARNING, "[HEADER] Could not recognize parameter '%.*s = %.*s'\n", CLAMP_TO_POSITIVE_INT(key.len), key.str, CLAMP_TO_POSITIVE_INT(val.len), val.str);
@@ -99,6 +87,24 @@ void add_to_header_options(StringRef key, StringRef val, InboundHttpMessage *ctx
 }
 
 void add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
+
+	// I use this in different places throughout the body,
+	// this means that I am actually modifying the body
+	// this is fine since it should only be used internally.
+	// If the necessity of keeping an intact copy of the body arises things will change
+	StringView key_v = {key.str, key.len};
+	auto       err   = url_decode(&key, &key_v, true);
+	if (err != NO_ERROR) {
+		llog(LOG_INFO, "[PARSING] %s\n", get_pretty_error(err));
+		return;
+	}
+
+	StringView val_v = {val.str, val.len};
+	err              = url_decode(&val, &val_v, true);
+	if (err != NO_ERROR) {
+		llog(LOG_INFO, "[PARSING] %s\n", get_pretty_error(err));
+		return;
+	}
 	MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val);
 }
 

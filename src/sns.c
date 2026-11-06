@@ -223,7 +223,7 @@ void setup(SNSServer *server) {
 
 	struct sigaction action = {
 	    .sa_handler   = SIGPIPE_handler,
-	    .sa_mask      = {0},
+	    .sa_mask      = {},
 	    .sa_flags     = 0,
 	};
 
