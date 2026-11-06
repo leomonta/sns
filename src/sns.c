@@ -30,8 +30,10 @@ const char *method_str[] = {
     "PATCH",
 };
 
+static struct sigaction old_sigaction = {};
+
 void SIGPIPE_handler(int os) {
-	llog(LOG_INFO, "[SIGPIPE] Received a sigpipe %d\n", os);
+	llog(LOG_INFO, "[SIGPIPE] Received a sigpipe. (%d) Probably just a client disconnect\n", os);
 }
 
 void register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server) {
@@ -219,7 +221,13 @@ void setup(SNSServer *server) {
 
 	errno = 0;
 
-	signal(SIGPIPE, SIGPIPE_handler);
+	struct sigaction action = {
+	    .sa_handler   = SIGPIPE_handler,
+	    .sa_mask      = {0},
+	    .sa_flags     = 0,
+	};
+
+	sigaction(SIGPIPE, &action, &old_sigaction);
 
 	// initializing the tcp Server
 	server->info.server_socket = TCP_initialize_server(server->settings.tcp_port, 4);
@@ -285,6 +293,8 @@ void SNSstop(SNSServer *server) {
 	SSL_destroy_context(server->info.ssl_context);
 
 	SSL_terminate();
+
+	sigaction(SIGPIPE, &old_sigaction, NULL);
 
 	llog(LOG_INFO, "[SERVER] Server stopped\n");
 }
