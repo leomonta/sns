@@ -146,18 +146,18 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	// Now checks if there are query parameters
 
 	// the position of the query parameter marker (if present)
-	auto qmark_index = strnchr(msg->url.str, '?', msg->url.len);
+	auto qmark = strnchr(msg->url.str, '?', msg->url.len);
 
-	// if strnchr returns nullptr the result is negative, else is positive
-	if (qmark_index != nullptr) {
+	if (qmark != nullptr) {
+		auto query_start = (size_t)(qmark - msg->url.str);
 		// confine the parameters in a single stringREf excluding the '?'
-		StringRef query_parameters = {qmark_index + 1, msg->url.len - (size_t)(qmark_index - msg->url.str) - 1};
+		StringRef query_parameters = {msg->url.str + query_start, msg->url.len - (size_t)(qmark - msg->url.str) - 1};
 		auto      err              = parse_options(&query_parameters, add_to_params, "&", '=', msg);
 
 		RET_IF_ERR(err)
 
 		// limit the url to before the '?'
-		msg->url.len = (size_t)(qmark_index - msg->url.str);
+		msg->url.len = query_start;
 	}
 
 	auto err = url_decode(&msg->url, &url);
@@ -168,7 +168,8 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 		return NO_ERROR;
 	}
 
-	StringRef header_options = {endline + 2, raw_header->len - (size_t)(endline - raw_header->str) - 2};
+	auto header_start = (size_t)(endline - raw_header->str);
+	StringRef header_options = {raw_header->str + header_start + 2, raw_header->len - header_start - 2};
 
 	return parse_options(&header_options, add_to_header_options, "\r\n", ':', msg);
 }
@@ -178,6 +179,8 @@ ERRFUNC decompose_message(InboundHttpMessage *msg) {
 
 	auto content_type = msg->header_options[RQ_CONTENT_TYPE];
 
+	StringView content_type_v = {content_type.str, content_type.len};
+
 	// the content type indicates how parameters are showed
 	if (strrefblank(&content_type)) {
 		return NO_ERROR;
@@ -186,13 +189,13 @@ ERRFUNC decompose_message(InboundHttpMessage *msg) {
 	// type one, url encoded
 	StringView form_urlencoded = TO_STRINGVIEW("application/x-www-form-urlencoded");
 	StringView text_plain      = TO_STRINGVIEW("text/plain");
-	if (equal_StringRef(&form_urlencoded, &content_type)) {
+	if (equal_StringView(&form_urlencoded, &content_type_v)) {
 		// the fields are separated from each others with a "&" and key -> value are separated with "="
 		// plus they are encoded as a URL
 		return parse_options(&msg->body, add_to_params, "&", '=', msg);
 
 		// type two, plain text
-	} else if (equal_StringRef(&text_plain, &content_type)) {
+	} else if (equal_StringView(&text_plain, &content_type_v)) {
 		return parse_options(&msg->body, add_to_params, "\r\n", '=', msg);
 
 		// type three, multipart form-data
