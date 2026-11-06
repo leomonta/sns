@@ -157,31 +157,32 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 		free(request);
 
 		if (err != NO_ERROR) {
-			llog(LOG_ERROR, "[SERVER] Discarding invalid request %.*s", 20, request);
-			destroy_InboundHttpMessage(&inbound_mex);
+			llog(LOG_ERROR, "[SERVER] Discarding invalid request from client %d\n", client_socket);
+		} else {
+			llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[inbound_mex.method]);
+
+			OutboundHttpMessage outbound_mex = {};
+			outbound_mex.header_options      = MiniMap_u_char_StringOwn_make(16, compare_u_char);
+			outbound_mex.version             = HTTP_VER_10;
+
+			StringRef        url       = {inbound_mex.url.str, inbound_mex.url.len};
+			MessageProcessor processor = findProcessor(&url, mapped_function);
+			if (processor != nullptr) {
+				processor(&inbound_mex, &outbound_mex);
+
+				// make the message a single formatted string
+				auto res = compose_message(&outbound_mex);
+				llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%.*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
+
+				// ---------------------------------------------------------------------- SEND
+				// acknowledge the segment back to the sender
+				SSL_send_record(ssl_connection, res.str, res.len);
+				free(res.str);
+			}
+
+			destroy_OutboundHttpMessage(&outbound_mex);
 		}
-
-		llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[inbound_mex.method]);
-
-		OutboundHttpMessage outbound_mex = {};
-		outbound_mex.header_options      = MiniMap_u_char_StringOwn_make(16, compare_u_char);
-		outbound_mex.version             = HTTP_VER_10;
-
-		StringRef        url       = {inbound_mex.url.str, inbound_mex.url.len};
-		MessageProcessor processor = findProcessor(&url, mapped_function);
-		if (processor != nullptr) {
-			processor(&inbound_mex, &outbound_mex);
-
-			// make the message a single formatted string
-			auto res = compose_message(&outbound_mex);
-			llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%.*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
-
-			// ---------------------------------------------------------------------- SEND
-			// acknowledge the segment back to the sender
-			SSL_send_record(ssl_connection, res.str, res.len);
-			free(res.str);
-		}
-		destroy_OutboundHttpMessage(&outbound_mex);
+		destroy_InboundHttpMessage(&inbound_mex);
 	}
 
 	TCP_shutdown_socket(client_socket);

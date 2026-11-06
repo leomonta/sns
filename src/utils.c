@@ -31,7 +31,7 @@ StringRef getUTC() {
 	return (StringRef){buffer, 80};
 }
 
-ERRFUNC url_decode(StringOwn *dst, const StringRef *src) {
+ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus) {
 
 	char a, b;
 
@@ -67,7 +67,7 @@ ERRFUNC url_decode(StringOwn *dst, const StringRef *src) {
 			} else {
 				return PARSING_HEADER__MALFORMED_URL_ENCODING;
 			}
-		} else if (src->str[read_index] == '+') {
+		} else if (do_plus && src->str[read_index] == '+') {
 			dst->str[write_index] = ' ';
 			write_index++;
 			read_index++;

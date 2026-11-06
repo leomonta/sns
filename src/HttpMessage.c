@@ -10,7 +10,7 @@
 #include <logger.h>
 #include <stdio.h>
 
-void log_malformed_option(const StringRef *str_ref) {
+static void log_malformed_option(const StringRef *str_ref) {
 	llog(LOG_WARNING, "Malformed option -> '%.*s'\n", CLAMP_TO_POSITIVE_INT(str_ref->len), str_ref->str);
 }
 
@@ -78,19 +78,19 @@ void destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
 void add_to_header_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 
 	// this ref -> own is fine since I know that the underling data is not const and is from a request
-	StringOwn decoded = {(char *)(key.str), key.len};
-	auto      err     = url_decode(&decoded, &key);
+	StringView key_v = {key.str, key.len};
+	auto       err   = url_decode(&key, &key_v, true);
 	if (err != NO_ERROR) {
 		return;
 	}
 
-	decoded = (StringOwn){(char *)(val.str), val.len};
-	err     = url_decode(&decoded, &key);
+	StringView val_v = {val.str, val.len};
+	err              = url_decode(&val, &val_v, true);
 	if (err != NO_ERROR) {
 		return;
 	}
 
-	const auto index = get_parameter_code(&key);
+	const auto index = get_header_options_code(&key_v);
 	if (index >= RQ_ENUM_LEN) {
 		llog(LOG_WARNING, "[HEADER] Could not recognize parameter '%.*s = %.*s'\n", CLAMP_TO_POSITIVE_INT(key.len), key.str, CLAMP_TO_POSITIVE_INT(val.len), val.str);
 		return;
@@ -108,67 +108,70 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 
 	//  0 |1|    2   | [optional]
 	// GET / HTTP/1.1\r\n
-	const char *first_space = strnchr(raw_header->str, ' ', raw_header->len);
+
+	const char *request_line_end = strnstr(raw_header->str, "\r\n", raw_header->len);
+	size_t      request_line_len;
+	if (request_line_end == nullptr) {
+		// a request line without \r\n so it's ok
+		// but that means that the reuest line is the entire header
+		request_line_len = raw_header->len;
+	} else {
+		request_line_len = (size_t)(request_line_end - raw_header->str);
+	}
+
+	StringRef request_line = {raw_header->str, request_line_len};
+
+	const char *first_space = strnchr(request_line.str, ' ', request_line.len);
 	if (first_space == nullptr) {
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
 	const StringView after_first_space = {first_space + 1, raw_header->len - (size_t)(first_space - raw_header->str) - 1}; // move after the first space, and account for that in the length
-	const char     *second_space      = strnchr(after_first_space.str, ' ', after_first_space.len);
+	const char      *second_space      = strnchr(after_first_space.str, ' ', after_first_space.len);
 	if (second_space == nullptr) {
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
-	// const char *after_second_space_ = raw_header->str + first_space_len + second_space_len + 2;
-	const StringView after_second_space = {second_space + 1, after_first_space.len - (size_t)(second_space - after_first_space.str) - 1}; // move after the second space, and account for that in the length
-	const char     *endline            = strnstr(after_second_space.str, "\r\n", after_second_space.len);
-	if (endline == nullptr) {
-		// a request line is without \r\n so it's ok
-		// but that means that the header stops here so the endline is at the raw_header end
-		endline = raw_header->str + raw_header->len;
-	}
-
 	// temporary stringRefs
 	StringView method_ref  = {raw_header->str, (size_t)(first_space - raw_header->str)};
-	StringView version_ref = {second_space + 1, (size_t)(endline - second_space) - 1};
+	StringView version_ref = {second_space + 1, (size_t)(request_line_end - second_space) - 1};
 
 	// actually storing the values in the object
 	msg->method = get_method_code(&method_ref);
 	if (msg->method == HTTP_INVALID_METHOD) {
 		return PARSING_HEADER__MALFORMED_REQUEST;
 	}
-	StringRef url = {raw_header->str + after_first_space.len + 1, (size_t)(second_space - first_space) - 1};
-	msg->version  = get_version_code(&version_ref);
+	msg->version = get_version_code(&version_ref);
 	if (msg->version == HTTP_VER_UNKN) {
 		return PARSING_HEADER__MALFORMED_REQUEST;
 	}
+	msg->url = (StringRef){raw_header->str + (first_space - raw_header->str) + 1, (size_t)(second_space - first_space) - 1};
 
 	// Now checks if there are query parameters
-
 	// the position of the query parameter marker (if present)
 	auto qmark = strnchr(msg->url.str, '?', msg->url.len);
 
 	if (qmark != nullptr) {
-		auto query_start = (size_t)(qmark - msg->url.str);
-		// confine the parameters in a single stringREf excluding the '?'
-		StringRef query_parameters = {msg->url.str + query_start, msg->url.len - (size_t)(qmark - msg->url.str) - 1};
+		auto query_start           = (size_t)(qmark - msg->url.str);
+		// confine the parameters in a single stringRef excluding the '?'
+		StringRef query_parameters = {msg->url.str + query_start + 1, msg->url.len - query_start - 1};
 		auto      err              = parse_options(&query_parameters, add_to_params, "&", '=', msg);
-
 		RET_IF_ERR(err)
 
 		// limit the url to before the '?'
 		msg->url.len = query_start;
 	}
 
-	auto err = url_decode(&msg->url, &url);
+	StringView url_v = {msg->url.str, msg->url.len};
+	auto       err   = url_decode(&msg->url, &url_v, false);
 	RET_IF_ERR(err);
 
-	if (endline == raw_header->str + raw_header->len) {
+	if (request_line_end == raw_header->str + raw_header->len) {
 		// there are no header options, just return
 		return NO_ERROR;
 	}
 
-	auto header_start = (size_t)(endline - raw_header->str);
+	auto      header_start   = (size_t)(request_line_end - raw_header->str);
 	StringRef header_options = {raw_header->str + header_start + 2, raw_header->len - header_start - 2};
 
 	return parse_options(&header_options, add_to_header_options, "\r\n", ':', msg);
@@ -189,37 +192,38 @@ ERRFUNC decompose_message(InboundHttpMessage *msg) {
 	// type one, url encoded
 	StringView form_urlencoded = TO_STRINGVIEW("application/x-www-form-urlencoded");
 	StringView text_plain      = TO_STRINGVIEW("text/plain");
-	if (equal_StringView(&form_urlencoded, &content_type_v)) {
+	if (equal_case_StringView(&form_urlencoded, &content_type_v)) {
 		// the fields are separated from each others with a "&" and key -> value are separated with "="
 		// plus they are encoded as a URL
 		return parse_options(&msg->body, add_to_params, "&", '=', msg);
 
 		// type two, plain text
-	} else if (equal_StringView(&text_plain, &content_type_v)) {
+	} else if (equal_case_StringView(&text_plain, &content_type_v)) {
 		return parse_options(&msg->body, add_to_params, "\r\n", '=', msg);
 
 		// type three, multipart form-data
-	} else if (strnstr(content_type.str, "multipart/form-data;", content_type.len) != nullptr) {
-		// find the divisor
-		//               0              |      1
-		// multipart/form-data; boundary=----asdwadawd
-		// auto eq = strnchr(content_type.str, '=', content_type.len);
-		// sometimes the boundary is encolsed in quotes, take care of this case
-		// if (eq == nullptr) {
-		// 	llog(LOG_WARNING, "Malformed multipart form data, no '='\n");
-		// 	return PARSING__MALFORMED_MULTIPART_FORMDATA;
-		// }
-		//
-		// StringRef divisor = {eq, (size_t)(eq - content_type.str)};
-		//
-		// if (*eq == '"') {
-		// 	++divisor.str;
-		// 	--divisor.len;
-		// }
-
-		llog(LOG_ERROR, "[PARSING] Multipart formdata not implemented\n");
-		// http::parseFormData(body, divisor, parameters);
 	}
+	// TODO: multipart form-data
+	// } else if (strnstr(content_type.str, "multipart/form-data;", content_type.len) != nullptr) {
+	// find the divisor
+	//               0              |      1
+	// multipart/form-data; boundary=----asdwadawd
+	// auto eq = strnchr(content_type.str, '=', content_type.len);
+	// sometimes the boundary is encolsed in quotes, take care of this case
+	// if (eq == nullptr) {
+	// 	llog(LOG_WARNING, "Malformed multipart form data, no '='\n");
+	// 	return PARSING__MALFORMED_MULTIPART_FORMDATA;
+	// }
+	//
+	// StringRef divisor = {eq, (size_t)(eq - content_type.str)};
+	//
+	// if (*eq == '"') {
+	// 	++divisor.str;
+	// 	--divisor.len;
+	// }
+
+	// http::parseFormData(body, divisor, parameters);
+	// }
 
 	return NO_ERROR;
 }
@@ -325,12 +329,10 @@ HTTP_Version get_version_code(const StringView *http_version) {
 	return HTTP_VER_UNKN;
 }
 
-u_char get_parameter_code(const StringRef *parameter) {
-
-	StringView parm_view = {parameter->str, parameter->len};
+u_char get_header_options_code(const StringView *option) {
 
 	for (u_char i = 0; i < RQ_ENUM_LEN; ++i) {
-		if (equal_StringView(&parm_view, &header_request_options_str[i])) {
+		if (equal_case_StringView(option, &header_request_options_str[i])) {
 			return i;
 		}
 	}

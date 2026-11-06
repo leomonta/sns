@@ -23,9 +23,9 @@
 #define TO_STRINGVIEW(str) \
 	(StringView){str, sizeof(str) - 1}
 
-#define CAST_STRINGREF(str)      \
-	(StringRef) {            \
-		str, strlen(str) \
+#define CAST_STRINGREF(str) \
+	(StringRef) {           \
+		str, strlen(str)    \
 	}
 
 // Owning string
@@ -36,8 +36,8 @@ typedef struct {
 
 // Non owning substring
 typedef struct {
-	char *str;
-	size_t      len;
+	char  *str;
+	size_t len;
 } StringRef;
 
 // Non modifiable substring
@@ -51,3 +51,9 @@ bool equal_StringOwn(const StringOwn *lhs, const StringOwn *rhs);
 bool equal_StringRef(const StringRef *lhs, const StringRef *rhs);
 
 bool equal_StringView(const StringView *lhs, const StringView *rhs);
+
+bool equal_case_StringOwn(const StringOwn *lhs, const StringOwn *rhs);
+
+bool equal_case_StringRef(const StringRef *lhs, const StringRef *rhs);
+
+bool equal_case_StringView(const StringView *lhs, const StringView *rhs);

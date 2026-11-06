@@ -142,7 +142,7 @@ typedef struct {
 	char                       *raw_message_a;               // the c string containing the entire header, the _a means it's heap allocated
 	MiniMap_StringRef_StringRef parameters;                  // contain the data sent in the forms and query parameters
 	StringRef                   header_options[RQ_ENUM_LEN]; // an 'hash map' where to store the decoded header options
-	StringOwn                   url;                         // the resource asked from the client
+	StringRef                   url;                         // the resource asked from the client
 	StringRef                   body;                        // the content of the message, what the message is about
 	HTTP_Method                 method;                      // the appropriate http method, GET, POST, PATCH
 	HTTP_Version                version;                     // the version of the http header (1.0, 1.1, 2.0, ...)
@@ -212,7 +212,7 @@ HTTP_Version get_version_code(const StringView *http_version);
  * @param version the StringRef containing the option
  * @return the code representing the relative option
  */
-u_char get_parameter_code(const StringRef *parameter);
+u_char get_header_options_code(const StringView *option);
 
 /**
  * Given an a string in the shape ...is...CS...is...CS...is...

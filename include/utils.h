@@ -27,13 +27,14 @@ StringRef getUTC();
  *
  * @author Thank you ThomasH, https://stackoverflow.com/users/2012498/thomash
  *
- * Since the decoded url is always smaller than the encoded one this algo can be used in-place by providing the same string
+ * Since the decoded url is always smaller than the encoded one this algo can be used in-place by providing the same stringRef / stringView
  * for both src and dst
  *
  * @param[in] `dst` where to put the decoded strin
  * @param[in] `src` the string to decode
+ * @param[in] `do_plus` whether to replace `+` with ` `
  */
-ERRFUNC url_decode(StringOwn *dst, const StringRef *src);
+ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus);
 
 /**
  * compress given data to gzip
