@@ -41,32 +41,34 @@ ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus) {
 	while (read_index < src->len && write_index < dst->len) {
 
 		// html whatever thingy to decode
-		if (src->str[read_index] == '%' && read_index + 2 < src->len) {
-			a = src->str[read_index + 1];
-			b = src->str[read_index + 2];
-			if (isxdigit((unsigned char)a) && isxdigit((unsigned char)b)) {
-				if (a >= 'a') {
-					a -= 'a' - 'A';
-				}
-				if (a >= 'A') {
-					a -= ('A' - 10);
-				} else {
-					a -= '0';
-				}
-				if (b >= 'a') {
-					b -= 'a' - 'A';
-				}
-				if (b >= 'A') {
-					b -= ('A' - 10);
-				} else {
-					b -= '0';
-				}
-				dst->str[write_index] = (char)(16 * a) + b;
-				write_index++;
-				read_index += 3;
-			} else {
+		if (src->str[read_index] == '%') {
+			// I have to dereference here instead of using a variable because before the if I don't know if I might be dereferencing outside of the buffer
+			if (read_index + 2 >= src->len || (!isxdigit((unsigned char)src->str[read_index + 1]) || !isxdigit((unsigned char)src->str[read_index + 2]))) { 
+				// specifying a percent encoding without the two x digits is malformed
 				return PARSING_HEADER__MALFORMED_URL_ENCODING;
 			}
+			a = src->str[read_index + 1];
+			b = src->str[read_index + 2];
+
+			if (a >= 'a') {
+				a -= 'a' - 'A';
+			}
+			if (a >= 'A') {
+				a -= ('A' - 10);
+			} else {
+				a -= '0';
+			}
+			if (b >= 'a') {
+				b -= 'a' - 'A';
+			}
+			if (b >= 'A') {
+				b -= ('A' - 10);
+			} else {
+				b -= '0';
+			}
+			dst->str[write_index] = (char)(16 * a) + b;
+			write_index++;
+			read_index += 3;
 		} else if (do_plus && src->str[read_index] == '+') {
 			dst->str[write_index] = ' ';
 			write_index++;

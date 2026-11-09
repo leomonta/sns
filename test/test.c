@@ -44,6 +44,22 @@ bool test_parse_options(const char * str) {
 	return true;
 }
 
+
+bool test_urldecode( char * encoded, const char * ref) {
+
+	StringRef res = CAST_STRINGREF(encoded);
+	StringView encoded_v = {encoded, strlen(encoded)};
+
+	auto err = url_decode(&res, &encoded_v, true);
+
+	if (ref != nullptr) {
+		StringView ref_v = {ref, strlen(ref)};
+		return equal_StringView(&encoded_v, &ref_v);
+	} else {
+		return err != NO_ERROR;
+	}
+}
+
 int main() {
 	size_t tests_passed = 0;
 	size_t total_tests  = 0;
@@ -77,6 +93,10 @@ int main() {
 	TEST(test_trim("	asd 	", "asd"));
 	TEST(test_trim("	 	", ""));
 	TEST(test_trim(" ", ""));
+
+	TEST(test_urldecode("%20", " "));
+	TEST(test_urldecode("%20v%26", " v&"));
+	TEST(test_urldecode("%20", nullptr));
 
 	TEST(test_parse_options("a=b&c=d&e=f"));
 	TEST(test_parse_options("a=bf"));
