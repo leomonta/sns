@@ -53,7 +53,7 @@ bool MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value);
  *
  * @return a pointer the value associated with the given key, or nullptr if the key is not present in the map
  */
-bool MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V* result);
+bool MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result);
 
 /**
  * Get the value corresponding to the giving key
@@ -65,7 +65,7 @@ bool MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V* result);
  *
  * @return a pointer the value associated with the given key, or nullptr if the key is not present in the map
  */
-bool MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V* result);
+bool MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V *result);
 
 /**
  * Insert a value into the hash map trhough its relative key

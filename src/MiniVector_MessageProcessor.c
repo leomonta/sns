@@ -42,7 +42,7 @@ void MiniVector_MessageProcessor_grow(MiniVector *vec) {
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 abd others
 }
 
-bool MiniVector_MessageProcessor_get(const MiniVector *vec, const size_t index, MessageProcessor* result) {
+bool MiniVector_MessageProcessor_get(const MiniVector *vec, const size_t index, MessageProcessor *result) {
 
 	if (index >= vec->count) {
 		// invalid pos
@@ -72,8 +72,13 @@ void MiniVector_MessageProcessor_append(MiniVector *vec, const MessageProcessor 
 }
 
 void MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, const MessageProcessor *element) {
-	if (index >= vec->count) {
+	if (index > vec->count) {
 		// invalid position
+		return;
+	}
+
+	if (index == vec->count) {
+		MiniVector_MessageProcessor_append(vec, element);
 		return;
 	}
 
@@ -89,7 +94,7 @@ void MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, con
 	}
 
 	// god bless memmove
-	memmove(vec->data + index + 1, vec->data + index, vec->count - index);
+	memmove(&vec->data[index + 1], &vec->data[index], (vec->count - index) * sizeof(MessageProcessor));
 
 	++(vec->count);
 
@@ -110,7 +115,7 @@ void MiniVector_MessageProcessor_remove(MiniVector *vec, const size_t index) {
 
 	if (index < vec->count - 1) {
 		// just copy over it, no need to do anything else really
-		memcpy(vec->data + index, vec->data + index + 1, (vec->count - index - 1) * sizeof(MessageProcessor));
+		memmove(&vec->data[index], &vec->data[index + 1], (vec->count - index - 1) * sizeof(MessageProcessor));
 	}
 
 	--vec->count;

@@ -42,7 +42,7 @@ void MiniVector_StringRef_grow(MiniVector *vec) {
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 abd others
 }
 
-bool MiniVector_StringRef_get(const MiniVector *vec, const size_t index, StringRef* result) {
+bool MiniVector_StringRef_get(const MiniVector *vec, const size_t index, StringRef *result) {
 
 	if (index >= vec->count) {
 		// invalid pos
@@ -72,8 +72,13 @@ void MiniVector_StringRef_append(MiniVector *vec, const StringRef *element) {
 }
 
 void MiniVector_StringRef_insert(MiniVector *vec, const size_t index, const StringRef *element) {
-	if (index >= vec->count) {
+	if (index > vec->count) {
 		// invalid position
+		return;
+	}
+
+	if (index == vec->count) {
+		MiniVector_StringRef_append(vec, element);
 		return;
 	}
 
@@ -89,7 +94,7 @@ void MiniVector_StringRef_insert(MiniVector *vec, const size_t index, const Stri
 	}
 
 	// god bless memmove
-	memmove(vec->data + index + 1, vec->data + index, vec->count - index);
+	memmove(&vec->data[index + 1], &vec->data[index], (vec->count - index) * sizeof(StringRef));
 
 	++(vec->count);
 
@@ -110,7 +115,7 @@ void MiniVector_StringRef_remove(MiniVector *vec, const size_t index) {
 
 	if (index < vec->count - 1) {
 		// just copy over it, no need to do anything else really
-		memcpy(vec->data + index, vec->data + index + 1, (vec->count - index - 1) * sizeof(StringRef));
+		memmove(&vec->data[index], &vec->data[index + 1], (vec->count - index - 1) * sizeof(StringRef));
 	}
 
 	--vec->count;

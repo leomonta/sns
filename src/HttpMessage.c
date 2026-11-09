@@ -95,14 +95,14 @@ void add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 	StringView key_v = {key.str, key.len};
 	auto       err   = url_decode(&key, &key_v, true);
 	if (err != NO_ERROR) {
-		llog(LOG_INFO, "[PARSING] %s\n", get_pretty_error(err));
+		llog(LOG_WARNING, "[PARSING] %s (%.*s)\n", get_pretty_error(err), CLAMP_TO_POSITIVE_INT(key.len), key.str);
 		return;
 	}
 
 	StringView val_v = {val.str, val.len};
 	err              = url_decode(&val, &val_v, true);
 	if (err != NO_ERROR) {
-		llog(LOG_INFO, "[PARSING] %s\n", get_pretty_error(err));
+		llog(LOG_WARNING, "[PARSING] %s (%.*s)\n", get_pretty_error(err), CLAMP_TO_POSITIVE_INT(val.len), val.str);
 		return;
 	}
 	MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val);
@@ -396,6 +396,10 @@ ErrCode parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 			if (!strrefblank(&key)) {
 				fun(key, val, ctx);
 			}
+		}
+
+		if (separator == nullptr) {
+			break;
 		}
 
 		// start again at the end of the chunk

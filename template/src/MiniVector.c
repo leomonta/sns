@@ -42,7 +42,7 @@ void MiniVector_#T#_grow(MiniVector *vec) {
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 abd others
 }
 
-bool MiniVector_#T#_get(const MiniVector *vec, const size_t index, T* result) {
+bool MiniVector_#T#_get(const MiniVector *vec, const size_t index, T *result) {
 
 	if (index >= vec->count) {
 		// invalid pos
@@ -72,8 +72,13 @@ void MiniVector_#T#_append(MiniVector *vec, const T *element) {
 }
 
 void MiniVector_#T#_insert(MiniVector *vec, const size_t index, const T *element) {
-	if (index >= vec->count) {
+	if (index > vec->count) {
 		// invalid position
+		return;
+	}
+
+	if (index == vec->count) {
+		MiniVector_#T#_append(vec, element);
 		return;
 	}
 
@@ -89,7 +94,7 @@ void MiniVector_#T#_insert(MiniVector *vec, const size_t index, const T *element
 	}
 
 	// god bless memmove
-	memmove(vec->data + index + 1, vec->data + index, vec->count - index);
+	memmove(&vec->data[index + 1], &vec->data[index], (vec->count - index) * sizeof(T));
 
 	++(vec->count);
 
@@ -110,7 +115,7 @@ void MiniVector_#T#_remove(MiniVector *vec, const size_t index) {
 
 	if (index < vec->count - 1) {
 		// just copy over it, no need to do anything else really
-		memcpy(vec->data + index, vec->data + index + 1, (vec->count - index - 1) * sizeof(T));
+		memmove(&vec->data[index], &vec->data[index + 1], (vec->count - index - 1) * sizeof(T));
 	}
 
 	--vec->count;

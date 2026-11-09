@@ -54,7 +54,7 @@ bool MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result) {
 	return false;
 }
 
-bool MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V* value) {
+bool MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V *value) {
 
 	auto const a = MiniVector_#V#_get(&map->values, index, value);
 	auto const b = MiniVector_#K#_get(&map->keys, index, key);

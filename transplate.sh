@@ -34,11 +34,6 @@ do
 	printf "RingBuffer.c StringOwn\n"
 	templetizer -i template/src/RingBuffer.c -o src/RingBuffer_ResolverData.c -t ResolverData
 
-	printf "MiniVector.h uint32_t\n"
-	templetizer -i template/include/MiniVector.h -o include/MiniVector_uint32_t.h -t uint32_t '#include <stdint.h>'
-	printf "MiniVector.c uint32_t\n"
-	templetizer -i template/src/MiniVector.c -o src/MiniVector_uint32_t.c -t uint32_t
-
 	printf "MiniVector.h MessageProcessor\n"
 	templetizer -i template/include/MiniVector.h -o include/MiniVector_MessageProcessor.h -t MessageProcessor '#include "HttpMessage.h"'
 	printf "MiniVector.c MessageProcessor\n"
