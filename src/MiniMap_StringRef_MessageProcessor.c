@@ -4,24 +4,32 @@
 
 #define MiniMap MiniMap_StringRef_MessageProcessor
 
-MiniMap MiniMap_StringRef_MessageProcessor_make(const size_t initial_count, bool (*eq)(const StringRef *, const StringRef *)) {
+ERRFUNC MiniMap_StringRef_MessageProcessor_make(const size_t initial_count, bool (*eq)(const StringRef *, const StringRef *), MiniMap *vec) {
 
-	MiniMap res;
+	*vec = (MiniMap){
+		.keys   = {},
+		.values = {},
+		.eq_fun = eq,
+	};
+	auto err = MiniVector_StringRef_make(initial_count, &vec->keys);
+	RET_IF_ERR(err)
+	err = MiniVector_MessageProcessor_make(initial_count, &vec->values);
+	RET_IF_ERR(err)
 
-	res.keys   = MiniVector_StringRef_make(initial_count);
-	res.values = MiniVector_MessageProcessor_make(initial_count);
-	res.eq_fun = eq;
-
-	return res;
+	return NO_ERROR;
 }
 
-void MiniMap_StringRef_MessageProcessor_destroy(MiniMap *map) {
+ERRFUNC MiniMap_StringRef_MessageProcessor_destroy(MiniMap *map) {
 
-	MiniVector_StringRef_destroy(&map->keys);
-	MiniVector_MessageProcessor_destroy(&map->values);
+	auto err = MiniVector_StringRef_destroy(&map->keys);
+	RET_IF_ERR(err)
+	err = MiniVector_MessageProcessor_destroy(&map->values);
+	RET_IF_ERR(err)
+
+	return NO_ERROR;
 }
 
-bool MiniMap_StringRef_MessageProcessor_replace(MiniMap *map, const StringRef *key, const MessageProcessor *value) {
+ERRFUNC MiniMap_StringRef_MessageProcessor_replace(MiniMap *map, const StringRef *key, const MessageProcessor *value) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -30,15 +38,16 @@ bool MiniMap_StringRef_MessageProcessor_replace(MiniMap *map, const StringRef *k
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			// replace it
-			MiniVector_MessageProcessor_set(&map->values, i, value);
-			return true;
+			auto err = MiniVector_MessageProcessor_set(&map->values, i, value);
+			RET_IF_ERR(err)
+			return NO_ERROR;
 		}
 	}
 
-	return false;
+	return NO_OP;
 }
 
-bool MiniMap_StringRef_MessageProcessor_get(const MiniMap *map, const StringRef *key, MessageProcessor *result) {
+ERRFUNC MiniMap_StringRef_MessageProcessor_get(const MiniMap *map, const StringRef *key, MessageProcessor *result) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -47,22 +56,28 @@ bool MiniMap_StringRef_MessageProcessor_get(const MiniMap *map, const StringRef 
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			*result = *(map->values.data + i);
-			return true;
+			return NO_ERROR;
 		}
 	}
 
-	return false;
+	return NO_OP;
 }
 
-bool MiniMap_StringRef_MessageProcessor_get_by_index(const MiniMap *map, const size_t index, StringRef *key, MessageProcessor* value) {
+ERRFUNC MiniMap_StringRef_MessageProcessor_get_by_index(const MiniMap *map, const size_t index, StringRef *key, MessageProcessor *value) {
 
-	auto const a = MiniVector_MessageProcessor_get(&map->values, index, value);
-	auto const b = MiniVector_StringRef_get(&map->keys, index, key);
+	auto a = MiniVector_MessageProcessor_get(&map->values, index, value);
+	RET_IF_ERR(a)
+	auto b = MiniVector_StringRef_get(&map->keys, index, key);
+	RET_IF_ERR(b)
 
-	return a && b;
+	if (a == NO_OP && b == NO_OP) {
+		return NO_OP;
+	}
+
+	return NO_ERROR;
 }
 
-void MiniMap_StringRef_MessageProcessor_set(MiniMap *map, const StringRef *key, const MessageProcessor *value) {
+ERRFUNC MiniMap_StringRef_MessageProcessor_set(MiniMap *map, const StringRef *key, const MessageProcessor *value) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -71,31 +86,38 @@ void MiniMap_StringRef_MessageProcessor_set(MiniMap *map, const StringRef *key, 
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			// replace it
-			MiniVector_MessageProcessor_set(&map->values, i, value);
-			return;
+			auto err = MiniVector_MessageProcessor_set(&map->values, i, value);
+			RET_IF_ERR(err)
+			return NO_ERROR;
 		}
 	}
 
 	// else append
-	MiniVector_StringRef_append(&map->keys, key);
-	MiniVector_MessageProcessor_append(&map->values, value);
+	auto err = MiniVector_StringRef_append(&map->keys, key);
+	RET_IF_ERR(err)
+	err = MiniVector_MessageProcessor_append(&map->values, value);
+	RET_IF_ERR(err)
+
+	return NO_ERROR;
 }
 
-bool MiniMap_StringRef_MessageProcessor_remove(MiniMap *map, const StringRef *key) {
+ERRFUNC MiniMap_StringRef_MessageProcessor_remove(MiniMap *map, const StringRef *key) {
 
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
 		if (map->eq_fun(map->keys.data + i, key)) {
 
-			MiniVector_StringRef_remove(&map->keys, i);
-			MiniVector_MessageProcessor_remove(&map->values, i);
+			auto err = MiniVector_StringRef_remove(&map->keys, i);
+			RET_IF_ERR(err)
+			err = MiniVector_MessageProcessor_remove(&map->values, i);
+			RET_IF_ERR(err)
 
-			return true;
+			return NO_ERROR;
 		}
 	}
 
-	return false;
+	return NO_OP;
 }
 
 #undef MiniMap

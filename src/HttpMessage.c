@@ -6,7 +6,6 @@
 #include "utils.h"
 
 #include <assert.h>
-#include <errno.h>
 #include <logger.h>
 #include <stdio.h>
 
@@ -28,12 +27,15 @@ ERRFUNC parse_InboundMessage(const char *str, InboundHttpMessage *mex) {
 	temp[msg_len] = 0;
 
 	mex->raw_message_a = temp;
-	mex->parameters    = MiniMap_StringRef_StringRef_make(10, equal_StringRef);
+
+	auto err = MiniMap_StringRef_StringRef_make(10, equal_StringRef, &mex->parameters);
+	RET_IF_ERR(err)
 
 	// body and header are divided by two newlines
 	auto msg_separator = strstr(mex->raw_message_a, "\r\n\r\n");
 
 	if (msg_separator == NULL) {
+		llog(LOG_ERROR, "Missing 'CR LF CR LF' in between the message body and header\n");
 		return PARSING_HEADER__MALFORMED_REQUEST;
 	}
 
@@ -54,39 +56,43 @@ ERRFUNC parse_InboundMessage(const char *str, InboundHttpMessage *mex) {
 	return NO_ERROR;
 }
 
-void destroy_InboundHttpMessage(InboundHttpMessage *mex) {
+ERRFUNC destroy_InboundHttpMessage(InboundHttpMessage *mex) {
 
 	if (mex->raw_message_a != nullptr) {
 		free(mex->raw_message_a);
 		mex->raw_message_a = nullptr;
 	}
 
-	MiniMap_StringRef_StringRef_destroy(&mex->parameters);
+	return MiniMap_StringRef_StringRef_destroy(&mex->parameters);
 }
 
-void destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
+ERRFUNC destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
 
-	// for (const auto &[key, val] : mex->m_headerOptions) {
 	for (size_t i = 0; i < mex->header_options.values.count; ++i) {
 		free(mex->header_options.values.data[i].str);
 	}
 
-	MiniMap_u_char_StringOwn_destroy(&mex->header_options);
+	auto err = MiniMap_u_char_StringOwn_destroy(&mex->header_options);
+	RET_IF_ERR(err)
 	free(mex->body.str);
+
+	return err;
 }
 
-void add_to_header_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
+ERRFUNC add_to_header_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 
 	StringView key_v = {key.str, key.len};
-	const auto index = get_header_options_code(&key_v);
+	auto       index = get_header_options_code(&key_v);
 	if (index >= RQ_ENUM_LEN) {
 		llog(LOG_WARNING, "[HEADER] Could not recognize parameter '%.*s = %.*s'\n", CLAMP_TO_POSITIVE_INT(key.len), key.str, CLAMP_TO_POSITIVE_INT(val.len), val.str);
-		return;
+		return PARSING_HEADER__UKNOWN_PARAMETER;
 	}
 	ctx->header_options[index] = val;
+
+	return NO_ERROR;
 }
 
-void add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
+ERRFUNC add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 
 	// I use this in different places throughout the body,
 	// this means that I am actually modifying the body
@@ -94,18 +100,12 @@ void add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 	// If the necessity of keeping an intact copy of the body arises things will change
 	StringView key_v = {key.str, key.len};
 	auto       err   = url_decode(&key, &key_v, true);
-	if (err != NO_ERROR) {
-		llog(LOG_WARNING, "[PARSING] %s (%.*s)\n", get_pretty_error(err), CLAMP_TO_POSITIVE_INT(key.len), key.str);
-		return;
-	}
+	RET_IF_ERR(err)
 
 	StringView val_v = {val.str, val.len};
 	err              = url_decode(&val, &val_v, true);
-	if (err != NO_ERROR) {
-		llog(LOG_WARNING, "[PARSING] %s (%.*s)\n", get_pretty_error(err), CLAMP_TO_POSITIVE_INT(val.len), val.str);
-		return;
-	}
-	MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val);
+	RET_IF_ERR(err)
+	return MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val);
 }
 
 ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
@@ -130,15 +130,16 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 
 	const char *first_space = strnchr(request_line.str, ' ', request_line.len);
 	if (first_space == nullptr) {
+		llog(LOG_ERROR, "[HEADER] Missing space in the request line (%.*s)\n", CLAMP_TO_POSITIVE_INT(request_line.len), request_line.str);
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
 	const StringView after_first_space = {first_space + 1, request_line.len - (size_t)(first_space - request_line.str) - 1}; // move after the first space, and account for that in the length
 	const char      *second_space      = strnchr(after_first_space.str, ' ', after_first_space.len);
 	if (second_space == nullptr) {
+		llog(LOG_ERROR, "[HEADER] Missing space in the request line (%.*s)\n", CLAMP_TO_POSITIVE_INT(request_line.len), request_line.str);
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
-
 
 	// the method start at the start of the header and is long the distance between the start and the first space
 	StringView method_ref  = {request_line.str, (size_t)(first_space - request_line.str)};
@@ -148,11 +149,13 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	// actually storing the values in the object
 	msg->method = get_method_code(&method_ref);
 	if (msg->method == HTTP_INVALID_METHOD) {
-		return PARSING_HEADER__MALFORMED_REQUEST;
+		llog(LOG_ERROR, "[HEADER] Invalid Http Method (%.*s)\n", CLAMP_TO_POSITIVE_INT(method_ref.len), method_ref.str);
+		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 	msg->version = get_version_code(&version_ref);
 	if (msg->version == HTTP_VER_UNKN) {
-		return PARSING_HEADER__MALFORMED_REQUEST;
+		llog(LOG_ERROR, "[HEADER] Invalid Http Version (%.*s)\n", CLAMP_TO_POSITIVE_INT(version_ref.len), version_ref.str);
+		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 	// the url is 1 char after the method, and long the distance between the two spaces - 1
 	msg->url = (StringRef){request_line.str + method_ref.len + 1, (size_t)(second_space - first_space) - 1};
@@ -173,6 +176,7 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	}
 
 	if (msg->url.len == 0) {
+		llog(LOG_ERROR, "[HEADER] Url null (%.*s)\n", CLAMP_TO_POSITIVE_INT(request_line.len), request_line.str);
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
@@ -181,7 +185,6 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	RET_IF_ERR(err);
 
 	if (request_line_end == raw_header->str + raw_header->len) {
-		// there are no header options, just return
 		return NO_ERROR;
 	}
 
@@ -242,7 +245,7 @@ ERRFUNC decompose_message(InboundHttpMessage *msg) {
 	return NO_ERROR;
 }
 
-StringOwn compose_message(const OutboundHttpMessage *msg) {
+ERRFUNC compose_message(const OutboundHttpMessage *msg, StringOwn *res) {
 
 	// I preconstruct the status line so i don't have to do multiple allocations and string concatenations
 	// The value to modify are at
@@ -259,20 +262,20 @@ StringOwn compose_message(const OutboundHttpMessage *msg) {
 	auto msg_len = STATUS_LINE_LEN + phrase.len + 2 + msg->header_len + 2 + msg->body.len;
 
 	// the entire message length
-	char *res = malloc(msg_len);
+	char *mem = malloc(msg_len);
 	// TEST_ALLOC(res)
-	memset(res, '\0', msg_len);
+	memset(mem, '\0', msg_len);
 
-	memcpy(res, status_line, STATUS_LINE_LEN);
-	memcpy(res + STATUS_LINE_LEN, phrase.str, phrase.len);
-	memcpy(res + STATUS_LINE_LEN + phrase.len, "\r\n", 2);
+	memcpy(mem, status_line, STATUS_LINE_LEN);
+	memcpy(mem + STATUS_LINE_LEN, phrase.str, phrase.len);
+	memcpy(mem + STATUS_LINE_LEN + phrase.len, "\r\n", 2);
 
 	// set the status code digit by digit
-	res[11] = '0' + (char)((msg->status_code) % 10);
-	res[10] = '0' + (char)((msg->status_code / 10) % 10);
-	res[9]  = '0' + (char)((msg->status_code / 100) % 10);
+	mem[11] = '0' + (char)((msg->status_code) % 10);
+	mem[10] = '0' + (char)((msg->status_code / 10) % 10);
+	mem[9]  = '0' + (char)((msg->status_code / 100) % 10);
 
-	char *writer = res + STATUS_LINE_LEN + phrase.len + 2;
+	char *writer = mem + STATUS_LINE_LEN + phrase.len + 2;
 
 	// add all headers
 	for (size_t i = 0; i < msg->header_options.values.count; ++i) {
@@ -304,11 +307,12 @@ StringOwn compose_message(const OutboundHttpMessage *msg) {
 		writer += msg->body.len;
 	}
 
-	StringOwn r = {
-	    .str = res,
+	*res = (StringOwn){
+	    .str = mem,
 	    .len = msg_len,
 	};
-	return r;
+
+	return NO_ERROR;
 }
 
 HTTP_Method get_method_code(const StringView *request_method) {
@@ -354,13 +358,14 @@ u_char get_header_options_code(const StringView *option) {
 	return (u_char)(-1);
 }
 
-ErrCode parse_options(const StringRef *segment, const OptionsProcessor fun, const char *chunk_sep, const char item_sep, InboundHttpMessage *ctx) {
+ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, const char *chunk_sep, const char item_sep, InboundHttpMessage *ctx) {
 
 	StringRef   window        = {segment->str, segment->len};
 	const char *segment_end   = segment->str + segment->len;
-	const auto  chunk_sep_len = strlen(chunk_sep);
+	auto        chunk_sep_len = strlen(chunk_sep);
 
 	if (chunk_sep_len <= 0) {
+		llog(LOG_ERROR, "[PARSING] Refusing to parse chunks without a chunk separator (%.*s)\n", CLAMP_TO_POSITIVE_INT(segment->len), segment->str);
 		return PARSING__NULL_CHUNK_SEPARATOR;
 	}
 
@@ -394,7 +399,8 @@ ErrCode parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 
 			// check if we actually have a key, the value can be empty
 			if (!strrefblank(&key)) {
-				fun(key, val, ctx);
+				auto err = fun(key, val, ctx);
+				RET_IF_ERR(err)
 			}
 		}
 
@@ -454,7 +460,7 @@ void http::parseFormData(const std::string &params, std::string &divisor, std::u
 }
 */
 
-void add_header_option(const HTTPHeaderResponseOption option, const StringRef *value, OutboundHttpMessage *msg) {
+ERRFUNC add_header_option(const HTTPHeaderResponseOption option, const StringRef *value, OutboundHttpMessage *msg) {
 
 	auto opt = header_response_options_str[option];
 
@@ -487,9 +493,12 @@ void add_header_option(const HTTPHeaderResponseOption option, const StringRef *v
 			free(old.str);
 		}
 	}
-	MiniMap_u_char_StringOwn_set(&msg->header_options, &option, &cpy);
+	auto err = MiniMap_u_char_StringOwn_set(&msg->header_options, &option, &cpy);
+	RET_IF_ERR(err)
 
 	// account the bytes that will be added later
 	//                 name     ': ' value '\r\n'
 	msg->header_len += (opt.len + 2 + cpy.len + 2);
+
+	return NO_ERROR;
 }

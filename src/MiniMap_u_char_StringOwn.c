@@ -4,24 +4,32 @@
 
 #define MiniMap MiniMap_u_char_StringOwn
 
-MiniMap MiniMap_u_char_StringOwn_make(const size_t initial_count, bool (*eq)(const u_char *, const u_char *)) {
+ERRFUNC MiniMap_u_char_StringOwn_make(const size_t initial_count, bool (*eq)(const u_char *, const u_char *), MiniMap *vec) {
 
-	MiniMap res;
+	*vec = (MiniMap){
+		.keys   = {},
+		.values = {},
+		.eq_fun = eq,
+	};
+	auto err = MiniVector_u_char_make(initial_count, &vec->keys);
+	RET_IF_ERR(err)
+	err = MiniVector_StringOwn_make(initial_count, &vec->values);
+	RET_IF_ERR(err)
 
-	res.keys   = MiniVector_u_char_make(initial_count);
-	res.values = MiniVector_StringOwn_make(initial_count);
-	res.eq_fun = eq;
-
-	return res;
+	return NO_ERROR;
 }
 
-void MiniMap_u_char_StringOwn_destroy(MiniMap *map) {
+ERRFUNC MiniMap_u_char_StringOwn_destroy(MiniMap *map) {
 
-	MiniVector_u_char_destroy(&map->keys);
-	MiniVector_StringOwn_destroy(&map->values);
+	auto err = MiniVector_u_char_destroy(&map->keys);
+	RET_IF_ERR(err)
+	err = MiniVector_StringOwn_destroy(&map->values);
+	RET_IF_ERR(err)
+
+	return NO_ERROR;
 }
 
-bool MiniMap_u_char_StringOwn_replace(MiniMap *map, const u_char *key, const StringOwn *value) {
+ERRFUNC MiniMap_u_char_StringOwn_replace(MiniMap *map, const u_char *key, const StringOwn *value) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -30,15 +38,16 @@ bool MiniMap_u_char_StringOwn_replace(MiniMap *map, const u_char *key, const Str
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			// replace it
-			MiniVector_StringOwn_set(&map->values, i, value);
-			return true;
+			auto err = MiniVector_StringOwn_set(&map->values, i, value);
+			RET_IF_ERR(err)
+			return NO_ERROR;
 		}
 	}
 
-	return false;
+	return NO_OP;
 }
 
-bool MiniMap_u_char_StringOwn_get(const MiniMap *map, const u_char *key, StringOwn *result) {
+ERRFUNC MiniMap_u_char_StringOwn_get(const MiniMap *map, const u_char *key, StringOwn *result) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -47,22 +56,28 @@ bool MiniMap_u_char_StringOwn_get(const MiniMap *map, const u_char *key, StringO
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			*result = *(map->values.data + i);
-			return true;
+			return NO_ERROR;
 		}
 	}
 
-	return false;
+	return NO_OP;
 }
 
-bool MiniMap_u_char_StringOwn_get_by_index(const MiniMap *map, const size_t index, u_char *key, StringOwn* value) {
+ERRFUNC MiniMap_u_char_StringOwn_get_by_index(const MiniMap *map, const size_t index, u_char *key, StringOwn *value) {
 
-	auto const a = MiniVector_StringOwn_get(&map->values, index, value);
-	auto const b = MiniVector_u_char_get(&map->keys, index, key);
+	auto a = MiniVector_StringOwn_get(&map->values, index, value);
+	RET_IF_ERR(a)
+	auto b = MiniVector_u_char_get(&map->keys, index, key);
+	RET_IF_ERR(b)
 
-	return a && b;
+	if (a == NO_OP && b == NO_OP) {
+		return NO_OP;
+	}
+
+	return NO_ERROR;
 }
 
-void MiniMap_u_char_StringOwn_set(MiniMap *map, const u_char *key, const StringOwn *value) {
+ERRFUNC MiniMap_u_char_StringOwn_set(MiniMap *map, const u_char *key, const StringOwn *value) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -71,31 +86,38 @@ void MiniMap_u_char_StringOwn_set(MiniMap *map, const u_char *key, const StringO
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			// replace it
-			MiniVector_StringOwn_set(&map->values, i, value);
-			return;
+			auto err = MiniVector_StringOwn_set(&map->values, i, value);
+			RET_IF_ERR(err)
+			return NO_ERROR;
 		}
 	}
 
 	// else append
-	MiniVector_u_char_append(&map->keys, key);
-	MiniVector_StringOwn_append(&map->values, value);
+	auto err = MiniVector_u_char_append(&map->keys, key);
+	RET_IF_ERR(err)
+	err = MiniVector_StringOwn_append(&map->values, value);
+	RET_IF_ERR(err)
+
+	return NO_ERROR;
 }
 
-bool MiniMap_u_char_StringOwn_remove(MiniMap *map, const u_char *key) {
+ERRFUNC MiniMap_u_char_StringOwn_remove(MiniMap *map, const u_char *key) {
 
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
 		if (map->eq_fun(map->keys.data + i, key)) {
 
-			MiniVector_u_char_remove(&map->keys, i);
-			MiniVector_StringOwn_remove(&map->values, i);
+			auto err = MiniVector_u_char_remove(&map->keys, i);
+			RET_IF_ERR(err)
+			err = MiniVector_StringOwn_remove(&map->values, i);
+			RET_IF_ERR(err)
 
-			return true;
+			return NO_ERROR;
 		}
 	}
 
-	return false;
+	return NO_OP;
 }
 
 #undef MiniMap

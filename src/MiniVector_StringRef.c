@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-// 
+#include "logger.h"
+
+
 
 #include "MiniVector_StringRef.h"
 
@@ -10,20 +12,21 @@
 
 #define GROW_RATE 2
 
-MiniVector MiniVector_StringRef_make(const size_t initial_count) {
+ERRFUNC MiniVector_StringRef_make(const size_t initial_count, MiniVector *vec) {
 	auto capacity = initial_count == 0 ? 10 : initial_count;
 
-	MiniVector res = {
+	*vec = (MiniVector){
 	    .data     = malloc(capacity * sizeof(StringRef)),
 	    .capacity = capacity * sizeof(StringRef),
 	    .count    = 0,
 	};
+	TEST_ALLOC(vec->data);
 
 	// copy elision
-	return res;
+	return NO_ERROR;
 }
 
-void MiniVector_StringRef_destroy(MiniVector *vec) {
+ERRFUNC MiniVector_StringRef_destroy(MiniVector *vec) {
 
 	free(vec->data);
 
@@ -31,55 +34,67 @@ void MiniVector_StringRef_destroy(MiniVector *vec) {
 	vec->data     = nullptr;
 	vec->capacity = 0;
 	vec->count    = 0;
+
+	return NO_ERROR;
 }
 
-void MiniVector_StringRef_grow(MiniVector *vec) {
+ERRFUNC MiniVector_StringRef_grow(MiniVector *vec) {
 
 	vec->data = realloc(vec->data, vec->capacity * GROW_RATE);
+	TEST_ALLOC(vec->data);
 	vec->capacity *= GROW_RATE;
 	// for why 2 and not 1.6 or 1.5
 	// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 abd others
+
+	return NO_ERROR;
 }
 
-bool MiniVector_StringRef_get(const MiniVector *vec, const size_t index, StringRef *result) {
+ERRFUNC MiniVector_StringRef_get(const MiniVector *vec, const size_t index, StringRef *result) {
 
 	if (index >= vec->count) {
-		// invalid pos
-		return false;
+		llog(LOG_WARNING, "[MINIVECTOR] %ld >= %ld Unreachable position\n", index, vec->count);
+		return INVALID_ARGUMENT;
 	}
 
 	*result = *(vec->data + index);
-	return true;
+
+	return NO_ERROR;
 }
 
+ERRFUNC MiniVector_StringRef_set(MiniVector *vec, const size_t index, const StringRef *element) {
 
-void MiniVector_StringRef_set(MiniVector *vec, const size_t index, const StringRef *element) {
-
-	if (index < vec->count && element != nullptr) {
-		memcpy(vec->data + index, element, sizeof(StringRef));
+	if (index >= vec->count || element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element or an unreachable position\n");
+		return INVALID_ARGUMENT;
 	}
+	vec->data[index] = *element;
+
+	return NO_ERROR;
 }
 
-void MiniVector_StringRef_append(MiniVector *vec, const StringRef *element) {
+ERRFUNC MiniVector_StringRef_append(MiniVector *vec, const StringRef *element) {
 	if (vec->count == vec->capacity / sizeof(StringRef)) {
-		MiniVector_StringRef_grow(vec);
+		auto err = MiniVector_StringRef_grow(vec);
+		RET_IF_ERR(err)
 	}
 
 	memcpy(vec->data + vec->count, element, sizeof(StringRef));
 
 	++(vec->count);
+
+	return NO_ERROR;
 }
 
-void MiniVector_StringRef_insert(MiniVector *vec, const size_t index, const StringRef *element) {
+ERRFUNC MiniVector_StringRef_insert(MiniVector *vec, const size_t index, const StringRef *element) {
 	if (index > vec->count) {
-		// invalid position
-		return;
+		llog(LOG_WARNING, "[MINIVECTOR] %ld > %ld Unreachable position\n", index, vec->count);
+		return INVALID_ARGUMENT;
 	}
 
 	if (index == vec->count) {
-		MiniVector_StringRef_append(vec, element);
-		return;
+		auto err = MiniVector_StringRef_append(vec, element);
+		RET_IF_ERR(err)
 	}
 
 	if (vec->count == vec->capacity / sizeof(StringRef)) {
@@ -90,7 +105,8 @@ void MiniVector_StringRef_insert(MiniVector *vec, const size_t index, const Stri
 		// If I were to malloc new memory I would not incur in a double copy BUT i would miss out on a potential easy realloc
 		// So the decision lies on the distribution of good realloc vs bad realloc
 		// but I don't have the data to know this. So I'll just go with grow (realloc)
-		MiniVector_StringRef_grow(vec);
+		auto err = MiniVector_StringRef_grow(vec);
+		RET_IF_ERR(err)
 	}
 
 	// god bless memmove
@@ -99,18 +115,21 @@ void MiniVector_StringRef_insert(MiniVector *vec, const size_t index, const Stri
 	++(vec->count);
 
 	// finally write the data
-	MiniVector_StringRef_set(vec, index, element);
+	auto err = MiniVector_StringRef_set(vec, index, element);
+	RET_IF_ERR(err)
+
+	return NO_ERROR;
 }
 
 
-void MiniVector_StringRef_remove(MiniVector *vec, const size_t index) {
+ERRFUNC MiniVector_StringRef_remove(MiniVector *vec, const size_t index) {
 
 	// we cant just overwrite the position to erase when
 	// index is out of bound, > count or
 	// index is on the last index (since we would run the risk of copying garbage)
 	if (index >= vec->count) {
-		// nothing to delete
-		return;
+		llog(LOG_WARNING, "[MINIVECTOR] %ld >= %ld Unreachable position\n", index, vec->count);
+		return INVALID_ARGUMENT;
 	}
 
 	if (index < vec->count - 1) {
@@ -119,6 +138,8 @@ void MiniVector_StringRef_remove(MiniVector *vec, const size_t index) {
 	}
 
 	--vec->count;
+
+	return NO_ERROR;
 }
 
 #undef MiniVector

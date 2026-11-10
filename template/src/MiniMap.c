@@ -4,24 +4,32 @@
 
 #define MiniMap MiniMap_#K#_#V#
 
-MiniMap MiniMap_#K#_#V#_make(const size_t initial_count, bool (*eq)(const K *, const K *)) {
+ERRFUNC MiniMap_#K#_#V#_make(const size_t initial_count, bool (*eq)(const K *, const K *), MiniMap *vec) {
 
-	MiniMap res;
+	*vec = (MiniMap){
+		.keys   = {},
+		.values = {},
+		.eq_fun = eq,
+	};
+	auto err = MiniVector_#K#_make(initial_count, &vec->keys);
+	RET_IF_ERR(err)
+	err = MiniVector_#V#_make(initial_count, &vec->values);
+	RET_IF_ERR(err)
 
-	res.keys   = MiniVector_#K#_make(initial_count);
-	res.values = MiniVector_#V#_make(initial_count);
-	res.eq_fun = eq;
-
-	return res;
+	return NO_ERROR;
 }
 
-void MiniMap_#K#_#V#_destroy(MiniMap *map) {
+ERRFUNC MiniMap_#K#_#V#_destroy(MiniMap *map) {
 
-	MiniVector_#K#_destroy(&map->keys);
-	MiniVector_#V#_destroy(&map->values);
+	auto err = MiniVector_#K#_destroy(&map->keys);
+	RET_IF_ERR(err)
+	err = MiniVector_#V#_destroy(&map->values);
+	RET_IF_ERR(err)
+
+	return NO_ERROR;
 }
 
-bool MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value) {
+ERRFUNC MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -30,15 +38,16 @@ bool MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value) {
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			// replace it
-			MiniVector_#V#_set(&map->values, i, value);
-			return true;
+			auto err = MiniVector_#V#_set(&map->values, i, value);
+			RET_IF_ERR(err)
+			return NO_ERROR;
 		}
 	}
 
-	return false;
+	return NO_OP;
 }
 
-bool MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result) {
+ERRFUNC MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -46,23 +55,30 @@ bool MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result) {
 		// if found
 		if (map->eq_fun(map->keys.data + i, key)) {
 
-			*result = *(map->values.data + i);
-			return true;
+			auto err = MiniVEctor_#V#_get(&map->values, i, result);
+			RET_IF_ERR(err)
+			return NO_ERROR;
 		}
 	}
 
-	return false;
+	return NO_OP;
 }
 
-bool MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V *value) {
+ERRFUNC MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V *value) {
 
-	auto const a = MiniVector_#V#_get(&map->values, index, value);
-	auto const b = MiniVector_#K#_get(&map->keys, index, key);
+	auto a = MiniVector_#V#_get(&map->values, index, value);
+	RET_IF_ERR(a)
+	auto b = MiniVector_#K#_get(&map->keys, index, key);
+	RET_IF_ERR(b)
 
-	return a && b;
+	if (a == NO_OP && b == NO_OP) {
+		return NO_OP;
+	}
+
+	return NO_ERROR;
 }
 
-void MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value) {
+ERRFUNC MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value) {
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -71,31 +87,38 @@ void MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value) {
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			// replace it
-			MiniVector_#V#_set(&map->values, i, value);
-			return;
+			auto err = MiniVector_#V#_set(&map->values, i, value);
+			RET_IF_ERR(err)
+			return NO_ERROR;
 		}
 	}
 
 	// else append
-	MiniVector_#K#_append(&map->keys, key);
-	MiniVector_#V#_append(&map->values, value);
+	auto err = MiniVector_#K#_append(&map->keys, key);
+	RET_IF_ERR(err)
+	err = MiniVector_#V#_append(&map->values, value);
+	RET_IF_ERR(err)
+
+	return NO_ERROR;
 }
 
-bool MiniMap_#K#_#V#_remove(MiniMap *map, const K *key) {
+ERRFUNC MiniMap_#K#_#V#_remove(MiniMap *map, const K *key) {
 
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
 		// if found
 		if (map->eq_fun(map->keys.data + i, key)) {
 
-			MiniVector_#K#_remove(&map->keys, i);
-			MiniVector_#V#_remove(&map->values, i);
+			auto err = MiniVector_#K#_remove(&map->keys, i);
+			RET_IF_ERR(err)
+			err = MiniVector_#V#_remove(&map->values, i);
+			RET_IF_ERR(err)
 
-			return true;
+			return NO_ERROR;
 		}
 	}
 
-	return false;
+	return NO_OP;
 }
 
 #undef MiniMap

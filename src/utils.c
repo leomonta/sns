@@ -4,7 +4,6 @@
 
 #include <assert.h>
 #include <ctype.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -26,9 +25,9 @@ StringRef getUTC() {
 	gmtime_r(&unixtime, &UTC);
 
 	// format based on rfc822 revision rfc1123
-	strftime(buffer, 80, "%a, %d %b %Y %H:%M:%S GMT", &UTC);
+	auto len = strftime(buffer, 80, "%a, %d %b %Y %H:%M:%S GMT", &UTC);
 
-	return (StringRef){buffer, 80};
+	return (StringRef){buffer, len};
 }
 
 ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus) {
@@ -43,8 +42,9 @@ ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus) {
 		// html whatever thingy to decode
 		if (src->str[read_index] == '%') {
 			// I have to dereference here instead of using a variable because before the if I don't know if I might be dereferencing outside of the buffer
-			if (read_index + 2 >= src->len || (!isxdigit((unsigned char)src->str[read_index + 1]) || !isxdigit((unsigned char)src->str[read_index + 2]))) { 
+			if (read_index + 2 >= src->len || (!isxdigit((unsigned char)src->str[read_index + 1]) || !isxdigit((unsigned char)src->str[read_index + 2]))) {
 				// specifying a percent encoding without the two x digits is malformed
+				llog(LOG_ERROR, "[PARSING] Incomplete or invalid percent encoding (%.*s)\n", CLAMP_TO_POSITIVE_INT(src->len - read_index), src->str + read_index);
 				return PARSING_HEADER__MALFORMED_URL_ENCODING;
 			}
 			a = src->str[read_index + 1];
@@ -85,7 +85,7 @@ ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus) {
 	return NO_ERROR;
 }
 
-bool compress_gz(const StringRef *data, StringOwn *output) {
+ERRFUNC compress_gz(const StringRef *data, StringOwn *output) {
 
 	z_stream deflate_s;
 	deflate_s.zalloc   = Z_NULL;
@@ -100,7 +100,7 @@ bool compress_gz(const StringRef *data, StringOwn *output) {
 
 	if (deflateInit2(&deflate_s, Z_BEST_COMPRESSION, Z_DEFLATED, window_bits, mem_level, Z_DEFAULT_STRATEGY) != Z_OK) {
 		llog(LOG_ERROR, "[COMPRESS] Deflate init failed\n.");
-		return false;
+		return ZLIB__INIT_FAILED;
 	}
 
 	deflate_s.next_in  = (const Bytef *)data->str;
@@ -122,7 +122,7 @@ bool compress_gz(const StringRef *data, StringOwn *output) {
 
 	deflateEnd(&deflate_s);
 
-	return true;
+	return NO_ERROR;
 }
 
 void trimwhitespace(char *str) {
@@ -151,9 +151,7 @@ void trimwhitespace(char *str) {
 
 	auto size = strlen(nStart);
 
-	memcpy(nStart, str, size);
-
-	str[size] = '\0';
+	memmove(str, nStart, size);
 }
 
 const char *strnstr(const char *haystack, const char *needle, const size_t count) {
@@ -319,7 +317,6 @@ StringRef num_to_string(size_t number) {
 bool compare_u_char(const unsigned char *lhs, const unsigned char *rhs) {
 	return *lhs == *rhs;
 }
-
 
 StringView get_reason_phrase(unsigned short statusCode) {
 

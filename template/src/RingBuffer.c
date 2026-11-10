@@ -11,22 +11,21 @@
 
 #define GROW_RATE 2
 
-RingBuffer RingBuffer_#T#_make(const size_t initial_count) {
+ERRFUNC RingBuffer_#T#_make(const size_t initial_count, RingBuffer *rngb) {
 	auto capacity = initial_count == 0 ? 10 : initial_count;
 
-	RingBuffer res = {
+	*rngb = (RingBuffer){
 	    .data   = malloc(capacity * sizeof(T)),
 	    .index  = 0,
 	    .stored = 0,
 	    .count  = capacity,
 	};
-	TEST_ALLOC(res.data)
+	TEST_ALLOC(rngb->data)
 
-	// copy elision
-	return res;
+	return NO_ERROR;
 }
 
-void RingBuffer_#T#_destroy(RingBuffer *rngb) {
+ERRFUNC RingBuffer_#T#_destroy(RingBuffer *rngb) {
 
 	free(rngb->data);
 
@@ -35,11 +34,13 @@ void RingBuffer_#T#_destroy(RingBuffer *rngb) {
 	rngb->index  = 0;
 	rngb->stored = 0;
 	rngb->count  = 0;
+
+	return NO_ERROR;
 }
 
-void RingBuffer_#T#_grow(RingBuffer *rngb) {
+ERRFUNC RingBuffer_#T#_grow(RingBuffer *rngb) {
 
-	rngb->data = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(T));
+	rngb->data   = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(T));
 	rngb->count *= GROW_RATE;
 	TEST_ALLOC(rngb->data)
 	// for why 2 and not 1.6 or 1.5
@@ -69,48 +70,53 @@ void RingBuffer_#T#_grow(RingBuffer *rngb) {
 	// but this smells of security vulnerability so...
 	// step 2
 	memset(rngb->data, 0, rngb->index * sizeof(T));
+
+	return NO_ERROR;
 }
 
-bool RingBuffer_#T#_retrieve(RingBuffer *rngb, T *result) {
+ERRFUNC RingBuffer_#T#_retrieve(RingBuffer *rngb, T *result) {
 
 	if (rngb->stored == 0) {
 		// no data
-		return false;
+		return NO_OP;
 	}
 
-	memcpy(result, rngb->data + rngb->index, sizeof(T));
-	memset(rngb->data + rngb->index, 0, sizeof(T));
+	*result = rngb->data[rngb->index];
+	rngb->data[rngb->index] = {};
 
 	++rngb->index;
 	rngb->index = rngb->index % rngb->count;
 	--rngb->stored;
 
-	return true;
+	return NO_ERROR;
 }
 
 
-void RingBuffer_#T#_append(RingBuffer *rngb, const T *element) {
+ERRFUNC RingBuffer_#T#_append(RingBuffer *rngb, const T *element) {
 	if (rngb->stored == rngb->count) {
-		RingBuffer_#T#_grow(rngb);
+		auto res = RingBuffer_#T#_grow(rngb);
+		RET_IF_ERR(res)
 	}
 
 	auto write_index = (rngb->index + rngb->stored) % rngb->count;
 
-	memcpy(rngb->data + write_index, element, sizeof(T));
+	rngb->data[write_index] = *element;
 
 	++rngb->stored;
+
+	return NO_ERROR;
 }
 
-bool RingBuffer_#T#_peek(const RingBuffer *rngb, T* result) {
+ERRFUNC RingBuffer_#T#_peek(const RingBuffer *rngb, T *result) {
 
 	if (rngb->stored == 0) {
 		// no data
-		return false;
+		return NO_OP;
 	}
 
-	memcpy(result, rngb->data + rngb->index, sizeof(T));
+	*result = rngb->data[index];
 
-	return true;
+	return NO_ERROR;
 }
 
 #undef RingBuffer

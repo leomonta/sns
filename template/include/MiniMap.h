@@ -1,5 +1,7 @@
 #pragma once
 
+#include "errcode.h"
+
 // template <K, V, I>
 
 #include "MiniVector_#K#.h"
@@ -20,73 +22,81 @@ typedef struct {
  *
  * @param[in] `initial_count` how many elements to preallocate, defaults to 10 if zero is specified
  * @param[in] `eq` a function to compare the equality of two keys
+ * @param[out] `map` where to place the constructed MiniMap
  *
- * @return a built MiniMap
+ * @return an error code describing if and which error occurred
  */
-MiniMap MiniMap_#K#_#V#_make(const size_t initial_count, bool (*eq)(const K *, const K *));
+ERRFUNC MiniMap_#K#_#V#_make(const size_t initial_count, bool (*eq)(const K *, const K *), MiniMap *map);
 
 /**
  * Frees up all the resources allocated by the miniMap
  *
  * @param[in] `map` the MiniMap to destroy
+ *
+ * @return an error code describing if and which error occurred
  */
-void MiniMap_#K#_#V#_destroy(MiniMap *map);
+ERRFUNC MiniMap_#K#_#V#_destroy(MiniMap *map);
 
 /**
- * Replace the value at the given key with the given value and returns true.
- * If the key is not found no operation is performed and returns false
+ * Replace the value at the given key with the given value.
+ * If the key is not found no operation is performed and returns NO_OP
  *
  * @param[in] `map` the MiniMap to insert the values into
  * @param[in] `key` the key relative for the value, the key is applied directly, no hash function is applied, thus the hashing step should be done before
  * @param[in] `value` the value to associate to the given key
  *
- * @return true if the value at key was replaced
+ * @return an error code describing if and which error occurred
  */
-bool MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value);
+ERRFUNC MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value);
 
 /**
  * Get the value corresponding to the giving key
  *
  * @param[in] `map` the map to get the value from
- * @param[in] `key` the key of the value to return
+ * @param[in] `key` the key of the value to return, no hash function is applied, thus the hashing step should be done before
  * @param[out] `result` where to place the value associated with the given array
+ * if NO_OP or another error returned this values should be ignored as there was no data to communicate back
  *
- * @return a pointer the value associated with the given key, or nullptr if the key is not present in the map
+ * @return an error code describing if and which error occurred
  */
-bool MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result);
+ERRFUNC MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result);
 
 /**
  * Get the value corresponding to the giving key
  *
  * @param[in] `map` the map to get the value from
  * @param[in] `index` the index of the entry to return
- * @param[out] `key` the key at the specified index
+ * @param[out] `key` the key at the specified index, no hash function is applied, thus the hashing step should be done before
+ * if NO_OP or another error returned this values should be ignored as there was no data to communicate back
  * @param[out] `result` where to place the value associated with the given array
+ * if NO_OP or another error returned this values should be ignored as there was no data to communicate back
  *
- * @return a pointer the value associated with the given key, or nullptr if the key is not present in the map
+ * @return an error code describing if and which error occurred
  */
-bool MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V *result);
+ERRFUNC MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V *result);
 
 /**
- * Insert a value into the hash map trhough its relative key
+ * Insert a value into the map through its relative key
  * if the key is present replaces the stored value with the given one
  * else appends both key and value
  *
  * @param[in] `map` the MiniMap to set the values into
  * @param[in] `key` the key relative for the value, the key is applied directly, no hash function is applied, thus the hashing step should be done before
  * @param[in] `value` the value to associate to the given key
+ *
+ * @return an error code describing if and which error occurred
  */
-void MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value);
+ERRFUNC MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value);
 
 /**
  * Attempts to remove the key and its relative value
- * return true if succeedes
+ * return NO_OP or an error if there is nothing to remove
  *
  * @param[in] `map` the MiniMap to remove the values from
  * @param[in] `key` the key relative for the value, yhe key is applied directly, no hash function is applied, thus the hashing step should be done before
  *
- * @return if the key value pair has been removed
+ * @return an error code describing if and which error occurred
  */
-bool MiniMap_#K#_#V#_remove(MiniMap *map, const K *key);
+ERRFUNC MiniMap_#K#_#V#_remove(MiniMap *map, const K *key);
 
 #undef MiniMap

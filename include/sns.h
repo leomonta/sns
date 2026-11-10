@@ -1,7 +1,6 @@
 #pragma once
 
 #include "MiniMap_StringRef_MessageProcessor.h"
-#include "ResolverData.h"
 #include "threadpool.h"
 
 // this shouldn't be here but it makes sense for preventing cyclic include
@@ -35,10 +34,10 @@ typedef struct {
  * @oaram[in] `SNSServer` the server where to apply the mapping
  *
  */
-void register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server);
+ERRFUNC register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server);
 
-void SNSstart(SNSServer *server);
+ERRFUNC SNSstart(SNSServer *server);
 
-void SNSstop(SNSServer *server);
+ERRFUNC SNSstop(SNSServer *server);
 
-void SNSrestart(SNSServer *server);
+ERRFUNC SNSrestart(SNSServer *server);

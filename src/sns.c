@@ -36,8 +36,8 @@ void SIGPIPE_handler(int os) {
 	llog(LOG_INFO, "[SIGPIPE] Received a sigpipe. (%d) Probably just a client disconnect\n", os);
 }
 
-void register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server) {
-	MiniMap_StringRef_MessageProcessor_set(&server->mapped_functions, route_name, fun);
+ERRFUNC register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server) {
+	return MiniMap_StringRef_MessageProcessor_set(&server->mapped_functions, route_name, fun);
 }
 
 void accept_requests(SNSServer *server) {
@@ -101,12 +101,12 @@ MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_Mes
 
 	char buff[INTERNAL_BUFF_SIZE + 1] = {0};
 
-	auto const sz = mapped_function->keys.count;
+	auto sz = mapped_function->keys.count;
 
 	for (size_t i = 0; i < sz; ++i) {
 		// take a key value pair
-		StringRef  kk;
-		auto const err = MiniMap_StringRef_MessageProcessor_get_by_index(mapped_function, i, &kk, &vv);
+		StringRef kk;
+		auto      err = MiniMap_StringRef_MessageProcessor_get_by_index(mapped_function, i, &kk, &vv);
 		if (err) {
 			continue;
 		}
@@ -138,7 +138,7 @@ MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_Mes
 	llog(LOG_WARNING, "[FINDING RESOLVER] Could not find any matching processor '%.*s'\n", CLAMP_TO_POSITIVE_INT(url->len), url->str);
 
 	res = MiniMap_StringRef_MessageProcessor_get(mapped_function, url, &vv);
-	if (res) {
+	if (res != NO_ERROR) {
 		llog(LOG_WARNING, "[FINDING RESOLVER] Going for the default MessageProcessor\n");
 		return vv;
 	}
@@ -164,7 +164,7 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 			llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[inbound_mex.method]);
 
 			OutboundHttpMessage outbound_mex = {};
-			outbound_mex.header_options      = MiniMap_u_char_StringOwn_make(16, compare_u_char);
+			err                              = MiniMap_u_char_StringOwn_make(16, compare_u_char, &outbound_mex.header_options);
 			outbound_mex.version             = HTTP_VER_10;
 
 			StringRef        url       = {inbound_mex.url.str, inbound_mex.url.len};
@@ -173,7 +173,9 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 				processor(&inbound_mex, &outbound_mex);
 
 				// make the message a single formatted string
-				auto res = compose_message(&outbound_mex);
+				StringOwn res = {};
+				err           = compose_message(&outbound_mex, &res);
+				LLOG_ERR(err);
 				llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%.*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
 
 				// ---------------------------------------------------------------------- SEND
@@ -182,9 +184,9 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 				free(res.str);
 			}
 
-			destroy_OutboundHttpMessage(&outbound_mex);
+			err = destroy_OutboundHttpMessage(&outbound_mex);
 		}
-		destroy_InboundHttpMessage(&inbound_mex);
+		err = destroy_InboundHttpMessage(&inbound_mex);
 	}
 
 	TCP_shutdown_socket(client_socket);
@@ -203,11 +205,15 @@ SNS_NO_RETURN void *proxy_res_req(void *ptr) {
 	ThreadPool *pool = (ThreadPool *)(ptr);
 
 	while (!pool->stop) {
-		auto data = dequeue_threadpool(pool);
+		ResolverData data = {};
+		auto         err  = dequeue_threadpool(pool, &data);
+		if (err) {
+			LLOG_ERR(err);
+			SNS_THREAD_RETURN;
+		}
 
-		// dequeue might return a null value for how it is implemented, i deal with that
 		if (data.ssl == nullptr) {
-			llog(LOG_DEBUG, "[THREAD] DEQUEUE return null. Probably the threadpool is commiting fake data to kill all threads\n");
+			llog(LOG_DEBUG, "[THREAD] DEQUEUE returned nullptr. Probably the threadpool is commiting fake data to kill all threads\n");
 			continue;
 		}
 
@@ -217,14 +223,14 @@ SNS_NO_RETURN void *proxy_res_req(void *ptr) {
 	SNS_THREAD_RETURN;
 }
 
-void setup(SNSServer *server) {
+ERRFUNC setup(SNSServer *server) {
 
 	errno = 0;
 
 	struct sigaction action = {
-	    .sa_handler   = SIGPIPE_handler,
-	    .sa_mask      = {},
-	    .sa_flags     = 0,
+	    .sa_handler = SIGPIPE_handler,
+	    .sa_mask    = {},
+	    .sa_flags   = 0,
 	};
 
 	sigaction(SIGPIPE, &action, &old_sigaction);
@@ -250,14 +256,18 @@ void setup(SNSServer *server) {
 	llog(LOG_INFO, "[SSL] Context created\n");
 
 	// finally creating the threadPool
-	initialize_threadpool(20, proxy_res_req, &server->info.thread_pool);
+	auto err = initialize_threadpool(20, proxy_res_req, &server->info.thread_pool);
+	RET_IF_ERR(err)
 
 	llog(LOG_INFO, "[THREAD POOL] Started the listenings threads\n");
+
+	return NO_ERROR;
 }
 
-void SNSstart(SNSServer *server) {
+ERRFUNC SNSstart(SNSServer *server) {
 
-	setup(server);
+	auto err = setup(server);
+	RET_IF_ERR(err)
 
 	server->info.thread_pool.stop = false;
 
@@ -270,20 +280,24 @@ void SNSstart(SNSServer *server) {
 	llog(LOG_DEBUG, "[SERVER] Request acceptor thread Started\n");
 
 	server->info.start_time = time(nullptr);
+
+	return NO_ERROR;
 }
 
-void SNSrestart(SNSServer *server) {
-	SNSstop(server);
-	SNSstart(server);
+ERRFUNC SNSrestart(SNSServer *server) {
+	auto err = SNSstop(server);
+	RET_IF_ERR(err)
+	return SNSstart(server);
 }
 
-void SNSstop(SNSServer *server) {
+ERRFUNC SNSstop(SNSServer *server) {
 
 	TCP_terminate(server->info.server_socket);
 
 	// tpool stop
 	server->info.thread_pool.stop = true;
-	destroy_threadpool(&server->info.thread_pool);
+	auto err                      = destroy_threadpool(&server->info.thread_pool);
+	RET_IF_ERR(err)
 	llog(LOG_INFO, "[SERVER] Sent stop signal to all threads\n");
 
 	// thread stop
@@ -297,4 +311,6 @@ void SNSstop(SNSServer *server) {
 	sigaction(SIGPIPE, &old_sigaction, NULL);
 
 	llog(LOG_INFO, "[SERVER] Server stopped\n");
+
+	return NO_ERROR;
 }

@@ -21,36 +21,46 @@ typedef struct {
 	bool                    stop;         // should the threads stop
 } ThreadPool;
 
+typedef void *(*GenericFunction)(void *);
+
 /**
  * Create a thread pool on the heap and returns it.
  * It also start tCount threads with the proxy_resReq function
  *
  * @param[in] `thread_count` the number of concurrent threads to start
  * @param[in] `fun` the function to call for thread workers
- * @param[out] `res` the thread pool to initialize
+ * @param[out] `thread_pool` the thread pool to initialize
+ *
  * @return the modified thread pool
  */
-ThreadPool *initialize_threadpool(const size_t thread_count, void *(*fun)(void *), ThreadPool *res);
+ERRFUNC initialize_threadpool(const size_t thread_count, GenericFunction fun, ThreadPool *thread_pool);
 
 /**
  * Free all the resource allocated in the given thrad pool
  *
- * @parma tp the thread pool the destroy
+ * @parma[in] `thread_pool` the thread pool the destroy
+ *
+ * @return an error code describing if and which error occurred
  */
-void destroy_threadpool(ThreadPool *tp);
+ERRFUNC destroy_threadpool(ThreadPool *thread_pool);
 
 /**
  * Take a job form the given threadpool queue
  *
- * @parama tpool the thread pool where to take the job from
- * @return a pointer to a resolver_data structure
+ * @param[in] `thread_pool` the thread pool where to take the job from
+ * @param[out] `data` where to place the dequeued data.
+ * if NO_OP or another error returned this values should be ignored as there was no data to communicate back
+ *
+ * @return an error code describing if and which error occurred
  */
-ResolverData dequeue_threadpool(ThreadPool *thread_pool);
+ERRFUNC dequeue_threadpool(ThreadPool *thread_pool, ResolverData *data);
 
 /**
  * Add the given data to the queue as a job for ay waiting thread
  *
- * @param tpool the thread pool where to put the job in
- * @param data the data that will be copied into the thread job
+ * @param[in] `thread_pool` the thread pool where to put the job in
+ * @param[in] `data` the data that will be copied into the thread job
+ *
+ * @return an error code describing if and which error occurred
  */
-void enqueue_threadpool(ThreadPool *tpool, const ResolverData *data);
+ERRFUNC enqueue_threadpool(ThreadPool *thread_pool, const ResolverData *data);

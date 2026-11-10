@@ -2,8 +2,6 @@
 
 #include "RingBuffer_ResolverData.h"
 #include "logger.h"
-#include "RingBuffer_ResolverData.h"
-
 
 #include <errno.h>
 #include <fcntl.h>
@@ -22,126 +20,142 @@ struct ThreadPool {
 	bool                    stop;         // should the threads stop
 };
 
-ThreadPool *initialize_threadpool(const size_t thread_count, void *(*fun)(void *), ThreadPool *res) {
+ERRFUNC initialize_threadpool(const size_t thread_count, GenericFunction fun, ThreadPool *thread_pool) {
 
 	// init linked list
-	res->ring_buffer  = RingBuffer_ResolverData_make(thread_count);
-	res->thread_count = 0;
-	res->stop         = false;
+	auto err = RingBuffer_ResolverData_make(thread_count, &thread_pool->ring_buffer);
+	RET_IF_ERR(err)
+	thread_pool->thread_count = 0;
+	thread_pool->stop         = false;
 
 	// the semaphore is the one responsible for preventing race conditions
-	auto errCode = sem_init(&res->sempahore, 0, 0);
+	auto errCode = sem_init(&thread_pool->sempahore, 0, 0);
 	if (errCode != 0) {
 		llog(LOG_ERROR, "[THREAD POOL] Could not initilize semphore -> %s\n", strerror(errno));
+		return THREADPOOL__FAILED_SEMAPHORE_INIT;
 	}
 
 	// Linux `man pthread_mutex_init` tells me this always returns 0
 	// better safe than sorry?
-	errCode = pthread_mutex_init(&res->mutex, NULL);
+	errCode = pthread_mutex_init(&thread_pool->mutex, NULL);
 
 	switch (errCode) {
 	case EAGAIN:
 		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough resources\n");
-		break;
+		return THREADPOOL__FAILED_MUTEX_INIT;
 	case ENOMEM:
 		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough memory\n");
-		break;
+		return THREADPOOL__FAILED_MUTEX_INIT;
 	case EPERM:
 		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough priviledges\n");
-		break;
+		return THREADPOOL__FAILED_MUTEX_INIT;
 	case EINVAL:
 		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, invalid settings in attr\n");
-		break;
+		return THREADPOOL__FAILED_MUTEX_INIT;
 	case 0:
 	default:
 		break;
 	}
 
-	res->threads = malloc(thread_count * sizeof(pthread_t));
+	thread_pool->threads = malloc(thread_count * sizeof(pthread_t));
+	TEST_ALLOC(thread_pool->threads)
 
 	for (size_t i = 0; i < thread_count; ++i) {
-		errCode = pthread_create(&res->threads[res->thread_count], NULL, fun, (void *)(res));
+		errCode = pthread_create(&thread_pool->threads[thread_pool->thread_count], NULL, fun, (void *)(thread_pool));
 		switch (errCode) {
 		case EINVAL:
 			// since I don't use attr for the pthread this should never happen
 			llog(LOG_ERROR, "[THREAD POOL] Could not initialize thread, invalid settings in attr\n");
-			break;
+			return THREADPOOL__FAILED_THREAD_CREATION;
 		case EPERM:
 			// since I don't use attr for the pthread this should never happen
 			llog(LOG_ERROR, "[THREAD POOL] Could not initialize thread, no permission to set schedule policies for attr\n");
-			break;
+			return THREADPOOL__FAILED_THREAD_CREATION;
 		case EAGAIN:
 			llog(LOG_ERROR, "[THREAD POOL] Could not initialize thread, not enough resources\n");
-			break;
+			return THREADPOOL__FAILED_THREAD_CREATION;
 
 		default:
 		case 0:
-			res->thread_count++;
+			thread_pool->thread_count++;
 			break;
 		}
 	}
 
-	return res;
+	return NO_ERROR;
 }
 
-void destroy_threadpool(ThreadPool *tp) {
+ERRFUNC destroy_threadpool(ThreadPool *thread_pool) {
 
 	// stops all threads
-	tp->stop = true;
+	thread_pool->stop = true;
 
 	// wait for the threads to finish
-	for (size_t i = 0; i < tp->thread_count; ++i) {
+	for (size_t i = 0; i < thread_pool->thread_count; ++i) {
 		// the thread may be wating for a job at the sempahore, by faking data, even if there maybe actually be some,
 		// I force the thread to check the stop value. Thus ensuring the thread exits gracefully
-		sem_post(&tp->sempahore);
+		sem_post(&thread_pool->sempahore);
 	}
 
-	for (size_t i = 0; i < tp->thread_count; ++i) {
+	for (size_t i = 0; i < thread_pool->thread_count; ++i) {
 		// since i have no guarantee about the order of which the treads take the sempahore, I have to split the two processes
-		pthread_join(tp->threads[i], NULL);
+		pthread_join(thread_pool->threads[i], NULL);
 	}
 
 	// free the arrat used to store the thread ids
-	free(tp->threads);
+	free(thread_pool->threads);
 
 	// freeing the leftover data (if any)
-	RingBuffer_ResolverData_destroy(&tp->ring_buffer);
+	auto err = RingBuffer_ResolverData_destroy(&thread_pool->ring_buffer);
+	RET_IF_ERR(err)
 
-	pthread_mutex_destroy(&tp->mutex);
-	sem_destroy(&tp->sempahore);
+	pthread_mutex_destroy(&thread_pool->mutex);
+	sem_destroy(&thread_pool->sempahore);
+
+	return NO_ERROR;
 }
 
-ResolverData dequeue_threadpool(ThreadPool *tpool) {
+ERRFUNC dequeue_threadpool(ThreadPool *thread_pool, ResolverData *data) {
 
 	// this takes care of letting pass n threads for n datas
-	sem_wait(&tpool->sempahore);
-	pthread_mutex_lock(&tpool->mutex);
+	sem_wait(&thread_pool->sempahore);
+	pthread_mutex_lock(&thread_pool->mutex);
 	// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CRITICAL SECTION START
 
-	ResolverData res;
-
-	if (tpool->ring_buffer.stored == 0) {
-		res = (ResolverData){nullptr, INVALID_SOCKET, nullptr};
+	if (thread_pool->ring_buffer.stored == 0) {
+		*data = (ResolverData){nullptr, INVALID_SOCKET, nullptr};
 	} else {
-		RingBuffer_ResolverData_retrieve(&tpool->ring_buffer, &res);
+		auto err = RingBuffer_ResolverData_retrieve(&thread_pool->ring_buffer, data);
+		if (err > NO_OP) {
+			// ------------------------------------------------------------------------------ EARLY EXIT
+			pthread_mutex_unlock(&thread_pool->mutex);
+			return err;
+		}
 	}
 
 	// let the next one in
 	// ---------------------------------------------------------------------------------------------- CRITICAL SECTION END
-	pthread_mutex_unlock(&tpool->mutex);
+	pthread_mutex_unlock(&thread_pool->mutex);
 
-	return res;
+	return NO_ERROR;
 }
 
-void enqueue_threadpool(ThreadPool *tpool, const ResolverData *data) {
+ERRFUNC enqueue_threadpool(ThreadPool *thread_pool, const ResolverData *data) {
 
-	pthread_mutex_lock(&tpool->mutex);
+	pthread_mutex_lock(&thread_pool->mutex);
 	// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CRITICAL SECTION START
 
-	RingBuffer_ResolverData_append(&tpool->ring_buffer, data);
+	auto err = RingBuffer_ResolverData_append(&thread_pool->ring_buffer, data);
+	if (err > NO_OP) {
+		// -------------------------------------------------------------------------------------- EARLY EXIT
+		pthread_mutex_unlock(&thread_pool->mutex);
+		return err;
+	}
 
 	// notify anywating thread that there is data
-	sem_post(&tpool->sempahore);
+	sem_post(&thread_pool->sempahore);
 	// ---------------------------------------------------------------------------------------------- CRITICAL SECTION END
-	pthread_mutex_unlock(&tpool->mutex);
+	pthread_mutex_unlock(&thread_pool->mutex);
+
+	return NO_ERROR;
 }

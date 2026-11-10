@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-// 
+#include "logger.h"
+
+
 
 #include "MiniVector_MessageProcessor.h"
 
@@ -10,20 +12,21 @@
 
 #define GROW_RATE 2
 
-MiniVector MiniVector_MessageProcessor_make(const size_t initial_count) {
+ERRFUNC MiniVector_MessageProcessor_make(const size_t initial_count, MiniVector *vec) {
 	auto capacity = initial_count == 0 ? 10 : initial_count;
 
-	MiniVector res = {
+	*vec = (MiniVector){
 	    .data     = malloc(capacity * sizeof(MessageProcessor)),
 	    .capacity = capacity * sizeof(MessageProcessor),
 	    .count    = 0,
 	};
+	TEST_ALLOC(vec->data);
 
 	// copy elision
-	return res;
+	return NO_ERROR;
 }
 
-void MiniVector_MessageProcessor_destroy(MiniVector *vec) {
+ERRFUNC MiniVector_MessageProcessor_destroy(MiniVector *vec) {
 
 	free(vec->data);
 
@@ -31,55 +34,67 @@ void MiniVector_MessageProcessor_destroy(MiniVector *vec) {
 	vec->data     = nullptr;
 	vec->capacity = 0;
 	vec->count    = 0;
+
+	return NO_ERROR;
 }
 
-void MiniVector_MessageProcessor_grow(MiniVector *vec) {
+ERRFUNC MiniVector_MessageProcessor_grow(MiniVector *vec) {
 
 	vec->data = realloc(vec->data, vec->capacity * GROW_RATE);
+	TEST_ALLOC(vec->data);
 	vec->capacity *= GROW_RATE;
 	// for why 2 and not 1.6 or 1.5
 	// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 abd others
+
+	return NO_ERROR;
 }
 
-bool MiniVector_MessageProcessor_get(const MiniVector *vec, const size_t index, MessageProcessor *result) {
+ERRFUNC MiniVector_MessageProcessor_get(const MiniVector *vec, const size_t index, MessageProcessor *result) {
 
 	if (index >= vec->count) {
-		// invalid pos
-		return false;
+		llog(LOG_WARNING, "[MINIVECTOR] %ld >= %ld Unreachable position\n", index, vec->count);
+		return INVALID_ARGUMENT;
 	}
 
 	*result = *(vec->data + index);
-	return true;
+
+	return NO_ERROR;
 }
 
+ERRFUNC MiniVector_MessageProcessor_set(MiniVector *vec, const size_t index, const MessageProcessor *element) {
 
-void MiniVector_MessageProcessor_set(MiniVector *vec, const size_t index, const MessageProcessor *element) {
-
-	if (index < vec->count && element != nullptr) {
-		memcpy(vec->data + index, element, sizeof(MessageProcessor));
+	if (index >= vec->count || element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element or an unreachable position\n");
+		return INVALID_ARGUMENT;
 	}
+	vec->data[index] = *element;
+
+	return NO_ERROR;
 }
 
-void MiniVector_MessageProcessor_append(MiniVector *vec, const MessageProcessor *element) {
+ERRFUNC MiniVector_MessageProcessor_append(MiniVector *vec, const MessageProcessor *element) {
 	if (vec->count == vec->capacity / sizeof(MessageProcessor)) {
-		MiniVector_MessageProcessor_grow(vec);
+		auto err = MiniVector_MessageProcessor_grow(vec);
+		RET_IF_ERR(err)
 	}
 
 	memcpy(vec->data + vec->count, element, sizeof(MessageProcessor));
 
 	++(vec->count);
+
+	return NO_ERROR;
 }
 
-void MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, const MessageProcessor *element) {
+ERRFUNC MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, const MessageProcessor *element) {
 	if (index > vec->count) {
-		// invalid position
-		return;
+		llog(LOG_WARNING, "[MINIVECTOR] %ld > %ld Unreachable position\n", index, vec->count);
+		return INVALID_ARGUMENT;
 	}
 
 	if (index == vec->count) {
-		MiniVector_MessageProcessor_append(vec, element);
-		return;
+		auto err = MiniVector_MessageProcessor_append(vec, element);
+		RET_IF_ERR(err)
 	}
 
 	if (vec->count == vec->capacity / sizeof(MessageProcessor)) {
@@ -90,7 +105,8 @@ void MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, con
 		// If I were to malloc new memory I would not incur in a double copy BUT i would miss out on a potential easy realloc
 		// So the decision lies on the distribution of good realloc vs bad realloc
 		// but I don't have the data to know this. So I'll just go with grow (realloc)
-		MiniVector_MessageProcessor_grow(vec);
+		auto err = MiniVector_MessageProcessor_grow(vec);
+		RET_IF_ERR(err)
 	}
 
 	// god bless memmove
@@ -99,18 +115,21 @@ void MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, con
 	++(vec->count);
 
 	// finally write the data
-	MiniVector_MessageProcessor_set(vec, index, element);
+	auto err = MiniVector_MessageProcessor_set(vec, index, element);
+	RET_IF_ERR(err)
+
+	return NO_ERROR;
 }
 
 
-void MiniVector_MessageProcessor_remove(MiniVector *vec, const size_t index) {
+ERRFUNC MiniVector_MessageProcessor_remove(MiniVector *vec, const size_t index) {
 
 	// we cant just overwrite the position to erase when
 	// index is out of bound, > count or
 	// index is on the last index (since we would run the risk of copying garbage)
 	if (index >= vec->count) {
-		// nothing to delete
-		return;
+		llog(LOG_WARNING, "[MINIVECTOR] %ld >= %ld Unreachable position\n", index, vec->count);
+		return INVALID_ARGUMENT;
 	}
 
 	if (index < vec->count - 1) {
@@ -119,6 +138,8 @@ void MiniVector_MessageProcessor_remove(MiniVector *vec, const size_t index) {
 	}
 
 	--vec->count;
+
+	return NO_ERROR;
 }
 
 #undef MiniVector

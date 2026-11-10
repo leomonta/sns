@@ -8,12 +8,6 @@
 
 #define CLAMP_TO_POSITIVE_INT(sz) sz > INT_MAX ? INT_MAX - 1 : (int)(sz)
 
-#define TEST_ALLOC(ptr)                                                                             \
-	if (ptr == NULL) {                                                                              \
-		llog(LOG_FATAL, "[ALLOCATION] Allocation returned NULL: %d, %s\n", errno, strerror(errno)); \
-		return FAILED_ALLOCATION;                                                                   \
-	}
-
 /**
  * simply get the time formetted following RFC822 regulation on GMT time
  *
@@ -43,7 +37,7 @@ ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus);
  * @param[in] `data` the string reference pointing to the data to compress
  * @param[in] `output` where to put the result
  */
-bool compress_gz(const StringRef *data, StringOwn *output);
+ERRFUNC compress_gz(const StringRef *data, StringOwn *output);
 
 /**
  * Thaks to https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way

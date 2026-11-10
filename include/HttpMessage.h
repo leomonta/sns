@@ -156,14 +156,15 @@ typedef struct {
 	HTTP_Version             version;        // the version of the http header (1.0, 1.1, 2.0, ...)
 } OutboundHttpMessage;
 
-typedef void (*MessageProcessor)(const InboundHttpMessage *in_message, OutboundHttpMessage *out_message);
+typedef ErrCode (*MessageProcessor)(const InboundHttpMessage *in_message, OutboundHttpMessage *out_message);
 
-typedef void (*OptionsProcessor)(StringRef a, StringRef b, InboundHttpMessage *ctx);
+typedef ErrCode (*OptionsProcessor)(StringRef a, StringRef b, InboundHttpMessage *ctx);
 
 ERRFUNC parse_InboundMessage(const char *str, InboundHttpMessage *mex);
 
-void destroy_InboundHttpMessage(InboundHttpMessage *mex);
-void destroy_OutboundHttpMessage(OutboundHttpMessage *mex);
+ERRFUNC destroy_InboundHttpMessage(InboundHttpMessage *mex);
+
+ERRFUNC destroy_OutboundHttpMessage(OutboundHttpMessage *mex);
 
 /**
  * deconstruct the raw header in a map with key (option) -> value
@@ -188,7 +189,7 @@ ERRFUNC decompose_message(InboundHttpMessage *msg);
  * @param msg the message containing the header options and, eventually, the body
  * @return the 'compiled' message
  */
-StringOwn compose_message(const OutboundHttpMessage *msg);
+ERRFUNC compose_message(const OutboundHttpMessage *msg, StringOwn *res);
 
 /**
  * Given a String representing the request method (GET, POST, PATCH, ...) returns the relative code
@@ -241,4 +242,4 @@ ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, cons
  * @param value the string value to assign to the option
  * @param msg the httpMessage that contains the header options map
  */
-void add_header_option(const HTTPHeaderResponseOption option, const StringRef *value, OutboundHttpMessage *msg);
+ERRFUNC add_header_option(const HTTPHeaderResponseOption option, const StringRef *value, OutboundHttpMessage *msg);
