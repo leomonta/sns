@@ -80,6 +80,10 @@ MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_Mes
 	return nullptr;
 }
 
+/**
+ * Will receive the data from the connection, parse the request and give it to the message processor
+ *
+ */
 void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_StringRef_MessageProcessor *mapped_function) {
 
 	// ---------------------------------------------------------------------- RECEIVE
@@ -87,46 +91,70 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 	auto  bytes_received = SSL_receive_record(ssl_connection, &request);
 
 	// received some bytes
-	if (bytes_received > 0) {
-
-		InboundHttpMessage inbound_mex;
-		auto               err = create_InboundMessage(request, &inbound_mex);
+	if (bytes_received <= 0) {
 		free(request);
-
-		if (err != NO_ERROR) {
-			llog(LOG_ERROR, "[SERVER] Discarding invalid request from client %d\n", client_socket);
-		} else {
-			const StringView met = methods_str[inbound_mex.method];
-			llog(LOG_INFO, "[SERVER] Received request <%.*s> \n", CLAMP_TO_POSITIVE_INT(met.len), met.str);
-
-			OutboundHttpMessage outbound_mex = {};
-			err                              = MiniMap_HTTPResponseOption_StringOwn_make(16, compare_HTTPResponseOption, &outbound_mex.header_options);
-			outbound_mex.version             = HTTP_VER_10;
-
-			StringRef        url       = {inbound_mex.url.str, inbound_mex.url.len};
-			MessageProcessor processor = findProcessor(&url, mapped_function);
-			if (processor != nullptr) {
-				processor(&inbound_mex, &outbound_mex);
-
-				// make the message a single formatted string
-				StringOwn res = {};
-				err           = compose_message(&outbound_mex, &res);
-				llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%.*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
-
-				// ---------------------------------------------------------------------- SEND
-				// acknowledge the segment back to the sender
-				SSL_send_record(ssl_connection, res.str, res.len);
-				free(res.str);
-			}
-
-			err = destroy_OutboundHttpMessage(&outbound_mex);
-		}
-		err = destroy_InboundHttpMessage(&inbound_mex);
+		goto cleanup; // https://thephd.dev/assets/img/2025/06/raw%20goto.jpg
 	}
 
+	InboundHttpMessage inbound_mex;
+	auto               err = create_InboundMessage(request, &inbound_mex);
+	if (err > NO_OP) {
+		llog(LOG_ERROR, "[SERVER] Discarding invalid request from client %d\n", client_socket);
+		if (err == PARSING_HEADER__MALFORMED_REQUEST || err == FAILED_ALLOCATION) {
+			free(request);
+		} else {
+			err = destroy_InboundHttpMessage(&inbound_mex);
+			if (err > NO_OP) {
+				llog(LOG_ERROR, "[SERVER] Destroying the inbound message failed, potentially leaking memory (client %d)\n", client_socket);
+			}
+		}
+		goto cleanup;
+	}
+
+	const StringView met = methods_str[inbound_mex.method];
+	llog(LOG_INFO, "[SERVER] Received request <%.*s> from %d\n", CLAMP_TO_POSITIVE_INT(met.len), met.str, client_socket);
+
+	OutboundHttpMessage outbound_mex = {};
+	err                              = MiniMap_HTTPResponseOption_StringOwn_make(16, compare_HTTPResponseOption, &outbound_mex.header_options);
+	if (err > NO_OP) {
+		err = destroy_InboundHttpMessage(&inbound_mex);
+		if (err > NO_OP) {
+			llog(LOG_ERROR, "[SERVER] Destroying the inbound message failed, potentially leaking memory (client %d)\n", client_socket);
+		}
+		goto cleanup;
+	}
+
+	outbound_mex.version = HTTP_VER_11;
+
+	MessageProcessor processor = findProcessor(&inbound_mex.url, mapped_function);
+	if (processor != nullptr) { // TODO: check after message processor re-work
+		processor(&inbound_mex, &outbound_mex);
+
+		// make the message a single formatted string
+		StringOwn res = {};
+		err           = compose_message(&outbound_mex, &res);
+		if (err <= NO_OP) {
+			llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%.*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
+
+			// ---------------------------------------------------------------------- SEND
+			// acknowledge the segment back to the sender
+			SSL_send_record(ssl_connection, res.str, res.len);
+			free(res.str);
+		}
+	}
+
+	err = destroy_OutboundHttpMessage(&outbound_mex);
+	if (err > NO_OP) {
+		llog(LOG_ERROR, "[SERVER] Destroying the outbound message failed, potentially leaking memory (client %d)\n", client_socket);
+	}
+	err = destroy_InboundHttpMessage(&inbound_mex);
+	if (err > NO_OP) {
+		llog(LOG_ERROR, "[SERVER] Destroying the inbound message failed, potentially leaking memory (client %d)\n", client_socket);
+	}
+cleanup:
+	SSL_destroy_connection(ssl_connection);
 	TCP_shutdown_socket(client_socket);
 	TCP_close_socket(client_socket);
-	SSL_destroy_connection(ssl_connection);
 }
 
 SNS_NO_RETURN void *proxy_res_req(void *ptr) {
@@ -179,17 +207,17 @@ void accept_requests(SNSServer *server) {
 		auto ssl_connection = SSL_create_connection(server->info.ssl_context, client);
 
 		if (ssl_connection == nullptr) {
-			TCP_close_socket(client);
 			TCP_shutdown_socket(client);
+			TCP_close_socket(client);
 			continue;
 		}
 
 		auto err = SSL_accept_client(ssl_connection);
 
 		if (err == -1) {
-			TCP_close_socket(client);
-			TCP_shutdown_socket(client);
 			SSL_destroy_connection(ssl_connection);
+			TCP_shutdown_socket(client);
+			TCP_close_socket(client);
 			continue;
 		}
 
@@ -301,7 +329,7 @@ ERRFUNC SNSstop(SNSServer *server) {
 	TCP_terminate(server->info.server_socket);
 
 	// tpool stop
-	auto err                      = destroy_threadpool(&server->info.thread_pool);
+	auto err = destroy_threadpool(&server->info.thread_pool);
 	RET_IF_ERR(err) // Does not return an error (yet)
 	llog(LOG_INFO, "[SERVER] Sent stop signal to all threads\n");
 

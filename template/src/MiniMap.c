@@ -16,7 +16,7 @@ ERRFUNC MiniMap_#K#_#V#_make(const size_t initial_count, bool (*eq)(const K *, c
 	err = MiniVector_#V#_make(initial_count, &vec->values);
 	if (err > NO_OP) {
 		auto err2 = MiniVector_#K#_destroy(&vec->keys);
-		RET_IF_ERR(err2) // MiniVector_destroy can't fail (yet) so this essentially a no op
+		RET_IF_ERR(err2) // MiniVector_destroy can't fail (yet) so this is essentially a no op
 		return err;
 	}
 

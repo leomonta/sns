@@ -16,7 +16,7 @@ ERRFUNC MiniMap_StringRef_MessageProcessor_make(const size_t initial_count, bool
 	err = MiniVector_MessageProcessor_make(initial_count, &vec->values);
 	if (err > NO_OP) {
 		auto err2 = MiniVector_StringRef_destroy(&vec->keys);
-		RET_IF_ERR(err2) // MiniVector_destroy can't fail (yet) so this essentially a no op
+		RET_IF_ERR(err2) // MiniVector_destroy can't fail (yet) so this is essentially a no op
 		return err;
 	}
 

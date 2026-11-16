@@ -42,7 +42,7 @@ typedef ErrCode (*OptionsProcessor)(StringRef a, StringRef b, InboundHttpMessage
  *
  * @param[in] `str` the null terminated string containing the entire message,
  *     the inbound mmessage will take ownership of this and free it in `destroy_InboundHttpMessage`.
- *     if an error occur that prevents the structure to be constructed it should be freed by the caller
+ *     depending on which error was returned, it may need to be freed by the caller
  * @param[out] `mex` the InboundHttpMessage to construct
  *
  * @return an error code describing if and which error occurred
@@ -61,7 +61,7 @@ ERRFUNC create_InboundMessage(char *str, InboundHttpMessage *mex);
 /**
  * Frees all the associated resources and zeroes all the fields
  *
- * @param[in] `mex` the InboundHTTPMessage to destroy, this will also free the string passed to `create_InboundMessage` if it ended successfully
+ * @param[in] `mex` the InboundHTTPMessage to destroy, this will also free the string passed to `create_InboundMessage`
  *
  * @return an error code describing if and which error occurred
  */

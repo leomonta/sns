@@ -171,11 +171,11 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	if (qmark != nullptr) {
 		auto query_start = (size_t)(qmark - msg->url.str);
 		// limit the url to before the '?'
-		msg->url.len     = query_start;
 
 		// confine the parameters in a single stringRef excluding the '?'
 		StringRef query_parameters = {msg->url.str + query_start + 1, msg->url.len - query_start - 1};
-		auto      err              = parse_options(&query_parameters, add_to_params, "&", '=', msg);
+		msg->url.len               = query_start;
+		auto err                   = parse_options(&query_parameters, add_to_params, "&", '=', msg);
 		RET_IF_ERR(err)
 	}
 
@@ -491,8 +491,8 @@ ERRFUNC add_header_option(const HTTPResponseOption option, const StringView *val
 	auto      err = MiniMap_HTTPResponseOption_StringOwn_get(&msg->header_options, &option, &old);
 	RET_IF_ERR(err) // this does not return an error yet
 
-	err = MiniMap_HTTPResponseOption_StringOwn_set(&msg->header_options, &option, &cpy);
-	RET_IF_ERR(err) // cpy is not nullptr, so here we can only get FAILED_ALLOCATION
+	auto set_err = MiniMap_HTTPResponseOption_StringOwn_set(&msg->header_options, &option, &cpy);
+	RET_IF_ERR(set_err) // cpy is not nullptr, so here we can only get FAILED_ALLOCATION
 
 	// if we are here we both have set the new option and have a copy of the old one
 	// I set the new one before completely destroying the old one to be sure that the operation is 'atomic'
