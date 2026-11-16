@@ -1,133 +1,10 @@
 #pragma once
+#include "MiniMap_HTTPResponseOption_StringOwn.h"
 #include "MiniMap_StringRef_StringRef.h"
-#include "MiniMap_u_char_StringOwn.h"
+#include "constants.h"
 #include "errcode.h"
 
 #include <stdint.h>
-
-// http method code
-typedef enum : uint8_t {
-	HTTP_INVALID_METHOD,
-	HTTP_GET,
-	HTTP_HEAD,
-	HTTP_POST,
-	HTTP_PUT,
-	HTTP_DELETE,
-	HTTP_OPTIONS,
-	HTTP_CONNECT,
-	HTTP_TRACE,
-	HTTP_PATCH,
-	HTTP_ENUM_LEN,
-} HTTP_Method;
-
-typedef enum : uint8_t {
-	HTTP_VER_UNKN,
-	HTTP_VER_09,
-	HTTP_VER_10,
-	HTTP_VER_11,
-	HTTP_VER_2,
-	HTTP_VER_3,
-	HTTP_VER_ENUM_LEN,
-} HTTP_Version;
-
-typedef enum : uint8_t {
-	// ReQuest options
-	RQ_A_IM,
-	RQ_ACCEPT,
-	RQ_ACCEPT_CHARSET,
-	RQ_ACCEPT_DATETIME,
-	RQ_ACCEPT_ENCODING,
-	RQ_ACCEPT_LANGUAGE,
-	RQ_ACCESS_CONTROL_REQUEST_METHOD,
-	RQ_ACCESS_CONTROL_REQUEST_HEADERS,
-	RQ_AUTHORIZATION,
-	RQ_CACHE_CONTROL,
-	RQ_CONNECTION,
-	RQ_CONTENT_ENCODING,
-	RQ_CONTENT_LENGTH,
-	RQ_CONTENT_MD5,
-	RQ_CONTENT_TYPE,
-	RQ_COOKIE,
-	RQ_DATE,
-	RQ_EXPECT,
-	RQ_FORWARDED,
-	RQ_FROM,
-	RQ_HOST,
-	RQ_HTTP2_SETTINGS,
-	RQ_IF_MATCH,
-	RQ_IF_MODIFIED_SINCE,
-	RQ_IF_NONE_MATCH,
-	RQ_IF_RANGE,
-	RQ_IF_UNMODIFIED_SINCE,
-	RQ_MAX_FORWARDS,
-	RQ_ORIGIN,
-	RQ_PRAGMA,
-	RQ_PREFER,
-	RQ_PROXY_AUTHORIZATION,
-	RQ_RANGE,
-	RQ_REFERER,
-	RQ_TE,
-	RQ_TRAILER,
-	RQ_TRANSFER_ENCODING,
-	RQ_USER_AGENT,
-	RQ_UPGRADE,
-	RQ_VIA,
-	RQ_WARNING,
-	RQ_ENUM_LEN,
-} HTTPHeaderRequestOption;
-
-typedef enum : uint8_t {
-	// ResPonse Options
-	RP_ACCEPT_CH,
-	RP_ACCESS_CONTROL_ALLOW_ORIGIN,
-	RP_ACCESS_CONTROL_ALLOW_CREDENTIALS,
-	RP_ACCESS_CONTROL_EXPOSE_HEADERS,
-	RP_ACCESS_CONTROL_MAX_AGE,
-	RP_ACCESS_CONTROL_ALLOW_METHODS,
-	RP_ACCESS_CONTROL_ALLOW_HEADERS,
-	RP_ACCEPT_PATCH,
-	RP_ACCEPT_RANGES,
-	RP_AGE,
-	RP_ALLOW,
-	RP_ALT_SVC,
-	RP_CACHE_CONTROL,
-	RP_CONNECTION,
-	RP_CONTENT_DISPOSITION,
-	RP_CONTENT_ENCODING,
-	RP_CONTENT_LANGUAGE,
-	RP_CONTENT_LENGTH,
-	RP_CONTENT_LOCATION,
-	RP_CONTENT_MD5,
-	RP_CONTENT_RANGE,
-	RP_CONTENT_TYPE,
-	RP_DATE,
-	RP_DELTA_BASE,
-	RP_ETAG,
-	RP_EXPIRES,
-	RP_IM,
-	RP_LAST_MODIFIED,
-	RP_LINK,
-	RP_LOCATION,
-	RP_P3P,
-	RP_PRAGMA,
-	RP_PREFERENCE_APPLIED,
-	RP_PROXY_AUTHENTICATE,
-	RP_PUBLIC_KEY_PINS,
-	RP_RETRY_AFTER,
-	RP_SERVER,
-	RP_SET_COOKIE,
-	RP_STRICT_TRANSPORT_SECURITY,
-	RP_TRAILER,
-	RP_TRANSFER_ENCODING,
-	RP_TK,
-	RP_UPGRADE,
-	RP_VARY,
-	RP_VIA,
-	RP_WARNING,
-	RP_WWW_AUTHENTICATE,
-	RP_X_FRAME_OPTIONS,
-	RP_ENUM_LEN,
-} HTTPHeaderResponseOption;
 
 /*
  * I use two representation of an http message for 2 reasons,
@@ -144,41 +21,89 @@ typedef struct {
 	StringRef                   header_options[RQ_ENUM_LEN]; // an 'hash map' where to store the decoded header options
 	StringRef                   url;                         // the resource asked from the client
 	StringRef                   body;                        // the content of the message, what the message is about. It might contain decoding artefacts since url decoding happends in place
-	HTTP_Method                 method;                      // the appropriate http method, GET, POST, PATCH
-	HTTP_Version                version;                     // the version of the http header (1.0, 1.1, 2.0, ...)
+	HTTPMethod                  method;                      // the appropriate http method, GET, POST, PATCH
+	HTTPVersion                 version;                     // the version of the http header (1.0, 1.1, 2.0, ...)
 } InboundHttpMessage;
 
 typedef struct {
-	MiniMap_u_char_StringOwn header_options; // represent the header as the collection of the single options -> value
-	size_t                   header_len;     // how many bytes are there in the header
-	StringOwn                body;           // the content of the message, what the message is about
-	uint16_t                 status_code;    // 200, 404, 500, etc etc
-	HTTP_Version             version;        // the version of the http header (1.0, 1.1, 2.0, ...)
+	MiniMap_HTTPResponseOption_StringOwn header_options; // represent the header as the collection of the single options -> value
+	size_t                               header_len;     // how many bytes are there in the header
+	StringOwn                            body;           // the content of the message, what the message is about
+	uint16_t                             status_code;    // 200, 404, 500, etc etc
+	HTTPVersion                          version;        // the version of the http header (1.0, 1.1, 2.0, ...)
 } OutboundHttpMessage;
 
 typedef ErrCode (*MessageProcessor)(const InboundHttpMessage *in_message, OutboundHttpMessage *out_message);
 
 typedef ErrCode (*OptionsProcessor)(StringRef a, StringRef b, InboundHttpMessage *ctx);
 
-ERRFUNC parse_InboundMessage(const char *str, InboundHttpMessage *mex);
+/**
+ * Reads the given HTTP message `str` ands construct `mex` with the data found
+ *
+ * @param[in] `str` the null terminated string containing the entire message,
+ *     the inbound mmessage will take ownership of this and free it in `destroy_InboundHttpMessage`.
+ *     if an error occur that prevents the structure to be constructed it should be freed by the caller
+ * @param[out] `mex` the InboundHttpMessage to construct
+ *
+ * @return an error code describing if and which error occurred
+ *
+ * - `PARSING_HEADER__MALFORMED_REQUEST`: The request is missing the \r\n\r\n separator.
+ *   The InboundHttpMessage structure was not constructed and should not be used nor destroyed
+ * - `FAILED_ALLOCATION`: the internal parameter map could not be allocated.
+ *     The InboundHttpMessage structure was not constructed and should not be used nor destroyed
+ * - `PARSING_HEADER__FAILED`: the request header could not be properly parsed.
+ *     The InboundHttpMessage structure was partly constructed and should not be used but *should* be destroyed
+ * - `PARSING_BODY__FAILED`: the request body could not be properly parsed.
+ *     The InboundHttpMessage structure was partly constructed and should not be used but *should* be destroyed
+ */
+ERRFUNC create_InboundMessage(char *str, InboundHttpMessage *mex);
 
+/**
+ * Frees all the associated resources and zeroes all the fields
+ *
+ * @param[in] `mex` the InboundHTTPMessage to destroy, this will also free the string passed to `create_InboundMessage` if it ended successfully
+ *
+ * @return an error code describing if and which error occurred
+ */
 ERRFUNC destroy_InboundHttpMessage(InboundHttpMessage *mex);
 
+/**
+ * Frees all the associated resources and zeroes all field.
+ *
+ * @param[in] `mex` the OutboundHTTPMessage to destroy
+ *
+ * @return an error code describing if and which error occurred
+ */
 ERRFUNC destroy_OutboundHttpMessage(OutboundHttpMessage *mex);
 
 /**
- * deconstruct the raw header in a map with key (option) -> value
+ * Deconstruct the raw header in a map with key (option) -> value
  * and fetch some Metadata such as verb, version, url, a parameters
- * @param rawHeader the StringRef containing the header as a char* string
- * @param msg the httpMessage to store the information extracted
+ *
+ * @param[in] `raw_header` the StringRef containing the header as a char* string
+ * @param[out] `msg` the httpMessage where to store the information extracted
+ *
+ * @return an error code describing if and which error occurred
+ *
+ * - PARSING_HEADER__MALFORMED_REQUEST_LINE: the request line does not follow the standard. Nothing was parsed nor stored
+ * - `FAILED_ALLOCATION`:
+ *     The query parameters are partly parsed, but the url and the body are still not validated.
+ * - `PARSING_HEADER__MALFORMED_PERCENT_ENCODING`: the were wrong percent encodings in the header options and we refuse to continue.
+ *     The query parameters are partly parsed, but the url and the body are still not validated.
+ * - `PARSING_HEADER__INVALID_URL`: the url is either blank or does not follow the specifications.
+ *     All the query parameters have been parsed, but the url and body are still not validated.
  */
 ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg);
 
 /**
  * Analyzes the incoming request for form data / other parameters and puts the result in the given message
  *
- * @param cType content Type (e.g. multipart form-data, plain text, url encoded)
- * @param msg the message to analyze
+ * @param[in] `msg` the message to analyze
+ *
+ * @return an error code describing if and which error occurred
+ *
+ * - `FAILED_ALLOCATION`: could not store the parameter in the internal structure. Parsing halted midway, the values stored are correct but some options might be missing
+ * - `PARSING_HEADER__MALFORMED_PERCENT_ENCODING`: invaild percent encoding found. Parsing halted midway, the values stored are correct but some options might be missing
  */
 ERRFUNC decompose_message(InboundHttpMessage *msg);
 
@@ -186,34 +111,41 @@ ERRFUNC decompose_message(InboundHttpMessage *msg);
  * Unite the header and the body in a single message and returns it
  * the compiled message does not have a null terminator and must be freed
  *
- * @param msg the message containing the header options and, eventually, the body
- * @return the 'compiled' message
+ * @param[in] `msg` the message containing the header options and, eventually, the body
+ * @param[out] `res` where to place the composed message. If an error occurred this value should be discard and there is no need to free it
+ *
+ * @return an error code describing if and which error occurred
+ *
+ * - `FAILED_ALLOCATION`: could not allocate the buffer for the entire response. No data was written
  */
 ERRFUNC compose_message(const OutboundHttpMessage *msg, StringOwn *res);
 
 /**
  * Given a String representing the request method (GET, POST, PATCH, ...) returns the relative code
  *
- * @param requestMethod the StringRef containing the method requested
- * @return the code representing the relative method
+ * @param[in] `request_method` the StringView of the method requested
+ *
+ * @return the code representing the relative method, HTTP_INVALID_METHOD if the given StringView represents an unknown http method
  */
-HTTP_Method get_method_code(const StringView *request_method);
+HTTPMethod get_method_code(const StringView *request_method);
 
 /**
  * Given a string representing the request http version (0., 1.0, 1.1) returns the relative code
  *
- * @param httpVersion the StringRef containing the httpVersion
- * @return the code representing the relative version
+ * @param[in] `http_version` the StringView of the http version
+ *
+ * @return the code representing the given version, HTTP_VER_UNKN if the given StringView represents an unknown http version
  */
-HTTP_Version get_version_code(const StringView *http_version);
+HTTPVersion get_version_code(const StringView *http_version);
 
 /**
  * Given a string representing an header options (Content-type, Content-length, ...)
  *
- * @param version the StringRef containing the option
- * @return the code representing the relative option
+ * @param[in] `option` the StringView of the option
+ *
+ * @return the code representing the given option, RQ_ENUM_LEN if the given StringView represent an unknown request header
  */
-u_char get_header_options_code(const StringView *option);
+HTTPRequestOption get_header_options_code(const StringView *option);
 
 /**
  * Given an a string in the shape ...is...CS...is...CS...is...
@@ -222,24 +154,32 @@ u_char get_header_options_code(const StringView *option);
  * The reason this function makes use of a function pointer + 2 separators is because the code needed to parse header options and some
  * form parameters is the same except these parameters
  *
- * @param str a StringRef pointing to the start of the string to analyze
- * @param fun a function that given key, value and the httpMessage inserts them in the correct map
- * @param chunkSep a string that delimits the separation of chunks (e.g. a single header option, a form value)
- * @param itemSep a char to separate the chunk in key and value (e.g. ':', '=')
+ * @param[in] `str` a StringRef of the string to analyze
+ * @param[in] `fun` a function that given key, value and context process them correctly
+ * @param[in] `chunk_sep` a string that delimits the separation of chunks (e.g. a single header option, a form value)
+ * @param[in] `item_sep` a char to separate the chunk in key and value (e.g. ':', '=')
+ * @param[in] `ctx` the context to pass to the `OptionsProcessor`
  *
- * @return NO_ERR (0) if no error was found
+ * @return an error code describing if and which error occurred
+ *
+ * - `PARSING__NULL_CHUNK_SEPARATOR`: the `chunk_sep` passed is either nullptr or "". No parsing done
+ * - The error code received from the `fun` OptionsProcessor if different than `NO_OP` and `NO_ERROR`: Parsing is underway.
+ *     Stored values are correct but some options might be missing.
  */
 ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, const char *chunk_seperator, const char item_separator, InboundHttpMessage *ctx);
 
 // void      parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters);
 
 /**
- * Given the header option code and the relative values copies i  in the residente nel
- * dell'utente inizializza
- * of bytes stored
+ * Given the header option code and the relative value adds them to the OutboundHttpMessage header options and calculates how much space they take for later
+ * ONE SHOULD NOT ADD OPTIONS DIRECTLY TO THE UNDERLYING MAP AND AVOID THIS FUNCTION, AS IT SETS UP DATA NECESSARY FOR A CORRECT MESSAGE COMPOSITION LATER
  *
- * @param option the header option code
- * @param value the string value to assign to the option
- * @param msg the httpMessage that contains the header options map
+ * @param[in] `option` the header option code
+ * @param[in] `value` the string value to assign to the option, this structure will not be stored, a copy will e created and that will be used
+ * @param[in] `msg` the OutboundHttpMessage where to add the header option
+ *
+ * @return an error code describing if and which error occurred
+ *
+ * - `FAILED_ALLOCATION`: could not copy the given value to a new buffer. No data was added
  */
-ERRFUNC add_header_option(const HTTPHeaderResponseOption option, const StringRef *value, OutboundHttpMessage *msg);
+ERRFUNC add_header_option(const HTTPResponseOption option, const StringView *value, OutboundHttpMessage *msg);

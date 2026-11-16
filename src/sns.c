@@ -16,75 +16,10 @@
 #	define SNS_THREAD_RETURN return nullptr;
 #endif
 
-// only for logging purposes
-const char *method_str[] = {
-    "INVALID",
-    "GET",
-    "HEAD",
-    "POST",
-    "PUT",
-    "DELETE",
-    "OPTIONS",
-    "CONNECT",
-    "TRACE",
-    "PATCH",
-};
-
 static struct sigaction old_sigaction = {};
 
 void SIGPIPE_handler(int os) {
 	llog(LOG_INFO, "[SIGPIPE] Received a sigpipe. (%d) Probably just a client disconnect\n", os);
-}
-
-ERRFUNC register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server) {
-	return MiniMap_StringRef_MessageProcessor_set(&server->mapped_functions, route_name, fun);
-}
-
-void accept_requests(SNSServer *server) {
-	Socket client = INVALID_SOCKET;
-
-	struct pollfd ss = {
-	    .fd      = server->info.server_socket,
-	    .events  = POLLIN,
-	    .revents = 0,
-	};
-
-	// Receive until the peer shuts down the connection
-	while (!server->info.thread_pool.stop) {
-
-		// infinetly wait for the socket to become usable
-		poll(&ss, 1, -1);
-
-		client = TCP_accept_client(server->info.server_socket);
-
-		if (client == -1) {
-			// no client tried to connect
-			continue;
-		}
-
-		auto ssl_connection = SSL_create_connection(server->info.ssl_context, client);
-
-		if (ssl_connection == nullptr) {
-			TCP_shutdown_socket(client);
-			continue;
-		}
-
-		auto err = SSL_accept_client(ssl_connection);
-
-		if (err == -1) {
-			continue;
-		}
-
-		llog(LOG_DEBUG, "[SERVER] Launched request resolver for socket %d\n", client);
-
-		ResolverData t_data = {ssl_connection, client, &server->mapped_functions};
-
-#ifdef NO_THREADING
-		proxy_res_req(t_data);
-#else
-		enqueue_threadpool(&server->info.thread_pool, &t_data);
-#endif
-	}
 }
 
 MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_MessageProcessor *mapped_function) {
@@ -107,7 +42,7 @@ MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_Mes
 		// take a key value pair
 		StringRef kk;
 		auto      err = MiniMap_StringRef_MessageProcessor_get_by_index(mapped_function, i, &kk, &vv);
-		if (err) {
+		if (err > NO_OP) {
 			continue;
 		}
 
@@ -155,16 +90,17 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 	if (bytes_received > 0) {
 
 		InboundHttpMessage inbound_mex;
-		auto               err = parse_InboundMessage(request, &inbound_mex);
+		auto               err = create_InboundMessage(request, &inbound_mex);
 		free(request);
 
 		if (err != NO_ERROR) {
 			llog(LOG_ERROR, "[SERVER] Discarding invalid request from client %d\n", client_socket);
 		} else {
-			llog(LOG_INFO, "[SERVER] Received request <%s> \n", method_str[inbound_mex.method]);
+			const StringView met = methods_str[inbound_mex.method];
+			llog(LOG_INFO, "[SERVER] Received request <%.*s> \n", CLAMP_TO_POSITIVE_INT(met.len), met.str);
 
 			OutboundHttpMessage outbound_mex = {};
-			err                              = MiniMap_u_char_StringOwn_make(16, compare_u_char, &outbound_mex.header_options);
+			err                              = MiniMap_HTTPResponseOption_StringOwn_make(16, compare_HTTPResponseOption, &outbound_mex.header_options);
 			outbound_mex.version             = HTTP_VER_10;
 
 			StringRef        url       = {inbound_mex.url.str, inbound_mex.url.len};
@@ -175,7 +111,6 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 				// make the message a single formatted string
 				StringOwn res = {};
 				err           = compose_message(&outbound_mex, &res);
-				LLOG_ERR(err);
 				llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%.*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
 
 				// ---------------------------------------------------------------------- SEND
@@ -194,26 +129,18 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 	SSL_destroy_connection(ssl_connection);
 }
 
-// Yes, these two could be conbines into a single #ifdef but this is clearer
-
-SNS_NO_RETURN void *proxy_acc_req(void *ptr) {
-	accept_requests((SNSServer *)(ptr));
-	SNS_THREAD_RETURN;
-}
-
 SNS_NO_RETURN void *proxy_res_req(void *ptr) {
 	ThreadPool *pool = (ThreadPool *)(ptr);
 
 	while (!pool->stop) {
 		ResolverData data = {};
 		auto         err  = dequeue_threadpool(pool, &data);
-		if (err) {
-			LLOG_ERR(err);
-			SNS_THREAD_RETURN;
+		if (err == NO_OP) {
+			continue;
 		}
 
 		if (data.ssl == nullptr) {
-			llog(LOG_DEBUG, "[THREAD] DEQUEUE returned nullptr. Probably the threadpool is commiting fake data to kill all threads\n");
+			llog(LOG_DEBUG, "[THREAD] DEQUEUE returned null data. Probably the threadpool is commiting fake data to kill all threads\n");
 			continue;
 		}
 
@@ -223,6 +150,77 @@ SNS_NO_RETURN void *proxy_res_req(void *ptr) {
 	SNS_THREAD_RETURN;
 }
 
+/**
+ * Listens on the socket for TLS connections
+ * if manages to establish one pushes a new job in the thread pool with the details
+ */
+void accept_requests(SNSServer *server) {
+	Socket client = INVALID_SOCKET;
+
+	struct pollfd ss = {
+	    .fd      = server->info.server_socket,
+	    .events  = POLLIN,
+	    .revents = 0,
+	};
+
+	// Receive until the peer shuts down the connection
+	while (!server->info.thread_pool.stop) {
+
+		// infinetly wait for the socket to become usable
+		poll(&ss, 1, -1);
+
+		client = TCP_accept_client(server->info.server_socket);
+
+		if (client == -1) {
+			// no client tried to connect
+			continue;
+		}
+
+		auto ssl_connection = SSL_create_connection(server->info.ssl_context, client);
+
+		if (ssl_connection == nullptr) {
+			TCP_close_socket(client);
+			TCP_shutdown_socket(client);
+			continue;
+		}
+
+		auto err = SSL_accept_client(ssl_connection);
+
+		if (err == -1) {
+			TCP_close_socket(client);
+			TCP_shutdown_socket(client);
+			SSL_destroy_connection(ssl_connection);
+			continue;
+		}
+
+		llog(LOG_DEBUG, "[SERVER] Queued new request for socket %d\n", client);
+
+		ResolverData t_data = {ssl_connection, client, &server->mapped_functions};
+
+#ifdef NO_THREADING
+		proxy_res_req((void *)&t_data);
+#else
+		auto res = enqueue_threadpool(&server->info.thread_pool, &t_data);
+		if (res > NO_OP) {
+			return;
+		}
+#endif
+	}
+}
+
+SNS_NO_RETURN void *proxy_acc_req(void *ptr) {
+	accept_requests((SNSServer *)(ptr));
+	SNS_THREAD_RETURN;
+}
+
+/**
+ * Sets up the TCP server and the threadpool
+ *
+ * @param[in] `server` the sns server to set up
+ *
+ * - `THREADPOOL__FAILED_INIT`. The threadpool initialization failed
+ *     Nothing was constructed and nothing needs to be destroyed
+ */
 ERRFUNC setup(SNSServer *server) {
 
 	errno = 0;
@@ -246,6 +244,7 @@ ERRFUNC setup(SNSServer *server) {
 
 	// initializing the ssl connection data
 	SSL_initialize();
+	// TODO: take this cli or config file
 	server->info.ssl_context = SSL_create_context("/usr/local/bin/server.crt", "/usr/local/bin/key.pem");
 
 	if (server->info.ssl_context == nullptr) {
@@ -257,9 +256,16 @@ ERRFUNC setup(SNSServer *server) {
 
 	// finally creating the threadPool
 	auto err = initialize_threadpool(20, proxy_res_req, &server->info.thread_pool);
-	RET_IF_ERR(err)
+	if (err > NO_OP) {
+		TCP_terminate(server->info.server_socket);
+		SSL_destroy_context(server->info.ssl_context);
+		SSL_terminate();
+		sigaction(SIGPIPE, &old_sigaction, NULL);
 
-	llog(LOG_INFO, "[THREAD POOL] Started the listenings threads\n");
+		llog(LOG_INFO, "[SERVER] Stopping server due to thread pool issues\n");
+
+		return THREADPOOL__FAILED_INIT;
+	}
 
 	return NO_ERROR;
 }
@@ -277,7 +283,7 @@ ERRFUNC SNSstart(SNSServer *server) {
 	pthread_create(&server->info.request_acceptor, NULL, proxy_acc_req, server);
 #endif
 
-	llog(LOG_DEBUG, "[SERVER] Request acceptor thread Started\n");
+	llog(LOG_DEBUG, "[SERVER] Request acceptor thread started\n");
 
 	server->info.start_time = time(nullptr);
 
@@ -295,9 +301,8 @@ ERRFUNC SNSstop(SNSServer *server) {
 	TCP_terminate(server->info.server_socket);
 
 	// tpool stop
-	server->info.thread_pool.stop = true;
 	auto err                      = destroy_threadpool(&server->info.thread_pool);
-	RET_IF_ERR(err)
+	RET_IF_ERR(err) // Does not return an error (yet)
 	llog(LOG_INFO, "[SERVER] Sent stop signal to all threads\n");
 
 	// thread stop
@@ -313,4 +318,9 @@ ERRFUNC SNSstop(SNSServer *server) {
 	llog(LOG_INFO, "[SERVER] Server stopped\n");
 
 	return NO_ERROR;
+}
+
+ERRFUNC register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server) {
+	// TODO: still very broken
+	return MiniMap_StringRef_MessageProcessor_set(&server->mapped_functions, route_name, fun);
 }

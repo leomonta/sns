@@ -24,6 +24,8 @@ typedef struct {
  * @param[out] `vec` where to place the constructed MiniVector 
  *
  * @return an error code describing if and which error occurred
+ *
+ * - `FAILED_ALLOCATION`: the MiniVector could not be allocated. the structure was not constructed and should not be used nor destroyed
  */
 ERRFUNC MiniVector_MessageProcessor_make(const size_t initial_count, MiniVector *vec);
 
@@ -42,6 +44,8 @@ ERRFUNC MiniVector_MessageProcessor_destroy(MiniVector *vec);
  * @param[in] `vec` the MiniVector to grow
  * 
  * @return an error code describing if and which error occurred
+ *
+ * - `FAILED_ALLOCATION`: the vector was not grown but it retains the old state
  */
 ERRFUNC MiniVector_MessageProcessor_grow(MiniVector *vec);
 
@@ -51,9 +55,11 @@ ERRFUNC MiniVector_MessageProcessor_grow(MiniVector *vec);
  * @param[in] `vec` the MiniVector to get the element from
  * @param[in] `index` the position the element should be
  * @param[out] `result` where to place the value at the given position, 
- * if NO_OP ot another error is returned this values should be ignored as there was no data to communicate back
+ * if `NO_OP` ot another error is returned this values should be ignored as there was no data to communicate back
  *
  * @return an error code describing if and which error occurred
+ *
+ * - `INVALID_ARGUMENT`: the index given exceeds the amount of elements available in the structure. No data was communicated back
  */
 ERRFUNC MiniVector_MessageProcessor_get(const MiniVector *vec, const size_t index, MessageProcessor *result);
 
@@ -65,6 +71,8 @@ ERRFUNC MiniVector_MessageProcessor_get(const MiniVector *vec, const size_t inde
  * @param[in] `element` the element that will replace the one already at that position. Must not be nullptr
  *
  * @return an error code describing if and which error occurred
+ * 
+ * - `INVALID_ARGUMENT`: the index given exceeds the amount of elements available in the structure or the given element is `nullptr`. No data is set
  */
 ERRFUNC MiniVector_MessageProcessor_set(MiniVector *vec, const size_t index, const MessageProcessor *element);
 
@@ -76,17 +84,25 @@ ERRFUNC MiniVector_MessageProcessor_set(MiniVector *vec, const size_t index, con
  * @param[in] `element` a pointer to the data to be appended
  *
  * @return an error code describing if and which error occurred
+ *
+ * - `FAILED_ALLOCATION`: the vector had to grown but it wasn't possible. No data was added
+ * - `INVALID_ARGUMENT`: the given element is `nullptr`. No data was added
  */
 ERRFUNC MiniVector_MessageProcessor_append(MiniVector *vec, const MessageProcessor *element);
 
 /**
  * Insert the given value at the given index, shifting (and eventaully growing) the rest of the vector
  *
+ * If index == count the item will be appended at the end
+ *
  * @param[in] `vec` the MiniVector to work on
  * @param[in] `index` where to insert the given value
  * @param[in] `element` the element to insert
  *
  * @return an error code describing if and which error occurred
+ *
+ * - `FAILED_ALLOCATION`: the vector had to grown but it wasn't possible. No data was added
+ * - `INVALID_ARGUMENT`: the index given exceeds the amount of elements available in the structure or the given element is `nullptr`. No data was added
  */
 ERRFUNC MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, const MessageProcessor *element);
 
@@ -97,6 +113,8 @@ ERRFUNC MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, 
  * @param[in] `index` the index of the element to be removed, if it is out of bounds no operation is performed
  *
  * @return an error code describing if and which error occurred
+ *
+ * - `INVALID_ARGUMENT`: the index given exceeds the amount of elements available in the structure. No data was removed
  */
 ERRFUNC MiniVector_MessageProcessor_remove(MiniVector *vec, const size_t index);
 

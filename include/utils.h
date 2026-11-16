@@ -1,6 +1,7 @@
 #pragma once
 
 #include "StringRef.h"
+#include "constants.h"
 #include "errcode.h"
 
 #include <limits.h>
@@ -24,9 +25,13 @@ StringRef getUTC();
  * Since the decoded url is always smaller than the encoded one this algo can be used in-place by providing the same stringRef / stringView
  * for both src and dst
  *
- * @param[in] `dst` where to put the decoded strin
+ * @param[in] `dst` where to put the decoded strin. If an error occurred the value written here should be discarded
  * @param[in] `src` the string to decode
  * @param[in] `do_plus` whether to replace `+` with ` `
+ *
+ * @return an error code describing if and which error occurred
+ *
+ * - `PARSING_HEADER__MALFORMED_PERCENT_ENCODING`: an incorrect percent encoding was found. The decocing stops mid editign and the value in dst should be discarded
  */
 ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus);
 
@@ -114,25 +119,6 @@ StringRef trim(StringRef *strRef);
 bool strrefblank(const StringRef *strRef);
 
 /**
- * given a sringref mallocs a copy of the string and returns it
- *
- * @param[in] `str` the string to copy
- *
- * @return the mallocated string
- */
-char *copy_StringOwn(const StringOwn *str);
-
-/**
- * given a string and its size mallocs a copy of the string and returns it
- *
- * @param[in] `str` the string to copy
- * @param[in] `size` the size of the string
- *
- * @return the mallocated string
- */
-char *copy_StringRef(const StringRef *str);
-
-/**
  * Return the string representation of the given number
  *
  * @param[in] `number` the numbero to convert to string
@@ -148,6 +134,6 @@ StringRef num_to_string(size_t number);
  *
  * @return true if they are identical, false otherwise
  */
-bool compare_u_char(const unsigned char *lhs, const unsigned char *rhs);
+bool compare_HTTPResponseOption(const HTTPResponseOption *lhs, const HTTPResponseOption *rhs);
 
 StringView get_reason_phrase(unsigned short statusCode);

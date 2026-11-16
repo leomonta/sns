@@ -38,10 +38,12 @@ ERRFUNC MiniVector_StringOwn_destroy(MiniVector *vec) {
 	return NO_ERROR;
 }
 
+// This fails atomically, If the allocation fails the old pointer is still valid, so this becomes essentially a NO_OP
 ERRFUNC MiniVector_StringOwn_grow(MiniVector *vec) {
 
-	vec->data = realloc(vec->data, vec->capacity * GROW_RATE);
-	TEST_ALLOC(vec->data);
+	auto new_ptr = realloc(vec->data, vec->capacity * GROW_RATE);
+	TEST_ALLOC(new_ptr);
+	vec->data = new_ptr,
 	vec->capacity *= GROW_RATE;
 	// for why 2 and not 1.6 or 1.5
 	// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
@@ -64,8 +66,13 @@ ERRFUNC MiniVector_StringOwn_get(const MiniVector *vec, const size_t index, Stri
 
 ERRFUNC MiniVector_StringOwn_set(MiniVector *vec, const size_t index, const StringOwn *element) {
 
-	if (index >= vec->count || element == nullptr) {
-		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element or an unreachable position\n");
+	if (element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
+	}
+
+	if (index >= vec->count) {
+		llog(LOG_WARNING, "[MINIVECTOR] %ld >= %ld Unreachable position\n", index, vec->count);
 		return INVALID_ARGUMENT;
 	}
 	vec->data[index] = *element;
@@ -74,12 +81,18 @@ ERRFUNC MiniVector_StringOwn_set(MiniVector *vec, const size_t index, const Stri
 }
 
 ERRFUNC MiniVector_StringOwn_append(MiniVector *vec, const StringOwn *element) {
-	if (vec->count == vec->capacity / sizeof(StringOwn)) {
-		auto err = MiniVector_StringOwn_grow(vec);
-		RET_IF_ERR(err)
+
+	if (element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
 	}
 
-	memcpy(vec->data + vec->count, element, sizeof(StringOwn));
+	if (vec->count == vec->capacity / sizeof(StringOwn)) {
+		auto err = MiniVector_StringOwn_grow(vec);
+		RET_IF_ERR(err) // Nothing was grown, nothing to do
+	}
+
+	vec->data[vec->count] = *element;
 
 	++(vec->count);
 
@@ -87,14 +100,19 @@ ERRFUNC MiniVector_StringOwn_append(MiniVector *vec, const StringOwn *element) {
 }
 
 ERRFUNC MiniVector_StringOwn_insert(MiniVector *vec, const size_t index, const StringOwn *element) {
+
+	if (element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
+	}
+
 	if (index > vec->count) {
 		llog(LOG_WARNING, "[MINIVECTOR] %ld > %ld Unreachable position\n", index, vec->count);
 		return INVALID_ARGUMENT;
 	}
 
 	if (index == vec->count) {
-		auto err = MiniVector_StringOwn_append(vec, element);
-		RET_IF_ERR(err)
+		return MiniVector_StringOwn_append(vec, element);
 	}
 
 	if (vec->count == vec->capacity / sizeof(StringOwn)) {
@@ -106,7 +124,7 @@ ERRFUNC MiniVector_StringOwn_insert(MiniVector *vec, const size_t index, const S
 		// So the decision lies on the distribution of good realloc vs bad realloc
 		// but I don't have the data to know this. So I'll just go with grow (realloc)
 		auto err = MiniVector_StringOwn_grow(vec);
-		RET_IF_ERR(err)
+		RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
 	// god bless memmove
@@ -116,7 +134,7 @@ ERRFUNC MiniVector_StringOwn_insert(MiniVector *vec, const size_t index, const S
 
 	// finally write the data
 	auto err = MiniVector_StringOwn_set(vec, index, element);
-	RET_IF_ERR(err)
+	RET_IF_ERR(err) // this should not give any error as I already validate the parameters in the same way that 
 
 	return NO_ERROR;
 }

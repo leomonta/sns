@@ -25,6 +25,8 @@ typedef struct {
  * @param[out] `rngb` where to place the constructed ring buffer
  *
  * @return an error code describing if and which error occurred
+ * - `FAILED_ALLOCATION`: Could not allocate memory for the structure.
+ *     The structure was not constructed and should not be used nor destroyed
  */
 ERRFUNC RingBuffer_#T#_make(const size_t initial_count, RingBuffer *rngb);
 
@@ -43,6 +45,7 @@ ERRFUNC RingBuffer_#T#_destroy(RingBuffer *rngb);
  * @param[in] `rngb` the RingBuffer to grow
  *
  * @return an error code describing if and which error occurred
+ * - `FAILED_ALLOCATION`: Could not allocate more memory to grow the structure.
  */
 ERRFUNC RingBuffer_#T#_grow(RingBuffer *rngb);
 
@@ -51,7 +54,7 @@ ERRFUNC RingBuffer_#T#_grow(RingBuffer *rngb);
  *
  * @param[in] `rngb` the RingBuffer to get the element from
  * @param[out] `result` where to place the retrieved data.
- * if NO_OP or another error is returned this values should be ignored as there was no data to communicate back
+ * if `NO_OP` or another error is returned this values should be ignored as there was no data to communicate back
  *
  * @return an error code describing if and which error occurred
  */
@@ -65,6 +68,10 @@ ERRFUNC RingBuffer_#T#_retrieve(RingBuffer *rngb, T *result);
  * @param[in] `element` a pointer to the data to be appended
  *
  * @return an error code describing if and which error occurred
+ * - `FAILED_ALLOCATION`: Could not allocate more memory to store the given element.
+ *     The value was not stored.
+ * - `INVALID_ARGUMENT`: element was `nullptr`.
+ *     The value was not stored.
  */
 ERRFUNC RingBuffer_#T#_append(RingBuffer *rngb, const T *element);
 
@@ -73,7 +80,7 @@ ERRFUNC RingBuffer_#T#_append(RingBuffer *rngb, const T *element);
  *
  * @param[in] `rngb` the RingBuffer to get the element from
  * @param[out] `result` where to place the retrieved data.
- * if NO_OP or another error returned this values should be ignored as there was no data to communicate back
+ * if `NO_OP` or another error returned this values should be ignored as there was no data to communicate back
  *
  * @return an error code describing if and which error occurred
  */

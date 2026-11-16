@@ -40,9 +40,10 @@ ERRFUNC RingBuffer_ResolverData_destroy(RingBuffer *rngb) {
 
 ERRFUNC RingBuffer_ResolverData_grow(RingBuffer *rngb) {
 
-	rngb->data = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(ResolverData));
+	auto ptr   = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(ResolverData));
+	TEST_ALLOC(ptr)
+	rngb->data = ptr;
 	rngb->count *= GROW_RATE;
-	TEST_ALLOC(rngb->data)
 	// for why 2 and not 1.6 or 1.5
 	// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 and others
@@ -81,8 +82,8 @@ ERRFUNC RingBuffer_ResolverData_retrieve(RingBuffer *rngb, ResolverData *result)
 		return NO_OP;
 	}
 
-	memcpy(result, rngb->data + rngb->index, sizeof(ResolverData));
-	memset(rngb->data + rngb->index, 0, sizeof(ResolverData));
+	*result = rngb->data[rngb->index];
+	rngb->data[rngb->index] = (ResolverData){};
 
 	++rngb->index;
 	rngb->index = rngb->index % rngb->count;
@@ -93,6 +94,12 @@ ERRFUNC RingBuffer_ResolverData_retrieve(RingBuffer *rngb, ResolverData *result)
 
 
 ERRFUNC RingBuffer_ResolverData_append(RingBuffer *rngb, const ResolverData *element) {
+
+	if (element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
+	}
+
 	if (rngb->stored == rngb->count) {
 		auto res = RingBuffer_ResolverData_grow(rngb);
 		RET_IF_ERR(res)
@@ -100,7 +107,7 @@ ERRFUNC RingBuffer_ResolverData_append(RingBuffer *rngb, const ResolverData *ele
 
 	auto write_index = (rngb->index + rngb->stored) % rngb->count;
 
-	memcpy(rngb->data + write_index, element, sizeof(ResolverData));
+	rngb->data[write_index] = *element;
 
 	++rngb->stored;
 
@@ -114,7 +121,7 @@ ERRFUNC RingBuffer_ResolverData_peek(const RingBuffer *rngb, ResolverData *resul
 		return NO_OP;
 	}
 
-	memcpy(result, rngb->data + rngb->index, sizeof(ResolverData));
+	*result = rngb->data[rngb->index];
 
 	return NO_ERROR;
 }

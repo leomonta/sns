@@ -22,24 +22,25 @@ struct ThreadPool {
 
 ERRFUNC initialize_threadpool(const size_t thread_count, GenericFunction fun, ThreadPool *thread_pool) {
 
-	// init linked list
-	auto err = RingBuffer_ResolverData_make(thread_count, &thread_pool->ring_buffer);
-	RET_IF_ERR(err)
 	thread_pool->thread_count = 0;
 	thread_pool->stop         = false;
 
 	// the semaphore is the one responsible for preventing race conditions
-	auto errCode = sem_init(&thread_pool->sempahore, 0, 0);
-	if (errCode != 0) {
+	auto pthread_err = sem_init(&thread_pool->sempahore, 0, 0);
+	if (pthread_err != 0) {
 		llog(LOG_ERROR, "[THREAD POOL] Could not initilize semphore -> %s\n", strerror(errno));
 		return THREADPOOL__FAILED_SEMAPHORE_INIT;
 	}
 
 	// Linux `man pthread_mutex_init` tells me this always returns 0
 	// better safe than sorry?
-	errCode = pthread_mutex_init(&thread_pool->mutex, NULL);
+	pthread_err = pthread_mutex_init(&thread_pool->mutex, NULL);
 
-	switch (errCode) {
+	if (pthread_err != 0) {
+		sem_destroy(&thread_pool->sempahore);
+	}
+
+	switch (pthread_err) {
 	case EAGAIN:
 		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, not enough resources\n");
 		return THREADPOOL__FAILED_MUTEX_INIT;
@@ -52,17 +53,46 @@ ERRFUNC initialize_threadpool(const size_t thread_count, GenericFunction fun, Th
 	case EINVAL:
 		llog(LOG_ERROR, "[THREAD POOL] Could not initializer mutex, invalid settings in attr\n");
 		return THREADPOOL__FAILED_MUTEX_INIT;
-	case 0:
 	default:
+		llog(LOG_ERROR, "[THREAD POOL] Uknown error (%d)\n", pthread_err);
+		return THREADPOOL__FAILED_MUTEX_INIT;
+	case 0:
 		break;
 	}
 
 	thread_pool->threads = malloc(thread_count * sizeof(pthread_t));
-	TEST_ALLOC(thread_pool->threads)
+	if (thread_pool->threads == NULL) {
+		sem_destroy(&thread_pool->sempahore);
+		pthread_mutex_destroy(&thread_pool->mutex);
+
+		llog(LOG_FATAL, "[ALLOCATION] Allocation returned NULL: %d, %s\n", errno, strerror(errno));
+		return FAILED_ALLOCATION;
+	}
+
+	auto err = RingBuffer_ResolverData_make(thread_count, &thread_pool->ring_buffer);
+	if (err > NO_OP) {
+		free(thread_pool->threads);
+		sem_destroy(&thread_pool->sempahore);
+		pthread_mutex_destroy(&thread_pool->mutex);
+		return err;
+	}
 
 	for (size_t i = 0; i < thread_count; ++i) {
-		errCode = pthread_create(&thread_pool->threads[thread_pool->thread_count], NULL, fun, (void *)(thread_pool));
-		switch (errCode) {
+		pthread_err = pthread_create(&thread_pool->threads[thread_pool->thread_count], NULL, fun, (void *)(thread_pool));
+		if (pthread_err != 0) {
+			for (size_t j = 0; j < thread_pool->thread_count; ++j) {
+				pthread_cancel(thread_pool->threads[j]);
+			}
+
+			free(thread_pool->threads);
+			sem_destroy(&thread_pool->sempahore);
+			pthread_mutex_destroy(&thread_pool->mutex);
+			err = RingBuffer_ResolverData_destroy(&thread_pool->ring_buffer);
+			if (err > NO_OP) {
+				llog(LOG_ERROR, "[THREAD POOL] Error occured while destroying thread pool internal ring buffer\n");
+			}
+		}
+		switch (pthread_err) {
 		case EINVAL:
 			// since I don't use attr for the pthread this should never happen
 			llog(LOG_ERROR, "[THREAD POOL] Could not initialize thread, invalid settings in attr\n");
@@ -74,13 +104,13 @@ ERRFUNC initialize_threadpool(const size_t thread_count, GenericFunction fun, Th
 		case EAGAIN:
 			llog(LOG_ERROR, "[THREAD POOL] Could not initialize thread, not enough resources\n");
 			return THREADPOOL__FAILED_THREAD_CREATION;
-
-		default:
 		case 0:
 			thread_pool->thread_count++;
 			break;
 		}
 	}
+
+	llog(LOG_INFO, "[THREAD POOL] Started the listenings threads\n");
 
 	return NO_ERROR;
 }
@@ -102,15 +132,15 @@ ERRFUNC destroy_threadpool(ThreadPool *thread_pool) {
 		pthread_join(thread_pool->threads[i], NULL);
 	}
 
-	// free the arrat used to store the thread ids
+	// free the array used to store the thread ids
 	free(thread_pool->threads);
 
 	// freeing the leftover data (if any)
 	auto err = RingBuffer_ResolverData_destroy(&thread_pool->ring_buffer);
-	RET_IF_ERR(err)
+	RET_IF_ERR(err) // Does not return an error (yet)
 
 	pthread_mutex_destroy(&thread_pool->mutex);
-	sem_destroy(&thread_pool->sempahore);
+	sem_destroy(&thread_pool->sempahore); // these two return errors if the respective object is nvalid, that should be impossible here
 
 	return NO_ERROR;
 }
@@ -122,22 +152,13 @@ ERRFUNC dequeue_threadpool(ThreadPool *thread_pool, ResolverData *data) {
 	pthread_mutex_lock(&thread_pool->mutex);
 	// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CRITICAL SECTION START
 
-	if (thread_pool->ring_buffer.stored == 0) {
-		*data = (ResolverData){nullptr, INVALID_SOCKET, nullptr};
-	} else {
-		auto err = RingBuffer_ResolverData_retrieve(&thread_pool->ring_buffer, data);
-		if (err > NO_OP) {
-			// ------------------------------------------------------------------------------ EARLY EXIT
-			pthread_mutex_unlock(&thread_pool->mutex);
-			return err;
-		}
-	}
+	auto err = RingBuffer_ResolverData_retrieve(&thread_pool->ring_buffer, data);
 
 	// let the next one in
 	// ---------------------------------------------------------------------------------------------- CRITICAL SECTION END
 	pthread_mutex_unlock(&thread_pool->mutex);
 
-	return NO_ERROR;
+	return err;
 }
 
 ERRFUNC enqueue_threadpool(ThreadPool *thread_pool, const ResolverData *data) {

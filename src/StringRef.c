@@ -1,29 +1,7 @@
 #include "StringRef.h"
 
 #include <string.h>
-
-int strncasecmp(const char *lhs, const char *rhs, size_t n) {
-
-	int diff = 0;
-
-	for (size_t i = 0 ; i < n; ++i) {
-		char l = lhs[i];
-		char r = rhs[i];
-		if (l >= 'A' && l <= 'z') {
-			l &= 0b01011111;
-		}
-		if (r >= 'A' && r <= 'z') {
-			r &= 0b01011111;
-		}
-		diff = l - r;
-		if (diff != 0 || l == '\0' || r == '\0'){
-			return diff;
-		}
-	}
-
-	return diff;
-
-}
+#include <strings.h>
 
 bool equal_StringOwn(const StringOwn *lhs, const StringOwn *rhs) {
 	StringView lhs_v = {lhs->str, lhs->len};

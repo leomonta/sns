@@ -33,11 +33,42 @@ typedef struct {
  * 	nullptr to remove the mapping
  * @oaram[in] `SNSServer` the server where to apply the mapping
  *
+ * @return an error code describing if and which error occurred
+ *
  */
 ERRFUNC register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server);
 
+/**
+ * sets up and starts the server and the worker threads
+ * after this the server will accept requests and will respond
+ *
+ * @param[in] `server` the sns server to set up and start
+ *
+ * @return an error code describing if and which error occurred
+ *
+ * - `THREADPOOL__FAILED_INIT`. The threadpool initialization failed
+ *     Nothing was constructed and nothing needs to be destroyed
+ */
 ERRFUNC SNSstart(SNSServer *server);
 
-ERRFUNC SNSstop(SNSServer *server);
-
+/**
+ * stops and then restarts the server
+ *
+ * @param[in] `server` the sns server to restart
+ *
+ * @return an error code describing if and which error occurred
+ *
+ * - `THREADPOOL__FAILED_INIT`. The threadpool initialization failed
+ *     Nothing was constructed and nothing needs to be destroyed
+ *
+ */
 ERRFUNC SNSrestart(SNSServer *server);
+
+/**
+ * stops the seerver and kill all the threads 
+ *
+ * @param[in] `server` the server to kill
+ *
+ * @return an error code describing if and which error occurred
+ */
+ERRFUNC SNSstop(SNSServer *server);

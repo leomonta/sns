@@ -40,9 +40,10 @@ ERRFUNC RingBuffer_#T#_destroy(RingBuffer *rngb) {
 
 ERRFUNC RingBuffer_#T#_grow(RingBuffer *rngb) {
 
-	rngb->data   = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(T));
+	auto ptr   = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(T));
+	TEST_ALLOC(ptr)
+	rngb->data = ptr;
 	rngb->count *= GROW_RATE;
-	TEST_ALLOC(rngb->data)
 	// for why 2 and not 1.6 or 1.5
 	// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
 	// essentially after 3 array being used in the same memory space, 2 performs sligthly better than 1.5 and others
@@ -82,7 +83,7 @@ ERRFUNC RingBuffer_#T#_retrieve(RingBuffer *rngb, T *result) {
 	}
 
 	*result = rngb->data[rngb->index];
-	rngb->data[rngb->index] = {};
+	rngb->data[rngb->index] = (T){};
 
 	++rngb->index;
 	rngb->index = rngb->index % rngb->count;
@@ -93,6 +94,12 @@ ERRFUNC RingBuffer_#T#_retrieve(RingBuffer *rngb, T *result) {
 
 
 ERRFUNC RingBuffer_#T#_append(RingBuffer *rngb, const T *element) {
+
+	if (element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
+	}
+
 	if (rngb->stored == rngb->count) {
 		auto res = RingBuffer_#T#_grow(rngb);
 		RET_IF_ERR(res)
@@ -114,7 +121,7 @@ ERRFUNC RingBuffer_#T#_peek(const RingBuffer *rngb, T *result) {
 		return NO_OP;
 	}
 
-	*result = rngb->data[index];
+	*result = rngb->data[rngb->index];
 
 	return NO_ERROR;
 }

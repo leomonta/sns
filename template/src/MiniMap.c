@@ -12,24 +12,37 @@ ERRFUNC MiniMap_#K#_#V#_make(const size_t initial_count, bool (*eq)(const K *, c
 		.eq_fun = eq,
 	};
 	auto err = MiniVector_#K#_make(initial_count, &vec->keys);
-	RET_IF_ERR(err)
+	RET_IF_ERR(err) // just return, make failed
 	err = MiniVector_#V#_make(initial_count, &vec->values);
-	RET_IF_ERR(err)
+	if (err > NO_OP) {
+		auto err2 = MiniVector_#K#_destroy(&vec->keys);
+		RET_IF_ERR(err2) // MiniVector_destroy can't fail (yet) so this essentially a no op
+		return err;
+	}
 
 	return NO_ERROR;
 }
 
 ERRFUNC MiniMap_#K#_#V#_destroy(MiniMap *map) {
 
+
 	auto err = MiniVector_#K#_destroy(&map->keys);
-	RET_IF_ERR(err)
-	err = MiniVector_#V#_destroy(&map->values);
-	RET_IF_ERR(err)
+	auto err2 = MiniVector_#V#_destroy(&map->values);
+
+	RET_IF_ERR(err) // MiniVector_destroy can't fail, but even if it could
+	RET_IF_ERR(err2) // can't do much else
+
+	map->eq_fun = nullptr;
 
 	return NO_ERROR;
 }
 
 ERRFUNC MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value) {
+
+	if (value == nullptr) {
+		llog(LOG_WARNING, "[MINIMAP] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
+	}
 
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
@@ -39,7 +52,7 @@ ERRFUNC MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value) {
 
 			// replace it
 			auto err = MiniVector_#V#_set(&map->values, i, value);
-			RET_IF_ERR(err)
+			RET_IF_ERR(err) // this should never return and error (since we check inputs before) but if it does the operation fails
 			return NO_ERROR;
 		}
 	}
@@ -55,8 +68,8 @@ ERRFUNC MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result) {
 		// if found
 		if (map->eq_fun(map->keys.data + i, key)) {
 
-			auto err = MiniVEctor_#V#_get(&map->values, i, result);
-			RET_IF_ERR(err)
+			auto err = MiniVector_#V#_get(&map->values, i, result);
+			RET_IF_ERR(err) // this can only give index out of range, and that's impossible here
 			return NO_ERROR;
 		}
 	}
@@ -66,10 +79,15 @@ ERRFUNC MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result) {
 
 ERRFUNC MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V *value) {
 
+	if (index > map->values.count) {
+		llog(LOG_WARNING, "[MINIMAP] %ld >= %ld Unreachable position\n", index, map->values.count);
+		return INVALID_ARGUMENT;
+	}
+
 	auto a = MiniVector_#V#_get(&map->values, index, value);
-	RET_IF_ERR(a)
+	RET_IF_ERR(a) // this should never return error
 	auto b = MiniVector_#K#_get(&map->keys, index, key);
-	RET_IF_ERR(b)
+	RET_IF_ERR(b) // and this neither
 
 	if (a == NO_OP && b == NO_OP) {
 		return NO_OP;
@@ -80,6 +98,11 @@ ERRFUNC MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *
 
 ERRFUNC MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value) {
 
+	if (value == nullptr) {
+		llog(LOG_WARNING, "[MINIMAP] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
+	}
+
 	// find it
 	for (size_t i = 0; i < map->keys.count; ++i) {
 
@@ -88,14 +111,14 @@ ERRFUNC MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value) {
 
 			// replace it
 			auto err = MiniVector_#V#_set(&map->values, i, value);
-			RET_IF_ERR(err)
+			RET_IF_ERR(err) // the index is always correct so no errors here
 			return NO_ERROR;
 		}
 	}
 
 	// else append
 	auto err = MiniVector_#K#_append(&map->keys, key);
-	RET_IF_ERR(err)
+	RET_IF_ERR(err) // can't do much here, it can only fail if growing fails.
 	err = MiniVector_#V#_append(&map->values, value);
 	RET_IF_ERR(err)
 
@@ -110,7 +133,7 @@ ERRFUNC MiniMap_#K#_#V#_remove(MiniMap *map, const K *key) {
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			auto err = MiniVector_#K#_remove(&map->keys, i);
-			RET_IF_ERR(err)
+			RET_IF_ERR(err) // can't fail
 			err = MiniVector_#V#_remove(&map->values, i);
 			RET_IF_ERR(err)
 

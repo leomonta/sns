@@ -45,7 +45,7 @@ ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus) {
 			if (read_index + 2 >= src->len || (!isxdigit((unsigned char)src->str[read_index + 1]) || !isxdigit((unsigned char)src->str[read_index + 2]))) {
 				// specifying a percent encoding without the two x digits is malformed
 				llog(LOG_ERROR, "[PARSING] Incomplete or invalid percent encoding (%.*s)\n", CLAMP_TO_POSITIVE_INT(src->len - read_index), src->str + read_index);
-				return PARSING_HEADER__MALFORMED_URL_ENCODING;
+				return PARSING_HEADER__MALFORMED_PERCENT_ENCODING;
 			}
 			a = src->str[read_index + 1];
 			b = src->str[read_index + 2];
@@ -257,20 +257,6 @@ bool strrefblank(const StringRef *str_ref) {
 	return true;
 }
 
-char *copy_StringOwn(const StringOwn *str) {
-	auto cpy = malloc(str->len);
-	// TEST_ALLOC(cpy)
-	memcpy(cpy, str->str, str->len);
-	return cpy;
-}
-
-char *copy_StringRef(const StringRef *str) {
-	auto cpy = malloc(str->len);
-	// TEST_ALLOC(cpy)
-	memcpy(cpy, str->str, str->len);
-	return cpy;
-}
-
 // https://stackoverflow.com/questions/1068849/how-do-i-determine-the-number-of-digits-of-an-integer-in-c
 unsigned char get_num_digits(size_t n) {
 	unsigned char r = 1;
@@ -314,7 +300,7 @@ StringRef num_to_string(size_t number) {
 	return (StringRef){str, digits};
 }
 
-bool compare_u_char(const unsigned char *lhs, const unsigned char *rhs) {
+bool compare_HTTPResponseOption(const HTTPResponseOption *lhs, const HTTPResponseOption *rhs) {
 	return *lhs == *rhs;
 }
 

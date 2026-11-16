@@ -32,6 +32,14 @@ typedef void *(*GenericFunction)(void *);
  * @param[out] `thread_pool` the thread pool to initialize
  *
  * @return the modified thread pool
+ * - `THREADPOOL__FAILED_SEMAPHORE_INIT`: The semaphore could not be initialized
+ *      The threadpool was not constructed and should not be destroyed
+ * - `THREADPOOL__FAILED_MUTEX_INIT`: The mutex could not be initialized
+ *      The threadpool was not constructed and should not be destroyed
+ * - `FAILED_ALLOCATION`: Could not allocate the internal job or thread buffer
+ *      The threadpool was not constructed and should not be destroyed
+ * - `THREADPOOL__FAILED_THREAD_CREATION`: The worker thread could not be created and started
+ *      The threadpool was not constructed and should not be destroyed
  */
 ERRFUNC initialize_threadpool(const size_t thread_count, GenericFunction fun, ThreadPool *thread_pool);
 
@@ -49,7 +57,7 @@ ERRFUNC destroy_threadpool(ThreadPool *thread_pool);
  *
  * @param[in] `thread_pool` the thread pool where to take the job from
  * @param[out] `data` where to place the dequeued data.
- * if NO_OP or another error returned this values should be ignored as there was no data to communicate back
+ * if `NO_OP` or another error returned this values should be ignored as there was no data to communicate back
  *
  * @return an error code describing if and which error occurred
  */
@@ -62,5 +70,6 @@ ERRFUNC dequeue_threadpool(ThreadPool *thread_pool, ResolverData *data);
  * @param[in] `data` the data that will be copied into the thread job
  *
  * @return an error code describing if and which error occurred
+ * - `FAILED_ALLOCATION`: Could not allocate more memory to store the given value
  */
 ERRFUNC enqueue_threadpool(ThreadPool *thread_pool, const ResolverData *data);

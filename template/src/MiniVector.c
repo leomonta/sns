@@ -38,10 +38,12 @@ ERRFUNC MiniVector_#T#_destroy(MiniVector *vec) {
 	return NO_ERROR;
 }
 
+// This fails atomically, If the allocation fails the old pointer is still valid, so this becomes essentially a NO_OP
 ERRFUNC MiniVector_#T#_grow(MiniVector *vec) {
 
-	vec->data = realloc(vec->data, vec->capacity * GROW_RATE);
-	TEST_ALLOC(vec->data);
+	auto new_ptr = realloc(vec->data, vec->capacity * GROW_RATE);
+	TEST_ALLOC(new_ptr);
+	vec->data = new_ptr,
 	vec->capacity *= GROW_RATE;
 	// for why 2 and not 1.6 or 1.5
 	// See video -> https://www.youtube.com/watch?v=GZPqDvG615k
@@ -64,8 +66,13 @@ ERRFUNC MiniVector_#T#_get(const MiniVector *vec, const size_t index, T *result)
 
 ERRFUNC MiniVector_#T#_set(MiniVector *vec, const size_t index, const T *element) {
 
-	if (index >= vec->count || element == nullptr) {
-		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element or an unreachable position\n");
+	if (element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
+	}
+
+	if (index >= vec->count) {
+		llog(LOG_WARNING, "[MINIVECTOR] %ld >= %ld Unreachable position\n", index, vec->count);
 		return INVALID_ARGUMENT;
 	}
 	vec->data[index] = *element;
@@ -74,9 +81,15 @@ ERRFUNC MiniVector_#T#_set(MiniVector *vec, const size_t index, const T *element
 }
 
 ERRFUNC MiniVector_#T#_append(MiniVector *vec, const T *element) {
+
+	if (element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
+	}
+
 	if (vec->count == vec->capacity / sizeof(T)) {
 		auto err = MiniVector_#T#_grow(vec);
-		RET_IF_ERR(err)
+		RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
 	vec->data[vec->count] = *element;
@@ -87,14 +100,19 @@ ERRFUNC MiniVector_#T#_append(MiniVector *vec, const T *element) {
 }
 
 ERRFUNC MiniVector_#T#_insert(MiniVector *vec, const size_t index, const T *element) {
+
+	if (element == nullptr) {
+		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
+		return INVALID_ARGUMENT;
+	}
+
 	if (index > vec->count) {
 		llog(LOG_WARNING, "[MINIVECTOR] %ld > %ld Unreachable position\n", index, vec->count);
 		return INVALID_ARGUMENT;
 	}
 
 	if (index == vec->count) {
-		auto err = MiniVector_#T#_append(vec, element);
-		RET_IF_ERR(err)
+		return MiniVector_#T#_append(vec, element);
 	}
 
 	if (vec->count == vec->capacity / sizeof(T)) {
@@ -106,7 +124,7 @@ ERRFUNC MiniVector_#T#_insert(MiniVector *vec, const size_t index, const T *elem
 		// So the decision lies on the distribution of good realloc vs bad realloc
 		// but I don't have the data to know this. So I'll just go with grow (realloc)
 		auto err = MiniVector_#T#_grow(vec);
-		RET_IF_ERR(err)
+		RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
 	// god bless memmove
@@ -116,7 +134,7 @@ ERRFUNC MiniVector_#T#_insert(MiniVector *vec, const size_t index, const T *elem
 
 	// finally write the data
 	auto err = MiniVector_#T#_set(vec, index, element);
-	RET_IF_ERR(err)
+	RET_IF_ERR(err) // this should not give any error as I already validate the parameters in the same way that 
 
 	return NO_ERROR;
 }

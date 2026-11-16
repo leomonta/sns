@@ -14,20 +14,20 @@ do
 	printf "miniMap.c stringRef\n"
 	templetizer -i template/src/MiniMap.c -o src/MiniMap_StringRef_StringRef.c -t StringRef StringRef
 
-	printf "miniVector.h u_char\n"
-	templetizer -i template/include/MiniVector.h -o include/MiniVector_u_char.h -t u_char 'typedef unsigned char u_char;'
-	printf "miniVector.c u_char\n"
-	templetizer -i template/src/MiniVector.c -o src/MiniVector_u_char.c -t u_char
-
 	printf "miniVector.h StringOwn\n"
 	templetizer -i template/include/MiniVector.h -o include/MiniVector_StringOwn.h -t StringOwn '#include "StringRef.h"'
 	printf "miniVector.c StringOwn\n"
 	templetizer -i template/src/MiniVector.c -o src/MiniVector_StringOwn.c -t StringOwn
 
-	printf "miniMap.h u_char StringOwn\n"
-	templetizer -i template/include/MiniMap.h -o include/MiniMap_u_char_StringOwn.h -t u_char StringOwn '#include "StringRef.h"'
-	printf "miniMap.c u_char StringOwn\n"
-	templetizer -i template/src/MiniMap.c -o src/MiniMap_u_char_StringOwn.c -t u_char StringOwn
+	printf "miniVector.h HTTPResponseOption\n"
+	templetizer -i template/include/MiniVector.h -o include/MiniVector_HTTPResponseOption.h -t HTTPResponseOption '#include "constants.h"'
+	printf "miniVector.c HTTPResponseOption\n"
+	templetizer -i template/src/MiniVector.c -o src/MiniVector_HTTPResponseOption.c -t HTTPResponseOption
+
+	printf "miniMap.h HTTPResponseOption StringOwn\n"
+	templetizer -i template/include/MiniMap.h -o include/MiniMap_HTTPResponseOption_StringOwn.h -t HTTPResponseOption StringOwn '#include "constants.h"'
+	printf "miniMap.c HTTPResponseOption StringOwn\n"
+	templetizer -i template/src/MiniMap.c -o src/MiniMap_HTTPResponseOption_StringOwn.c -t HTTPResponseOption StringOwn
 
 	printf "RingBuffer.h StringOwn\n"
 	templetizer -i template/include/RingBuffer.h -o include/RingBuffer_ResolverData.h -t ResolverData '#include "ResolverData.h"'
