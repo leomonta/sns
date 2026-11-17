@@ -29,12 +29,12 @@ typedef enum : uint8_t {
 
 #define ERRFUNC [[nodiscard]] ErrCode
 
-#define _SNS_RET_IF_ERR(code) \
+#define SNS_RET_IF_ERR(code) \
 	if (code > NO_OP) {       \
 		return code;          \
 	}
 
-#define _SNS_TEST_ALLOC(ptr)                                                                        \
+#define SNS_TEST_ALLOC(ptr)                                                                        \
 	if (ptr == NULL) {                                                                              \
 		llog(LOG_FATAL, "[ALLOCATION] Allocation returned NULL: %d, %s\n", errno, strerror(errno)); \
 		return FAILED_ALLOCATION;                                                                   \

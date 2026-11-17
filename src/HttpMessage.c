@@ -38,7 +38,7 @@ ERRFUNC create_InboundMessage(char *str, InboundHttpMessage *mex) {
 	// now i have the two stringRefs to the body and the header
 
 	auto err = MiniMap_StringRef_StringRef_make(10, equal_StringRef, &mex->parameters);
-	_SNS_RET_IF_ERR(err)
+	SNS_RET_IF_ERR(err)
 
 	err = decompose_header(&header, mex);
 	if (err > NO_OP) {
@@ -72,7 +72,7 @@ ERRFUNC destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
 	}
 
 	auto err = MiniMap_HTTPResponseOption_StringOwn_destroy(&mex->header_options);
-	_SNS_RET_IF_ERR(err)
+	SNS_RET_IF_ERR(err)
 	free(mex->body.str);
 
 	*mex = (OutboundHttpMessage){};
@@ -102,13 +102,13 @@ ERRFUNC add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
 	// If the necessity of keeping an intact copy of the body arises things will change
 	StringView key_v = {key.str, key.len};
 	auto       err   = url_decode(&key, &key_v, true);
-	_SNS_RET_IF_ERR(err) // If I were to ignore the error (__MALFORMED_PERCENT_ENCODING) the user of the lib could see an incorrect value
+	SNS_RET_IF_ERR(err) // If I were to ignore the error (__MALFORMED_PERCENT_ENCODING) the user of the lib could see an incorrect value
 	                // and thus would need to check every single parameter
 	                // so we stop the parsing here
 
 	StringView val_v = {val.str, val.len};
 	err              = url_decode(&val, &val_v, true);
-	_SNS_RET_IF_ERR(err)
+	SNS_RET_IF_ERR(err)
 	return MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val); // if it return FAILED_ALLOCATION can't do much about it other than stopping parsing
 }
 
@@ -177,7 +177,7 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 		StringRef query_parameters = {msg->url.str + query_start + 1, msg->url.len - query_start - 1};
 		msg->url.len               = query_start;
 		auto err                   = parse_options(&query_parameters, add_to_params, "&", '=', msg);
-		_SNS_RET_IF_ERR(err)
+		SNS_RET_IF_ERR(err)
 	}
 
 	if (msg->url.len == 0) {
@@ -187,7 +187,7 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 
 	StringView url_v = {msg->url.str, msg->url.len};
 	auto       err   = url_decode(&msg->url, &url_v, false);
-	_SNS_RET_IF_ERR(err)
+	SNS_RET_IF_ERR(err)
 
 	if (request_line_end == raw_header->str + raw_header->len) {
 		return NO_ERROR;
@@ -268,7 +268,7 @@ ERRFUNC compose_message(const OutboundHttpMessage *msg, StringOwn *res) {
 
 	// the entire message length
 	char *mem = malloc(msg_len);
-	_SNS_TEST_ALLOC(mem)
+	SNS_TEST_ALLOC(mem)
 	memset(mem, '\0', msg_len);
 
 	memcpy(mem, status_line, STATUS_LINE_LEN);
@@ -288,7 +288,7 @@ ERRFUNC compose_message(const OutboundHttpMessage *msg, StringOwn *res) {
 		HTTPResponseOption key = RP_ENUM_LEN;
 		StringOwn          val = {};
 		auto               err = MiniMap_HTTPResponseOption_StringOwn_get_by_index(&msg->header_options, i, &key, &val);
-		_SNS_RET_IF_ERR(err) // this can only return invalid index, which can't happen here because we are iterating them
+		SNS_RET_IF_ERR(err) // this can only return invalid index, which can't happen here because we are iterating them
 
 		// the format is
 		// name: value\r\n
@@ -412,7 +412,7 @@ ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 			// check if we actually have a key, the value can be empty
 			if (!strrefblank(&key)) {
 				auto err = fun(key, val, ctx);
-				_SNS_RET_IF_ERR(err)
+				SNS_RET_IF_ERR(err)
 			}
 		}
 
@@ -483,17 +483,17 @@ ERRFUNC add_header_option(const HTTPResponseOption option, const StringView *val
 	}
 
 	char *new = strndup(value->str, len);
-	_SNS_TEST_ALLOC(new)
+	SNS_TEST_ALLOC(new)
 
 	StringOwn cpy = {new, len};
 
 	// if something is already present at the requested position
 	StringOwn old = {};
 	auto      err = MiniMap_HTTPResponseOption_StringOwn_get(&msg->header_options, &option, &old);
-	_SNS_RET_IF_ERR(err) // this does not return an error yet
+	SNS_RET_IF_ERR(err) // this does not return an error yet
 
 	auto set_err = MiniMap_HTTPResponseOption_StringOwn_set(&msg->header_options, &option, &cpy);
-	_SNS_RET_IF_ERR(set_err) // cpy is not nullptr, so here we can only get FAILED_ALLOCATION
+	SNS_RET_IF_ERR(set_err) // cpy is not nullptr, so here we can only get FAILED_ALLOCATION
 
 	// if we are here we both have set the new option and have a copy of the old one
 	// I set the new one before completely destroying the old one to be sure that the operation is 'atomic'

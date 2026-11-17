@@ -20,7 +20,7 @@ ERRFUNC RingBuffer_ResolverData_make(const size_t initial_count, RingBuffer *rng
 	    .stored = 0,
 	    .count  = capacity,
 	};
-	_SNS_TEST_ALLOC(rngb->data)
+	SNS_TEST_ALLOC(rngb->data)
 
 	return NO_ERROR;
 }
@@ -41,7 +41,7 @@ ERRFUNC RingBuffer_ResolverData_destroy(RingBuffer *rngb) {
 ERRFUNC RingBuffer_ResolverData_grow(RingBuffer *rngb) {
 
 	auto ptr   = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(ResolverData));
-	_SNS_TEST_ALLOC(ptr)
+	SNS_TEST_ALLOC(ptr)
 	rngb->data = ptr;
 	rngb->count *= GROW_RATE;
 	// for why 2 and not 1.6 or 1.5
@@ -102,7 +102,7 @@ ERRFUNC RingBuffer_ResolverData_append(RingBuffer *rngb, const ResolverData *ele
 
 	if (rngb->stored == rngb->count) {
 		auto res = RingBuffer_ResolverData_grow(rngb);
-		_SNS_RET_IF_ERR(res)
+		SNS_RET_IF_ERR(res)
 	}
 
 	auto write_index = (rngb->index + rngb->stored) % rngb->count;

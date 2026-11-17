@@ -301,7 +301,7 @@ ERRFUNC setup(SNSServer *server) {
 ERRFUNC SNSstart(SNSServer *server) {
 
 	auto err = setup(server);
-	_SNS_RET_IF_ERR(err)
+	SNS_RET_IF_ERR(err)
 
 	server->info.thread_pool.stop = false;
 
@@ -320,7 +320,7 @@ ERRFUNC SNSstart(SNSServer *server) {
 
 ERRFUNC SNSrestart(SNSServer *server) {
 	auto err = SNSstop(server);
-	_SNS_RET_IF_ERR(err)
+	SNS_RET_IF_ERR(err)
 	return SNSstart(server);
 }
 
@@ -330,7 +330,7 @@ ERRFUNC SNSstop(SNSServer *server) {
 
 	// tpool stop
 	auto err = destroy_threadpool(&server->info.thread_pool);
-	_SNS_RET_IF_ERR(err) // Does not return an error (yet)
+	SNS_RET_IF_ERR(err) // Does not return an error (yet)
 	llog(LOG_INFO, "[SERVER] Sent stop signal to all threads\n");
 
 	// thread stop

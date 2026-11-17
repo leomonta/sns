@@ -20,7 +20,7 @@ ERRFUNC MiniVector_#T#_make(const size_t initial_count, MiniVector *vec) {
 	    .capacity = capacity * sizeof(T),
 	    .count    = 0,
 	};
-	_SNS_TEST_ALLOC(vec->data);
+	SNS_TEST_ALLOC(vec->data);
 
 	// copy elision
 	return NO_ERROR;
@@ -42,7 +42,7 @@ ERRFUNC MiniVector_#T#_destroy(MiniVector *vec) {
 ERRFUNC MiniVector_#T#_grow(MiniVector *vec) {
 
 	auto new_ptr = realloc(vec->data, vec->capacity * GROW_RATE);
-	_SNS_TEST_ALLOC(new_ptr);
+	SNS_TEST_ALLOC(new_ptr);
 	vec->data = new_ptr,
 	vec->capacity *= GROW_RATE;
 	// for why 2 and not 1.6 or 1.5
@@ -89,7 +89,7 @@ ERRFUNC MiniVector_#T#_append(MiniVector *vec, const T *element) {
 
 	if (vec->count == vec->capacity / sizeof(T)) {
 		auto err = MiniVector_#T#_grow(vec);
-		_SNS_RET_IF_ERR(err) // Nothing was grown, nothing to do
+		SNS_RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
 	vec->data[vec->count] = *element;
@@ -124,7 +124,7 @@ ERRFUNC MiniVector_#T#_insert(MiniVector *vec, const size_t index, const T *elem
 		// So the decision lies on the distribution of good realloc vs bad realloc
 		// but I don't have the data to know this. So I'll just go with grow (realloc)
 		auto err = MiniVector_#T#_grow(vec);
-		_SNS_RET_IF_ERR(err) // Nothing was grown, nothing to do
+		SNS_RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
 	// god bless memmove
@@ -134,7 +134,7 @@ ERRFUNC MiniVector_#T#_insert(MiniVector *vec, const size_t index, const T *elem
 
 	// finally write the data
 	auto err = MiniVector_#T#_set(vec, index, element);
-	_SNS_RET_IF_ERR(err) // this should not give any error as I already validate the parameters in the same way that 
+	SNS_RET_IF_ERR(err) // this should not give any error as I already validate the parameters in the same way that 
 
 	return NO_ERROR;
 }
