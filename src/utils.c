@@ -222,7 +222,7 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
 
 	size_t Itr = 0;
 
-	for (size_t i = 0; i < count; ++i) {
+	for (size_t i = 0; i < count && haystack[i] != '\0' ; ++i) {
 
 		if (haystack[i] == needle[Itr]) {
 			++Itr;
@@ -310,7 +310,7 @@ bool strrefblank(const StringRef *str_ref) {
 }
 
 // https://stackoverflow.com/questions/1068849/how-do-i-determine-the-number-of-digits-of-an-integer-in-c
-unsigned char get_num_digits(size_t n) {
+static unsigned char get_num_digits(size_t n) {
 	unsigned char r = 1;
 
 	if (n >= 10000000000000000) {

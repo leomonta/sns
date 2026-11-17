@@ -72,15 +72,15 @@ void trimwhitespace(char *str);
 
 #if !defined(__FreeBSD__) // bsd has strnstr in string.h
 /**
- * finds needle in haystack for at most `count` characters of haystack
+ * finds needle in haystack for at most `count` characters of haystack or until the first Null terminator
  *
  * @param[in] `haystack` the string to search into
  * @param[in] `needle` the string to search for
  * @param[in] `count` the max amount of chars to check for in haystack
  *
- * @return a pointer to the first character of the occurence of needle in haystack,
- *   nullptr if not found or if count == 0
- *   haystack if `needle` == `nullptr`
+ * @return a pointer to the first character of the occurence of needle in haystack
+ *   `nullptr` if not found or if count == 0
+ *   `haystack` if `needle` == `nullptr`
  */
 const char *strnstr(const char *haystack, const char *needle, const size_t count);
 
