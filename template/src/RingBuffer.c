@@ -20,7 +20,7 @@ ERRFUNC RingBuffer_#T#_make(const size_t initial_count, RingBuffer *rngb) {
 	    .stored = 0,
 	    .count  = capacity,
 	};
-	TEST_ALLOC(rngb->data)
+	_SNS_TEST_ALLOC(rngb->data)
 
 	return NO_ERROR;
 }
@@ -41,7 +41,7 @@ ERRFUNC RingBuffer_#T#_destroy(RingBuffer *rngb) {
 ERRFUNC RingBuffer_#T#_grow(RingBuffer *rngb) {
 
 	auto ptr   = realloc(rngb->data, rngb->count * GROW_RATE * sizeof(T));
-	TEST_ALLOC(ptr)
+	_SNS_TEST_ALLOC(ptr)
 	rngb->data = ptr;
 	rngb->count *= GROW_RATE;
 	// for why 2 and not 1.6 or 1.5
@@ -102,7 +102,7 @@ ERRFUNC RingBuffer_#T#_append(RingBuffer *rngb, const T *element) {
 
 	if (rngb->stored == rngb->count) {
 		auto res = RingBuffer_#T#_grow(rngb);
-		RET_IF_ERR(res)
+		_SNS_RET_IF_ERR(res)
 	}
 
 	auto write_index = (rngb->index + rngb->stored) % rngb->count;

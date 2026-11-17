@@ -12,11 +12,11 @@ ERRFUNC MiniMap_#K#_#V#_make(const size_t initial_count, bool (*eq)(const K *, c
 		.eq_fun = eq,
 	};
 	auto err = MiniVector_#K#_make(initial_count, &vec->keys);
-	RET_IF_ERR(err) // just return, make failed
+	_SNS_RET_IF_ERR(err) // just return, make failed
 	err = MiniVector_#V#_make(initial_count, &vec->values);
 	if (err > NO_OP) {
 		auto err2 = MiniVector_#K#_destroy(&vec->keys);
-		RET_IF_ERR(err2) // MiniVector_destroy can't fail (yet) so this is essentially a no op
+		_SNS_RET_IF_ERR(err2) // MiniVector_destroy can't fail (yet) so this is essentially a no op
 		return err;
 	}
 
@@ -29,8 +29,8 @@ ERRFUNC MiniMap_#K#_#V#_destroy(MiniMap *map) {
 	auto err = MiniVector_#K#_destroy(&map->keys);
 	auto err2 = MiniVector_#V#_destroy(&map->values);
 
-	RET_IF_ERR(err) // MiniVector_destroy can't fail, but even if it could
-	RET_IF_ERR(err2) // can't do much else
+	_SNS_RET_IF_ERR(err) // MiniVector_destroy can't fail, but even if it could
+	_SNS_RET_IF_ERR(err2) // can't do much else
 
 	map->eq_fun = nullptr;
 
@@ -52,7 +52,7 @@ ERRFUNC MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value) {
 
 			// replace it
 			auto err = MiniVector_#V#_set(&map->values, i, value);
-			RET_IF_ERR(err) // this should never return and error (since we check inputs before) but if it does the operation fails
+			_SNS_RET_IF_ERR(err) // this should never return and error (since we check inputs before) but if it does the operation fails
 			return NO_ERROR;
 		}
 	}
@@ -69,7 +69,7 @@ ERRFUNC MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result) {
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			auto err = MiniVector_#V#_get(&map->values, i, result);
-			RET_IF_ERR(err) // this can only give index out of range, and that's impossible here
+			_SNS_RET_IF_ERR(err) // this can only give index out of range, and that's impossible here
 			return NO_ERROR;
 		}
 	}
@@ -85,9 +85,9 @@ ERRFUNC MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *
 	}
 
 	auto a = MiniVector_#V#_get(&map->values, index, value);
-	RET_IF_ERR(a) // this should never return error
+	_SNS_RET_IF_ERR(a) // this should never return error
 	auto b = MiniVector_#K#_get(&map->keys, index, key);
-	RET_IF_ERR(b) // and this neither
+	_SNS_RET_IF_ERR(b) // and this neither
 
 	if (a == NO_OP && b == NO_OP) {
 		return NO_OP;
@@ -111,16 +111,16 @@ ERRFUNC MiniMap_#K#_#V#_set(MiniMap *map, const K *key, const V *value) {
 
 			// replace it
 			auto err = MiniVector_#V#_set(&map->values, i, value);
-			RET_IF_ERR(err) // the index is always correct so no errors here
+			_SNS_RET_IF_ERR(err) // the index is always correct so no errors here
 			return NO_ERROR;
 		}
 	}
 
 	// else append
 	auto err = MiniVector_#K#_append(&map->keys, key);
-	RET_IF_ERR(err) // can't do much here, it can only fail if growing fails.
+	_SNS_RET_IF_ERR(err) // can't do much here, it can only fail if growing fails.
 	err = MiniVector_#V#_append(&map->values, value);
-	RET_IF_ERR(err)
+	_SNS_RET_IF_ERR(err)
 
 	return NO_ERROR;
 }
@@ -133,9 +133,9 @@ ERRFUNC MiniMap_#K#_#V#_remove(MiniMap *map, const K *key) {
 		if (map->eq_fun(map->keys.data + i, key)) {
 
 			auto err = MiniVector_#K#_remove(&map->keys, i);
-			RET_IF_ERR(err) // can't fail
+			_SNS_RET_IF_ERR(err) // can't fail
 			err = MiniVector_#V#_remove(&map->values, i);
-			RET_IF_ERR(err)
+			_SNS_RET_IF_ERR(err)
 
 			return NO_ERROR;
 		}

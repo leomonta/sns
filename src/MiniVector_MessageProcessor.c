@@ -20,7 +20,7 @@ ERRFUNC MiniVector_MessageProcessor_make(const size_t initial_count, MiniVector 
 	    .capacity = capacity * sizeof(MessageProcessor),
 	    .count    = 0,
 	};
-	TEST_ALLOC(vec->data);
+	_SNS_TEST_ALLOC(vec->data);
 
 	// copy elision
 	return NO_ERROR;
@@ -42,7 +42,7 @@ ERRFUNC MiniVector_MessageProcessor_destroy(MiniVector *vec) {
 ERRFUNC MiniVector_MessageProcessor_grow(MiniVector *vec) {
 
 	auto new_ptr = realloc(vec->data, vec->capacity * GROW_RATE);
-	TEST_ALLOC(new_ptr);
+	_SNS_TEST_ALLOC(new_ptr);
 	vec->data = new_ptr,
 	vec->capacity *= GROW_RATE;
 	// for why 2 and not 1.6 or 1.5
@@ -89,7 +89,7 @@ ERRFUNC MiniVector_MessageProcessor_append(MiniVector *vec, const MessageProcess
 
 	if (vec->count == vec->capacity / sizeof(MessageProcessor)) {
 		auto err = MiniVector_MessageProcessor_grow(vec);
-		RET_IF_ERR(err) // Nothing was grown, nothing to do
+		_SNS_RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
 	vec->data[vec->count] = *element;
@@ -124,7 +124,7 @@ ERRFUNC MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, 
 		// So the decision lies on the distribution of good realloc vs bad realloc
 		// but I don't have the data to know this. So I'll just go with grow (realloc)
 		auto err = MiniVector_MessageProcessor_grow(vec);
-		RET_IF_ERR(err) // Nothing was grown, nothing to do
+		_SNS_RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
 	// god bless memmove
@@ -134,7 +134,7 @@ ERRFUNC MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, 
 
 	// finally write the data
 	auto err = MiniVector_MessageProcessor_set(vec, index, element);
-	RET_IF_ERR(err) // this should not give any error as I already validate the parameters in the same way that 
+	_SNS_RET_IF_ERR(err) // this should not give any error as I already validate the parameters in the same way that 
 
 	return NO_ERROR;
 }

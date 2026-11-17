@@ -137,7 +137,7 @@ ERRFUNC destroy_threadpool(ThreadPool *thread_pool) {
 
 	// freeing the leftover data (if any)
 	auto err = RingBuffer_ResolverData_destroy(&thread_pool->ring_buffer);
-	RET_IF_ERR(err) // Does not return an error (yet)
+	_SNS_RET_IF_ERR(err) // Does not return an error (yet)
 
 	pthread_mutex_destroy(&thread_pool->mutex);
 	sem_destroy(&thread_pool->sempahore); // these two return errors if the respective object is nvalid, that should be impossible here

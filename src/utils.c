@@ -94,34 +94,62 @@ ERRFUNC compress_gz(const StringView *data, StringOwn *output) {
 		return INVALID_ARGUMENT;
 	}
 
+	output->len = 1024 + data->len / 5; // random ~ ish estimate for compression ratio on text files
+	output->str = malloc(output->len);
+	if (output->str == NULL) {
+		llog(LOG_FATAL, "[ALLOCATION] Allocation returned NULL: %d, %s\n", errno, strerror(errno));
+		*output = (StringOwn){};
+		return FAILED_ALLOCATION;
+	}
+
 	z_stream deflate_s;
-	deflate_s.zalloc   = Z_NULL;
-	deflate_s.zfree    = Z_NULL;
-	deflate_s.opaque   = Z_NULL;
-	deflate_s.avail_in = 0;
-	deflate_s.next_in  = Z_NULL;
+	deflate_s.zalloc    = Z_NULL;
+	deflate_s.zfree     = Z_NULL;
+	deflate_s.opaque    = Z_NULL;
+	deflate_s.avail_in  = 0;
+	deflate_s.next_in   = Z_NULL;
+	deflate_s.avail_out = (unsigned int)output->len;
+	deflate_s.next_out  = (Bytef *)output->str;
 
 	constexpr int window_bits = 15 + 16; // gzip with windowbits of 15
 
 	constexpr int mem_level = 8;
 
 	if (deflateInit2(&deflate_s, Z_BEST_COMPRESSION, Z_DEFLATED, window_bits, mem_level, Z_DEFAULT_STRATEGY) != Z_OK) {
-		llog(LOG_ERROR, "[COMPRESS] Deflate init failed\n.");
+		llog(LOG_ERROR, "[COMPRESS] Deflate init failed\n");
+		free(output->str);
+		*output = (StringOwn){};
 		return ZLIB__INIT_FAILED;
 	}
 
 	deflate_s.next_in  = (const Bytef *)data->str;
 	deflate_s.avail_in = (uInt)data->len;
 
-	output->len = data->len / 5; // random ~ ish estimate for compression ratio on text files
-
 	ErrCode err = NO_ERROR;
 
-	do {
+	while (true) {
+		auto zerr = deflate(&deflate_s, Z_FINISH);
+		if (zerr == Z_STREAM_ERROR) {
+			llog(LOG_ERROR, "[COMPRESS] Something fundamental went wrong or there is a bug\n");
+			free(output->str);
+			*output = (StringOwn){};
+
+			err = ZLIB__COMPRESS_FAILED;
+			goto cleanup;
+		}
+
+		if (zerr == Z_STREAM_END || deflate_s.avail_out != 0) { // Since I'm using `Z_FINISH` for the flushing in `deflate`, `Z_STREAM_END` means that we are done
+			break;
+		}
+
+		// deflate needs more data
 		auto n_len = (output->len / 2) * 3 + 1024;
 		auto n_str = realloc(output->str, n_len);
 		if (n_str == NULL) {
 			llog(LOG_FATAL, "[ALLOCATION] Allocation returned NULL: %d, %s\n", errno, strerror(errno));
+			free(output->str);
+			*output = (StringOwn){};
+
 			err = FAILED_ALLOCATION;
 			goto cleanup;
 		}
@@ -129,26 +157,21 @@ ERRFUNC compress_gz(const StringView *data, StringOwn *output) {
 		output->len = n_len;
 
 		deflate_s.avail_out = (unsigned int)(output->len - deflate_s.total_out);
-		deflate_s.next_out  = (Bytef *)((output->str + deflate_s.total_out));
-
-		auto zerr = deflate(&deflate_s, Z_FINISH);
-		if (zerr == Z_STREAM_END) {
-			break;
-		}
-		if (zerr == Z_STREAM_ERROR) {
-			llog(LOG_ERROR, "[COMPRESS] Something fundamental went wrong or there is a bug\n");
-			err = ZLIB__COMPRESS_FAILED;
-			goto cleanup;
-		}
-	} while (deflate_s.avail_out == 0);
+		deflate_s.next_out  = (Bytef *)(output->str + deflate_s.total_out);
+	}
 	output->len = deflate_s.total_out;
 
 cleanup:
 	auto zerr = deflateEnd(&deflate_s);
-	if (zerr == Z_STREAM_ERROR || zerr == Z_DATA_ERROR) {
+	// Z_DATA_ERROR may happen when realloc failed and we are trying to close the z stream prematurely
+	// regardless deflate cleans up after itself so this is fine,
+	if (zerr == Z_STREAM_ERROR) {
 		llog(LOG_ERROR, "[COMPRESS] Something fundamental went wrong or there is a bug (%s)\n", deflate_s.msg == NULL ? "" : deflate_s.msg);
-		free(output->str);
-		output->str = 0;
+		// might have arrived here from a failed allocation, in that case the pointer has already been freed
+		if (output->str != nullptr) {
+			free(output->str);
+		}
+		*output = (StringOwn){};
 		return ZLIB__COMPRESS_FAILED;
 	}
 
