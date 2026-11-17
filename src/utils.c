@@ -85,7 +85,14 @@ ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus) {
 	return NO_ERROR;
 }
 
-ERRFUNC compress_gz(const StringRef *data, StringOwn *output) {
+ERRFUNC compress_gz(const StringView *data, StringOwn *output) {
+
+	*output = (StringOwn){};
+
+	if (data->len > UINT_MAX) {
+		llog(LOG_ERROR, "[COMPRESS] Attempting to compress more than 2^32 B (%zu B) of data\n", data->len);
+		return INVALID_ARGUMENT;
+	}
 
 	z_stream deflate_s;
 	deflate_s.zalloc   = Z_NULL;
@@ -106,23 +113,46 @@ ERRFUNC compress_gz(const StringRef *data, StringOwn *output) {
 	deflate_s.next_in  = (const Bytef *)data->str;
 	deflate_s.avail_in = (uInt)data->len;
 
-	output->len = 0;
+	output->len = data->len / 5; // random ~ ish estimate for compression ratio on text files
+
+	ErrCode err = NO_ERROR;
+
 	do {
-		size_t increase = data->len / 2 + 1024;
-		if (output->len < (output->len + increase)) {
-			output->str = realloc(output->str, output->len + increase);
+		auto n_len = (output->len / 2) * 3 + 1024;
+		auto n_str = realloc(output->str, n_len);
+		if (n_str == NULL) {
+			llog(LOG_FATAL, "[ALLOCATION] Allocation returned NULL: %d, %s\n", errno, strerror(errno));
+			err = FAILED_ALLOCATION;
+			goto cleanup;
 		}
+		output->str = n_str;
+		output->len = n_len;
 
-		deflate_s.avail_out = (unsigned int)(increase);
-		deflate_s.next_out  = (Bytef *)((output->str + output->len));
+		deflate_s.avail_out = (unsigned int)(output->len - deflate_s.total_out);
+		deflate_s.next_out  = (Bytef *)((output->str + deflate_s.total_out));
 
-		deflate(&deflate_s, Z_FINISH);
-		output->len += (increase - deflate_s.avail_out);
+		auto zerr = deflate(&deflate_s, Z_FINISH);
+		if (zerr == Z_STREAM_END) {
+			break;
+		}
+		if (zerr == Z_STREAM_ERROR) {
+			llog(LOG_ERROR, "[COMPRESS] Something fundamental went wrong or there is a bug\n");
+			err = ZLIB__COMPRESS_FAILED;
+			goto cleanup;
+		}
 	} while (deflate_s.avail_out == 0);
+	output->len = deflate_s.total_out;
 
-	deflateEnd(&deflate_s);
+cleanup:
+	auto zerr = deflateEnd(&deflate_s);
+	if (zerr == Z_STREAM_ERROR || zerr == Z_DATA_ERROR) {
+		llog(LOG_ERROR, "[COMPRESS] Something fundamental went wrong or there is a bug (%s)\n", deflate_s.msg == NULL ? "" : deflate_s.msg);
+		free(output->str);
+		output->str = 0;
+		return ZLIB__COMPRESS_FAILED;
+	}
 
-	return NO_ERROR;
+	return err;
 }
 
 void trimwhitespace(char *str) {
@@ -137,6 +167,7 @@ void trimwhitespace(char *str) {
 
 	// All spaces?
 	if (*nStart == 0) {
+		str[0] = '\0';
 		return;
 	}
 
@@ -151,13 +182,19 @@ void trimwhitespace(char *str) {
 
 	auto size = strlen(nStart);
 
-	memmove(str, nStart, size);
+	memmove(str, nStart, size + 1); // there has to be a null terminator, so this is fine
 }
+
+#if !defined(__FreeBSD__) // bsd has strnstr in string.h
 
 const char *strnstr(const char *haystack, const char *needle, const size_t count) {
 
 	if (count == 0) {
 		return nullptr;
+	}
+
+	if (needle == nullptr) {
+		return haystack;
 	}
 
 	size_t Itr = 0;
@@ -181,6 +218,8 @@ const char *strnstr(const char *haystack, const char *needle, const size_t count
 	// no match
 	return nullptr;
 }
+
+#endif
 
 const char *strnchr(const char *str, int chr, const size_t count) {
 
@@ -206,21 +245,11 @@ const char *strrnchr(const char *str, int chr, const size_t count) {
 	return nullptr;
 }
 
-size_t strnlen(const char *str, const size_t count) {
-	size_t res = 0;
-
-	while (res < count && str[res] != '\0') {
-		++res;
-	}
-
-	return res;
-}
-
-StringRef trim(StringRef *str_ref) {
+StringRef trim_StringRef(StringRef *str_ref) {
 	size_t newStart;
 
 	for (newStart = 0; newStart < str_ref->len; ++newStart) {
-		if (!isspace(str_ref->str[newStart])) {
+		if (!isspace((unsigned char)str_ref->str[newStart])) {
 			break;
 		}
 	}
@@ -231,7 +260,7 @@ StringRef trim(StringRef *str_ref) {
 
 	size_t newEnd;
 	for (newEnd = 0; newEnd < res.len; ++newEnd) {
-		if (!isspace(res.str[res.len - newEnd - 1])) {
+		if (!isspace((unsigned char)res.str[res.len - newEnd - 1])) {
 			break;
 		}
 	}
@@ -249,7 +278,7 @@ bool strrefblank(const StringRef *str_ref) {
 	for (size_t i = 0; i < str_ref->len; ++i) {
 		// isspace checks for
 		// space, horizontal tab, and whitespaces (\n \r \v \f)
-		if (!isspace(str_ref->str[i])) {
+		if (!isspace((unsigned char)str_ref->str[i])) {
 			return false;
 		}
 	}

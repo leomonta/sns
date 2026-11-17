@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <logger.h>
 #include <stdio.h>
+#include <string.h>
 
 static void log_malformed_option(const StringRef *str_ref) {
 	llog(LOG_WARNING, "Malformed option -> '%.*s'\n", CLAMP_TO_POSITIVE_INT(str_ref->len), str_ref->str);
@@ -267,7 +268,7 @@ ERRFUNC compose_message(const OutboundHttpMessage *msg, StringOwn *res) {
 
 	// the entire message length
 	char *mem = malloc(msg_len);
-	TEST_ALLOC(res)
+	TEST_ALLOC(mem)
 	memset(mem, '\0', msg_len);
 
 	memcpy(mem, status_line, STATUS_LINE_LEN);
@@ -405,8 +406,8 @@ ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 			StringRef key = {chunk.str, pos};                           // from the start of the chunk to before the 'item_sep'
 			StringRef val = {chunk.str + pos + 1, chunk.len - pos - 1}; // from after the 'item_sep' to the end of the chunk
 
-			key = trim(&key);
-			val = trim(&val);
+			key = trim_StringRef(&key);
+			val = trim_StringRef(&val);
 
 			// check if we actually have a key, the value can be empty
 			if (!strrefblank(&key)) {

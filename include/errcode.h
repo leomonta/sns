@@ -24,6 +24,7 @@ typedef enum : uint8_t {
 	THREADPOOL__FAILED_SEMAPHORE_INIT,          // the semaphore could not be initialized
 	THREADPOOL__FAILED_THREAD_CREATION,         // the threads could threads for the thread pool could not be started
 	ZLIB__INIT_FAILED,                          // zlib init failed
+	ZLIB__COMPRESS_FAILED,                      // zlib returned and unrecoverable error
 } ErrCode;
 
 #define ERRFUNC [[nodiscard]] ErrCode

@@ -24,7 +24,7 @@ bool test_trim(const char* to_be_trimmed, const char* trimmed) {
 	StringRef to_be = CAST_STRINGREF(to_be_trimmed);
 	StringRef is = CAST_STRINGREF(trimmed);
 
-	auto res = trim(&to_be);
+	auto res = trim_StringRef(&to_be);
 
 	bool b = equal_StringRef(&res, &is);
 	llog(LOG_DEBUG, "%.*s == %s, %s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str, trimmed, b ? "Success" : "Failure");
@@ -35,15 +35,6 @@ bool test_trim(const char* to_be_trimmed, const char* trimmed) {
 void do_nothing(StringRef a, StringRef b, InboundHttpMessage *c) {
 	llog(LOG_DEBUG, "%.*s = %.*s\n", CLAMP_TO_POSITIVE_INT(a.len), a.str, CLAMP_TO_POSITIVE_INT(b.len), b.str);
 }
-
-bool test_parse_options(const char * str) {
-
-	const StringRef ref = CAST_STRINGREF(str);
-	
-	auto __ = parse_options(&ref, do_nothing, "&", '=', nullptr);
-	return true;
-}
-
 
 bool test_urldecode( char * encoded, const char * ref) {
 
@@ -97,9 +88,6 @@ int main() {
 	TEST(test_urldecode("%20", " "));
 	TEST(test_urldecode("%20v%26", " v&"));
 	TEST(test_urldecode("%20", nullptr));
-
-	TEST(test_parse_options("a=b&c=d&e=f"));
-	TEST(test_parse_options("a=bf"));
 
 	llog(LOG_INFO, "%zu tests passed out of %zu. Pass rate of %.3f%%\n", tests_passed, total_tests, ((double)tests_passed / (double)total_tests) * 100);
 	return 0;

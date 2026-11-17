@@ -38,11 +38,25 @@ ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus);
 /**
  * compress given data to gzip
  * used this (https://github.com/mapbox/gzip-hpp/blob/master/include/gzip/compress.hpp) as a reference
+ * maximum 4GiB of data (2^32 B) are accepted
  *
  * @param[in] `data` the string reference pointing to the data to compress
- * @param[in] `output` where to put the result
+ * @param[in] `output` where to put the result, the content of this `StringOwn` will be ignored and overwritten.
+ *   If an error occurred its data should be ignored, else the pointer contained should be freed when no longer needed
+ *
+ *
+ * @return an error code describing if and which error occurred
+ *
+ * - `INVALID_ARGUMENT`: `data`'s length exceed the maximum allowed
+ *     No data available to return, `output` should be discarded
+ * - `FAILED_ALLOCATION`: could not allocate the internal buffer
+ *     No data available to return, `output` should be discarded
+ * - `ZLIB__INIT_FAILED`: deflateInit failed.
+ *     No data available to return, `output` should be discarded
+ * - `ZLIB__COMPRESS_FAILED` deflate or deflateEnd failed.
+ *     No data available to return, `output` should be discarded
  */
-ERRFUNC compress_gz(const StringRef *data, StringOwn *output);
+ERRFUNC compress_gz(const StringView *data, StringOwn *output);
 
 /**
  * Thaks to https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
@@ -56,16 +70,21 @@ ERRFUNC compress_gz(const StringRef *data, StringOwn *output);
  */
 void trimwhitespace(char *str);
 
+#if !defined(__FreeBSD__) // bsd has strnstr in string.h
 /**
- * finds needle in haystack for at most count - 1 characters of haystack
+ * finds needle in haystack for at most `count` characters of haystack
  *
  * @param[in] `haystack` the string to search into
  * @param[in] `needle` the string to search for
  * @param[in] `count` the max amount of chars to check for in haystack
  *
- * @return a pointer to the first character of the occurence of needle in haystack, nullptr if not found or if count == 0
+ * @return a pointer to the first character of the occurence of needle in haystack,
+ *   nullptr if not found or if count == 0
+ *   haystack if `needle` == `nullptr`
  */
 const char *strnstr(const char *haystack, const char *needle, const size_t count);
+
+#endif
 
 /**
  * finds the first occurrence of chr in the byte string pointed to by str to a max of count - 1
@@ -90,23 +109,13 @@ const char *strnchr(const char *str, int chr, const size_t count);
 const char *strrnchr(const char *str, int chr, const size_t count);
 
 /**
- * returns the length of the given string while checking at most `count` characters
- *
- * @param[in] `str` the string to determine the length of. Escluding the null terminator
- * @param[in] `count` the maximum amount of characters to check for str
- *
- * @return the calculated length of str or `count` of not found
- */
-size_t strnlen(const char *str, const size_t count);
-
-/**
  * rework the stringRef to remove unwanted whitespaces in front or at the back of the content
  *
  * @param[in] `strRef` the stringRef to trim
  *
  * @return the trimmed stringRef
  */
-StringRef trim(StringRef *strRef);
+StringRef trim_StringRef(StringRef *strRef);
 
 /**
  * check if every character in the stringref is a space
@@ -128,9 +137,9 @@ bool strrefblank(const StringRef *strRef);
 StringRef num_to_string(size_t number);
 
 /**
- * returnrs if the two null terminated strings are equal
+ * returnrs if the two Response Options are equal
  *
- * @param[in] `lhs`, `rhs` the strings to compare
+ * @param[in] `lhs`, `rhs` the Response Options to compare
  *
  * @return true if they are identical, false otherwise
  */
