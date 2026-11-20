@@ -6,18 +6,18 @@
 
 
 
-#include "MiniVector_MessageProcessor.h"
+#include "MiniVector_StringOwn.h"
 
-#define MiniVector MiniVector_MessageProcessor
+#define MiniVector MiniVector_StringOwn
 
 #define GROW_RATE 2
 
-ERRFUNC MiniVector_MessageProcessor_make(const size_t initial_count, MiniVector *vec) {
+ERRFUNC MiniVector_StringOwn_make(const size_t initial_count, MiniVector *vec) {
 	auto capacity = initial_count == 0 ? 10 : initial_count;
 
 	*vec = (MiniVector){
-	    .data     = malloc(capacity * sizeof(MessageProcessor)),
-	    .capacity = capacity * sizeof(MessageProcessor),
+	    .data     = malloc(capacity * sizeof(StringOwn)),
+	    .capacity = capacity * sizeof(StringOwn),
 	    .count    = 0,
 	};
 	SNS_TEST_ALLOC(vec->data);
@@ -26,7 +26,7 @@ ERRFUNC MiniVector_MessageProcessor_make(const size_t initial_count, MiniVector 
 	return NO_ERROR;
 }
 
-ERRFUNC MiniVector_MessageProcessor_destroy(MiniVector *vec) {
+ERRFUNC MiniVector_StringOwn_destroy(MiniVector *vec) {
 
 	free(vec->data);
 
@@ -39,7 +39,7 @@ ERRFUNC MiniVector_MessageProcessor_destroy(MiniVector *vec) {
 }
 
 // This fails atomically, If the allocation fails the old pointer is still valid, so this becomes essentially a NO_OP
-ERRFUNC MiniVector_MessageProcessor_grow(MiniVector *vec) {
+ERRFUNC MiniVector_StringOwn_grow(MiniVector *vec) {
 
 	auto new_ptr = realloc(vec->data, vec->capacity * GROW_RATE);
 	SNS_TEST_ALLOC(new_ptr);
@@ -52,19 +52,19 @@ ERRFUNC MiniVector_MessageProcessor_grow(MiniVector *vec) {
 	return NO_ERROR;
 }
 
-ERRFUNC MiniVector_MessageProcessor_get(const MiniVector *vec, const size_t index, MessageProcessor *result) {
+ERRFUNC MiniVector_StringOwn_get(const MiniVector *vec, const size_t index, StringOwn *result) {
 
 	if (index >= vec->count) {
 		llog(LOG_WARNING, "[MINIVECTOR] %ld >= %ld Unreachable position\n", index, vec->count);
 		return INVALID_ARGUMENT;
 	}
 
-	*result = *(vec->data + index);
+	memcpy(result, &vec->data[index], sizeof(StringOwn));
 
 	return NO_ERROR;
 }
 
-ERRFUNC MiniVector_MessageProcessor_set(MiniVector *vec, const size_t index, const MessageProcessor *element) {
+ERRFUNC MiniVector_StringOwn_set(MiniVector *vec, const size_t index, const StringOwn *element) {
 
 	if (element == nullptr) {
 		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
@@ -75,31 +75,32 @@ ERRFUNC MiniVector_MessageProcessor_set(MiniVector *vec, const size_t index, con
 		llog(LOG_WARNING, "[MINIVECTOR] %ld >= %ld Unreachable position\n", index, vec->count);
 		return INVALID_ARGUMENT;
 	}
-	vec->data[index] = *element;
+
+	memcpy(&vec->data[index], element, sizeof(StringOwn));
 
 	return NO_ERROR;
 }
 
-ERRFUNC MiniVector_MessageProcessor_append(MiniVector *vec, const MessageProcessor *element) {
+ERRFUNC MiniVector_StringOwn_append(MiniVector *vec, const StringOwn *element) {
 
 	if (element == nullptr) {
 		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
 		return INVALID_ARGUMENT;
 	}
 
-	if (vec->count == vec->capacity / sizeof(MessageProcessor)) {
-		auto err = MiniVector_MessageProcessor_grow(vec);
+	if (vec->count == vec->capacity / sizeof(StringOwn)) {
+		auto err = MiniVector_StringOwn_grow(vec);
 		SNS_RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
-	vec->data[vec->count] = *element;
+	memcpy(&vec->data[vec->count], element, sizeof(StringOwn));
 
 	++(vec->count);
 
 	return NO_ERROR;
 }
 
-ERRFUNC MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, const MessageProcessor *element) {
+ERRFUNC MiniVector_StringOwn_insert(MiniVector *vec, const size_t index, const StringOwn *element) {
 
 	if (element == nullptr) {
 		llog(LOG_WARNING, "[MINIVECTOR] Trying to set a null element\n");
@@ -112,10 +113,10 @@ ERRFUNC MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, 
 	}
 
 	if (index == vec->count) {
-		return MiniVector_MessageProcessor_append(vec, element);
+		return MiniVector_StringOwn_append(vec, element);
 	}
 
-	if (vec->count == vec->capacity / sizeof(MessageProcessor)) {
+	if (vec->count == vec->capacity / sizeof(StringOwn)) {
 		// i have to grow
 		// I am doing double work here (in case realloc cannot extend the given pointer)
 		// either realloc copies everything and then I move part of the array further OR
@@ -123,24 +124,24 @@ ERRFUNC MiniVector_MessageProcessor_insert(MiniVector *vec, const size_t index, 
 		// If I were to malloc new memory I would not incur in a double copy BUT i would miss out on a potential easy realloc
 		// So the decision lies on the distribution of good realloc vs bad realloc
 		// but I don't have the data to know this. So I'll just go with grow (realloc)
-		auto err = MiniVector_MessageProcessor_grow(vec);
+		auto err = MiniVector_StringOwn_grow(vec);
 		SNS_RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
 	// god bless memmove
-	memmove(&vec->data[index + 1], &vec->data[index], (vec->count - index) * sizeof(MessageProcessor));
+	memmove(&vec->data[index + 1], &vec->data[index], (vec->count - index) * sizeof(StringOwn));
 
 	++(vec->count);
 
 	// finally write the data
-	auto err = MiniVector_MessageProcessor_set(vec, index, element);
+	auto err = MiniVector_StringOwn_set(vec, index, element);
 	SNS_RET_IF_ERR(err) // this should not give any error as I already validate the parameters in the same way that 
 
 	return NO_ERROR;
 }
 
 
-ERRFUNC MiniVector_MessageProcessor_remove(MiniVector *vec, const size_t index) {
+ERRFUNC MiniVector_StringOwn_remove(MiniVector *vec, const size_t index) {
 
 	// we cant just overwrite the position to erase when
 	// index is out of bound, > count or
@@ -152,7 +153,7 @@ ERRFUNC MiniVector_MessageProcessor_remove(MiniVector *vec, const size_t index) 
 
 	if (index < vec->count - 1) {
 		// just copy over it, no need to do anything else really
-		memmove(&vec->data[index], &vec->data[index + 1], (vec->count - index - 1) * sizeof(MessageProcessor));
+		memmove(&vec->data[index], &vec->data[index + 1], (vec->count - index - 1) * sizeof(StringOwn));
 	}
 
 	--vec->count;

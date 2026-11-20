@@ -82,8 +82,8 @@ ERRFUNC RingBuffer_ResolverData_retrieve(RingBuffer *rngb, ResolverData *result)
 		return NO_OP;
 	}
 
-	*result = rngb->data[rngb->index];
-	rngb->data[rngb->index] = (ResolverData){};
+	memcpy(result, &rngb->data[rngb->index], sizeof(ResolverData));
+	memset(&rngb->data[rngb->index], 0, sizeof(ResolverData));
 
 	++rngb->index;
 	rngb->index = rngb->index % rngb->count;
@@ -107,7 +107,7 @@ ERRFUNC RingBuffer_ResolverData_append(RingBuffer *rngb, const ResolverData *ele
 
 	auto write_index = (rngb->index + rngb->stored) % rngb->count;
 
-	rngb->data[write_index] = *element;
+	memcpy(&rngb->data[write_index], element, sizeof(ResolverData));
 
 	++rngb->stored;
 
@@ -121,7 +121,7 @@ ERRFUNC RingBuffer_ResolverData_peek(const RingBuffer *rngb, ResolverData *resul
 		return NO_OP;
 	}
 
-	*result = rngb->data[rngb->index];
+	memcpy(result, &rngb->data[rngb->index], sizeof(ResolverData));
 
 	return NO_ERROR;
 }

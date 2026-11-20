@@ -59,7 +59,7 @@ ERRFUNC MiniVector_#T#_get(const MiniVector *vec, const size_t index, T *result)
 		return INVALID_ARGUMENT;
 	}
 
-	*result = *(vec->data + index);
+	memcpy(result, &vec->data[index], sizeof(T));
 
 	return NO_ERROR;
 }
@@ -75,7 +75,8 @@ ERRFUNC MiniVector_#T#_set(MiniVector *vec, const size_t index, const T *element
 		llog(LOG_WARNING, "[MINIVECTOR] %ld >= %ld Unreachable position\n", index, vec->count);
 		return INVALID_ARGUMENT;
 	}
-	vec->data[index] = *element;
+
+	memcpy(&vec->data[index], element, sizeof(T));
 
 	return NO_ERROR;
 }
@@ -92,7 +93,7 @@ ERRFUNC MiniVector_#T#_append(MiniVector *vec, const T *element) {
 		SNS_RET_IF_ERR(err) // Nothing was grown, nothing to do
 	}
 
-	vec->data[vec->count] = *element;
+	memcpy(&vec->data[vec->count], element, sizeof(T));
 
 	++(vec->count);
 

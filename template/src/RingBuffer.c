@@ -82,8 +82,8 @@ ERRFUNC RingBuffer_#T#_retrieve(RingBuffer *rngb, T *result) {
 		return NO_OP;
 	}
 
-	*result = rngb->data[rngb->index];
-	rngb->data[rngb->index] = (T){};
+	memcpy(result, &rngb->data[rngb->index], sizeof(T));
+	memset(&rngb->data[rngb->index], 0, sizeof(T));
 
 	++rngb->index;
 	rngb->index = rngb->index % rngb->count;
@@ -107,7 +107,7 @@ ERRFUNC RingBuffer_#T#_append(RingBuffer *rngb, const T *element) {
 
 	auto write_index = (rngb->index + rngb->stored) % rngb->count;
 
-	rngb->data[write_index] = *element;
+	memcpy(&rngb->data[write_index], element, sizeof(T));
 
 	++rngb->stored;
 
@@ -121,7 +121,7 @@ ERRFUNC RingBuffer_#T#_peek(const RingBuffer *rngb, T *result) {
 		return NO_OP;
 	}
 
-	*result = rngb->data[rngb->index];
+	memcpy(result, &rngb->data[rngb->index], sizeof(T));
 
 	return NO_ERROR;
 }
