@@ -10,10 +10,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static void log_malformed_option(const StringRef *str_ref) {
-	llog(LOG_WARNING, "Malformed option -> '%.*s'\n", CLAMP_TO_POSITIVE_INT(str_ref->len), str_ref->str);
-}
-
 ERRFUNC create_InboundMessage(char *str, InboundHttpMessage *mex) {
 
 	*mex = (InboundHttpMessage){};
@@ -65,6 +61,13 @@ ERRFUNC destroy_InboundHttpMessage(InboundHttpMessage *mex) {
 	return err;
 }
 
+ERRFUNC create_OutboundHttpMessage(OutboundHttpMessage *mex) {
+
+	*mex = (OutboundHttpMessage){};
+
+	return MiniMap_HTTPResponseOption_StringOwn_make(16, compare_HTTPResponseOption, &mex->header_options);
+}
+
 ERRFUNC destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
 
 	for (size_t i = 0; i < mex->header_options.values.count; ++i) {
@@ -80,36 +83,47 @@ ERRFUNC destroy_OutboundHttpMessage(OutboundHttpMessage *mex) {
 	return err;
 }
 
-ERRFUNC add_to_header_options(StringRef key, StringRef val, InboundHttpMessage *ctx) {
+ERRFUNC add_to_header_options(StringRef *key, StringRef *val, InboundHttpMessage *ctx) {
 
-	StringView key_v = {key.str, key.len};
+	StringView key_v = {key->str, key->len};
 	auto       index = get_header_options_code(&key_v);
+	StringRef empty = {};
+	if (val == nullptr) {
+		// null value -> empty value
+		val = &empty;
+	}
 	if (index >= RQ_ENUM_LEN) {
-		llog(LOG_WARNING, "[HEADER] Could not recognize parameter '%.*s = %.*s'\n", CLAMP_TO_POSITIVE_INT(key.len), key.str, CLAMP_TO_POSITIVE_INT(val.len), val.str);
+		llog(LOG_WARNING, "[HEADER] Could not recognize parameter '%.*s = %.*s'\n", CLAMP_TO_POSITIVE_INT(key->len), key->str, CLAMP_TO_POSITIVE_INT(val->len), val->str);
 		return NO_ERROR; // it's fine for now
 		                 // return PARSING_HEADER__UKNOWN_HEADER;
 	}
-	ctx->header_options[index] = val;
+
+	ctx->header_options[index] = *val;
 
 	return NO_ERROR;
 }
 
-ERRFUNC add_to_params(StringRef key, StringRef val, InboundHttpMessage *ctx) {
+ERRFUNC add_to_params(StringRef *key, StringRef *val, InboundHttpMessage *ctx) {
 
 	// I use this in different places throughout the body,
 	// this means that I am actually modifying the body
 	// this is fine since it should only be used internally.
 	// If the necessity of keeping an intact copy of the body arises things will change
-	StringView key_v = {key.str, key.len};
-	auto       err   = url_decode(&key, &key_v, true);
+	StringView key_v = {key->str, key->len};
+	auto       err   = url_decode(key, &key_v, true);
 	SNS_RET_IF_ERR(err) // If I were to ignore the error (__MALFORMED_PERCENT_ENCODING) the user of the lib could see an incorrect value
 	                // and thus would need to check every single parameter
 	                // so we stop the parsing here
 
-	StringView val_v = {val.str, val.len};
-	err              = url_decode(&val, &val_v, true);
+	StringRef empty = {};
+	if (val == nullptr) {
+		// null value -> empty value
+		val = &empty;
+	}
+	StringView val_v = {val->str, val->len};
+	err              = url_decode(val, &val_v, true);
 	SNS_RET_IF_ERR(err)
-	return MiniMap_StringRef_StringRef_set(&ctx->parameters, &key, &val); // if it return FAILED_ALLOCATION can't do much about it other than stopping parsing
+	return MiniMap_StringRef_StringRef_set(&ctx->parameters, key, val); // if it return FAILED_ALLOCATION can't do much about it other than stopping parsing
 }
 
 ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
@@ -398,7 +412,11 @@ ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 
 		auto sep = strnchr(chunk.str, item_sep, chunk.len);
 		if (sep == nullptr) {
-			log_malformed_option(&chunk);
+			// I'll let the user decide what to do with value less keys (?debug&item=1&...
+			if (!strrefblank(&chunk)) {
+				auto err = fun(&chunk, nullptr, ctx);
+				SNS_RET_IF_ERR(err)
+			}
 		} else {
 
 			// everything is fine here
@@ -411,7 +429,7 @@ ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 
 			// check if we actually have a key, the value can be empty
 			if (!strrefblank(&key)) {
-				auto err = fun(key, val, ctx);
+				auto err = fun(&key, &val, ctx);
 				SNS_RET_IF_ERR(err)
 			}
 		}
@@ -429,60 +447,22 @@ ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 	return NO_ERROR;
 }
 
-/**
- * Parse the data divided by special divisor in form data and then insert them in the parameters map in the httpMessage
- *
- * @param params the parameters encodedn in form data
- * @param divisor the unique divisor string used in the data
- * @param parameters the map where to put the parameters found
- *
-void http::parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters) {
+ERRFUNC add_header_option(const HTTPResponseOption option, const StringView value, OutboundHttpMessage *msg) {
 
-    PROFILE_FUNCTION();
-
-    std::vector<std::string> temp;
-
-    auto datas = split(params, divisor);
-
-    // the last place always contains "--", no real data in here
-    datas.pop_back();
-    datas.erase(datas.begin());
-
-    for (size_t i = 0; i < datas.size(); i++) {
-        // 0 |||||                    1                        ||||||2|||||  3   | 4  |
-        //   \r\n|Content-Disposition: form-data; name="field1"|\r\n| \r\n|value1|\r\n|
-        //                            0                                      1
-        std::vector<std::string> option_value = split(datas[i], "\r\n");
-        option_value.pop_back();                      // pos 4
-        option_value.erase(option_value.begin() + 2); // pos 2
-        option_value.erase(option_value.begin());     // pos 0
-
-        //                0              ||      1      ||         2
-        // Content-Disposition: form-data; name="field1"; filename="example.txt"
-        std::vector<std::string> options = split(option_value[0], "; ");
-
-        // jump directly to "name="
-        std::string name = options[1].substr(5);
-        // remove heading and trailing double quotes "
-        name.pop_back();
-        name.erase(name.begin());
-
-        parameters[name] = option_value[1];
-    }
-}
-*/
-
-ERRFUNC add_header_option(const HTTPResponseOption option, const StringView *value, OutboundHttpMessage *msg) {
+	if (option >= RP_ENUM_LEN) {
+		llog(LOG_ERROR, "[HEADER OPTION] Attempted to insert an unkonwn response option int the outbounf HTTP message %d\n", option);
+		return INVALID_ARGUMENT;
+	}
 
 	auto opt_str = header_response_options_str[option];
 
-	size_t len      = value->len;
-	size_t calc_len = strnlen(value->str, value->len);
+	size_t len      = value.len;
+	size_t calc_len = strnlen(value.str, value.len);
 	if (calc_len < len) {
 		len = calc_len;
 	}
 
-	char *new = strndup(value->str, len);
+	char *new = strndup(value.str, len);
 	SNS_TEST_ALLOC(new)
 
 	StringOwn cpy = {new, len};
@@ -493,7 +473,10 @@ ERRFUNC add_header_option(const HTTPResponseOption option, const StringView *val
 	SNS_RET_IF_ERR(err) // this does not return an error yet
 
 	auto set_err = MiniMap_HTTPResponseOption_StringOwn_set(&msg->header_options, &option, &cpy);
-	SNS_RET_IF_ERR(set_err) // cpy is not nullptr, so here we can only get FAILED_ALLOCATION
+	if (set_err > NO_OP) {
+		free(new);
+		return set_err;
+	} // cpy is not nullptr, so here we can only get FAILED_ALLOCATION
 
 	// if we are here we both have set the new option and have a copy of the old one
 	// I set the new one before completely destroying the old one to be sure that the operation is 'atomic'
@@ -519,3 +502,45 @@ ERRFUNC add_header_option(const HTTPResponseOption option, const StringView *val
 
 	return NO_ERROR;
 }
+
+/**
+ * Parse the data divided by special divisor in form data and then insert them in the parameters map in the httpMessage
+ *
+ * @param params the parameters encodedn in form data
+ * @param divisor the unique divisor string used in the data
+ * @param parameters the map where to put the parameters found
+ */
+// void http::parseFormData(const std::string &params, std::string &divisor, std::unordered_map<std::string, std::string> &parameters) {
+//
+//     PROFILE_FUNCTION();
+//
+//     std::vector<std::string> temp;
+//
+//     auto datas = split(params, divisor);
+//
+//     // the last place always contains "--", no real data in here
+//     datas.pop_back();
+//     datas.erase(datas.begin());
+//
+//     for (size_t i = 0; i < datas.size(); i++) {
+//         // 0 |||||                    1                        ||||||2|||||  3   | 4  |
+//         //   \r\n|Content-Disposition: form-data; name="field1"|\r\n| \r\n|value1|\r\n|
+//         //                            0                                      1
+//         std::vector<std::string> option_value = split(datas[i], "\r\n");
+//         option_value.pop_back();                      // pos 4
+//         option_value.erase(option_value.begin() + 2); // pos 2
+//         option_value.erase(option_value.begin());     // pos 0
+//
+//         //                0              ||      1      ||         2
+//         // Content-Disposition: form-data; name="field1"; filename="example.txt"
+//         std::vector<std::string> options = split(option_value[0], "; ");
+//
+//         // jump directly to "name="
+//         std::string name = options[1].substr(5);
+//         // remove heading and trailing double quotes "
+//         name.pop_back();
+//         name.erase(name.begin());
+//
+//         parameters[name] = option_value[1];
+//     }
+// }

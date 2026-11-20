@@ -1,5 +1,6 @@
 #include "sns.h"
 
+#include "responses.h"
 #include "utils.h"
 
 #include <errno.h>
@@ -18,11 +19,11 @@
 
 static struct sigaction old_sigaction = {};
 
-void SIGPIPE_handler(int os) {
+static void SIGPIPE_handler(int os) {
 	llog(LOG_INFO, "[SIGPIPE] Received a sigpipe. (%d) Probably just a client disconnect\n", os);
 }
 
-MessageProcessor findProcessor(const StringView *url, const SNSRoutes *routes_info) {
+static MessageProcessor find_processor(const StringView *url, const SNSRoutes *routes_info) {
 
 	regex_t empty_reg = {};
 
@@ -79,12 +80,12 @@ MessageProcessor findProcessor(const StringView *url, const SNSRoutes *routes_in
  * Will receive the data from the connection, parse the request and give it to the message processor
  *
  */
-void resolve_request(SSL *ssl_connection, const Socket client_socket, const SNSRoutes *routes_info) {
+static void resolve_request(SSL *ssl_connection, const Socket client_socket, const SNSRoutes *routes_info) {
 
 	// ---------------------------------------------------------------------- RECEIVE
 	char *request        = nullptr;
 	auto  bytes_received = SSL_receive_record(ssl_connection, &request);
-
+	MessageProcessor processor = nullptr; // this is kept here to so an erlier error can set it to a default known value (like 400 Bad Request)
 	// received some bytes
 	if (bytes_received <= 0) {
 		free(request);
@@ -103,28 +104,51 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, const SNSR
 				llog(LOG_ERROR, "[SERVER] Destroying the inbound message failed, potentially leaking memory (client %d)\n", client_socket);
 			}
 		}
-		goto cleanup;
+		processor = BadRequest400;
 	}
 
-	const StringView met = methods_str[inbound_mex.method];
-	llog(LOG_INFO, "[SERVER] Received request <%.*s> from %d\n", CLAMP_TO_POSITIVE_INT(met.len), met.str, client_socket);
+	if (processor == nullptr) { // nothing else did set a responder already
+		const StringView met = methods_str[inbound_mex.method];
+		llog(LOG_INFO, "[SERVER] Received request <%.*s> from %d\n", CLAMP_TO_POSITIVE_INT(met.len), met.str, client_socket);
 
-	OutboundHttpMessage outbound_mex = {};
-	err                              = MiniMap_HTTPResponseOption_StringOwn_make(16, compare_HTTPResponseOption, &outbound_mex.header_options);
-	if (err > NO_OP) {
-		err = destroy_InboundHttpMessage(&inbound_mex);
-		if (err > NO_OP) {
-			llog(LOG_ERROR, "[SERVER] Destroying the inbound message failed, potentially leaking memory (client %d)\n", client_socket);
-		}
-		goto cleanup;
+		StringView       url_v     = {inbound_mex.url.str, inbound_mex.url.len};
+		processor = find_processor(&url_v, routes_info);
 	}
-
-	outbound_mex.version = HTTP_VER_11;
-
-	StringView       url_v     = {inbound_mex.url.str, inbound_mex.url.len};
-	MessageProcessor processor = findProcessor(&url_v, routes_info);
 	if (processor != nullptr) { // TODO: check after message processor re-work
-		processor(&inbound_mex, &outbound_mex);
+
+		OutboundHttpMessage outbound_mex = {};
+		err                              = create_OutboundHttpMessage(&outbound_mex);
+		if (err > NO_OP) {
+			err = destroy_InboundHttpMessage(&inbound_mex);
+			// ignoring error, since it does not return one yet
+			goto cleanup;
+		}
+
+		outbound_mex.version = HTTP_VER_11;
+		err                  = add_header_option(RP_DATE, getUTC(), &outbound_mex);
+
+		if (err > NO_OP) {
+			err = destroy_InboundHttpMessage(&inbound_mex);
+			// ignoring error, since it does not return one yet
+			goto cleanup;
+		}
+
+		err = add_header_option(RP_SERVER, TO_STRINGVIEW(SNS_VERSION_STRING), &outbound_mex);
+
+		if (err > NO_OP) {
+			err = destroy_InboundHttpMessage(&inbound_mex);
+			// ignoring error, since it does not return one yet
+			goto cleanup;
+		}
+
+		err = processor(&inbound_mex, &outbound_mex);
+
+		if (err > NO_OP) {
+			err = destroy_InboundHttpMessage(&inbound_mex);
+			err = destroy_OutboundHttpMessage(&outbound_mex);
+			// ignoring error, since it does not return one yet
+			goto cleanup;
+		}
 
 		// make the message a single formatted string
 		StringOwn res = {};
@@ -137,25 +161,26 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, const SNSR
 			SSL_send_record(ssl_connection, res.str, res.len);
 			free(res.str);
 		}
-	}
 
-	err = destroy_OutboundHttpMessage(&outbound_mex);
-	if (err > NO_OP) {
-		llog(LOG_ERROR, "[SERVER] Destroying the outbound message failed, potentially leaking memory (client %d)\n", client_socket);
+		err = destroy_OutboundHttpMessage(&outbound_mex);
+		// ignoring error, since it does not return one yet
+
 	}
 	err = destroy_InboundHttpMessage(&inbound_mex);
-	if (err > NO_OP) {
-		llog(LOG_ERROR, "[SERVER] Destroying the inbound message failed, potentially leaking memory (client %d)\n", client_socket);
-	}
+	// ignoring error, since it does not return one yet
 cleanup:
 	SSL_destroy_connection(ssl_connection);
 	TCP_shutdown_socket(client_socket);
 	TCP_close_socket(client_socket);
 }
 
-SNS_NO_RETURN void *proxy_res_req(void *ptr) {
-	ThreadPool *pool = (ThreadPool *)(ptr);
+SNS_NO_RETURN static void *proxy_res_req(void *ptr) {
 
+#ifdef NO_THREADING
+	ResolverData *data = (ResolverData *)(ptr);
+	resolve_request(data->ssl, data->client_socket, data->routes_info);
+#else
+	ThreadPool *pool = (ThreadPool *)(ptr);
 	while (!pool->stop) {
 		ResolverData data = {};
 		auto         err  = dequeue_threadpool(pool, &data);
@@ -171,6 +196,7 @@ SNS_NO_RETURN void *proxy_res_req(void *ptr) {
 		resolve_request(data.ssl, data.client_socket, data.routes_info);
 	}
 
+#endif
 	SNS_THREAD_RETURN;
 }
 
@@ -178,7 +204,7 @@ SNS_NO_RETURN void *proxy_res_req(void *ptr) {
  * Listens on the socket for TLS connections
  * if manages to establish one pushes a new job in the thread pool with the details
  */
-void accept_requests(SNSServer *server) {
+static void accept_requests(SNSServer *server) {
 	Socket client = INVALID_SOCKET;
 
 	struct pollfd ss = {
@@ -232,7 +258,7 @@ void accept_requests(SNSServer *server) {
 	}
 }
 
-SNS_NO_RETURN void *proxy_acc_req(void *ptr) {
+SNS_NO_RETURN static void *proxy_acc_req(void *ptr) {
 	accept_requests((SNSServer *)(ptr));
 	SNS_THREAD_RETURN;
 }
@@ -245,7 +271,7 @@ SNS_NO_RETURN void *proxy_acc_req(void *ptr) {
  * - `THREADPOOL__FAILED_INIT`. The threadpool initialization failed
  *     Nothing was constructed and nothing needs to be destroyed
  */
-ERRFUNC setup(SNSServer *server) {
+ERRFUNC static setup(SNSServer *server) {
 
 	errno = 0;
 
@@ -278,6 +304,7 @@ ERRFUNC setup(SNSServer *server) {
 
 	llog(LOG_INFO, "[SSL] Context created\n");
 
+#ifndef NO_THREADING
 	// finally creating the threadPool
 	auto err = initialize_threadpool(20, proxy_res_req, &server->info.thread_pool);
 	if (err > NO_OP) {
@@ -290,6 +317,7 @@ ERRFUNC setup(SNSServer *server) {
 
 		return THREADPOOL__FAILED_INIT;
 	}
+#endif
 
 	return NO_ERROR;
 }
@@ -324,6 +352,7 @@ ERRFUNC SNSstop(SNSServer *server) {
 
 	TCP_terminate(server->info.server_socket);
 
+#ifndef NO_THREADING
 	// tpool stop
 	auto err = destroy_threadpool(&server->info.thread_pool);
 	SNS_RET_IF_ERR(err) // Does not return an error (yet)
@@ -332,6 +361,7 @@ ERRFUNC SNSstop(SNSServer *server) {
 	// thread stop
 	pthread_join(server->info.request_acceptor, NULL);
 	llog(LOG_INFO, "[SERVER] Request acceptor stopped\n");
+#endif
 
 	SSL_destroy_context(server->info.ssl_context);
 
@@ -365,6 +395,8 @@ ERRFUNC create_SNSServer(SNSServer *server) {
 		SNS_RET_IF_ERR(err2) // Destroy does not return an error yet
 		return err;
 	}
+
+	server->routes.default_processor = NotFound404;
 
 	return NO_ERROR;
 }
@@ -460,7 +492,7 @@ ERRFUNC register_route(const StringView *route_name, const MessageProcessor proc
 
 ERRFUNC unregister_route(const StringView *route_name, SNSServer *server) {
 	if (route_name == nullptr) {
-		server->routes.default_processor = nullptr;
+		server->routes.default_processor = NotFound404;
 		return NO_ERROR;
 	}
 

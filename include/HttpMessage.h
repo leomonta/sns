@@ -35,7 +35,7 @@ typedef struct {
 
 typedef ErrCode (*MessageProcessor)(const InboundHttpMessage *in_message, OutboundHttpMessage *out_message);
 
-typedef ErrCode (*OptionsProcessor)(StringRef a, StringRef b, InboundHttpMessage *ctx);
+typedef ErrCode (*OptionsProcessor)(StringRef *a, StringRef *b, InboundHttpMessage *ctx);
 
 /**
  * Reads the given HTTP message `str` ands construct `mex` with the data found
@@ -66,6 +66,15 @@ ERRFUNC create_InboundMessage(char *str, InboundHttpMessage *mex);
  * @return an error code describing if and which error occurred
  */
 ERRFUNC destroy_InboundHttpMessage(InboundHttpMessage *mex);
+
+/**
+ * Sets up the internal structure of an empty `OutboundHttpMessage` to initialize
+ *
+ * @param[in] `mex` the OutboundHTTPMessage to create, this will also free the string passed to `create_InboundMessage`
+ *
+ * @return an error code describing if and which error occurred
+ */
+ERRFUNC create_OutboundHttpMessage(OutboundHttpMessage *mex);
 
 /**
  * Frees all the associated resources and zeroes all field.
@@ -155,7 +164,7 @@ HTTPRequestOption get_header_options_code(const StringView *option);
  * form parameters is the same except these parameters
  *
  * @param[in] `str` a StringRef of the string to analyze
- * @param[in] `fun` a function that given key, value and context process them correctly
+ * @param[in] `fun` a function that given key, value and context process them correctly, the given value might be `nullptr` if there was no `item_separator` in the chunk
  * @param[in] `chunk_sep` a string that delimits the separation of chunks (e.g. a single header option, a form value)
  * @param[in] `item_sep` a char to separate the chunk in key and value (e.g. ':', '=')
  * @param[in] `ctx` the context to pass to the `OptionsProcessor`
@@ -180,6 +189,9 @@ ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, cons
  *
  * @return an error code describing if and which error occurred
  *
- * - `FAILED_ALLOCATION`: could not copy the given value to a new buffer. No data was added
+ * - `FAILED_ALLOCATION`: could not copy the given value to a new buffer.
+ *     No data was added
+ * - `INVALID_ARGUMENT`: If `option` is not an enum value
+ *     No data was added
  */
-ERRFUNC add_header_option(const HTTPResponseOption option, const StringView *value, OutboundHttpMessage *msg);
+ERRFUNC add_header_option(const HTTPResponseOption option, const StringView value, OutboundHttpMessage *msg);

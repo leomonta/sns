@@ -291,5 +291,11 @@ static const StringView reason_phrases_str[] = {
     TO_STRINGVIEW("Gateway Time-out"),
     TO_STRINGVIEW("HTTP Version not supported")};
 
-constexpr unsigned char server_version_major = 4;
-constexpr unsigned char server_version_minor = 0;
+
+#define SNS_VERSION_MAJOR 5
+#define SNS_VERSION_MINOR 0
+
+#define SNS_VERSION_MAJOR_STR "5"
+#define SNS_VERSION_MINOR_STR "0"
+
+#define SNS_VERSION_STRING "sns/"SNS_VERSION_MAJOR_STR"."SNS_VERSION_MINOR_STR

@@ -7,14 +7,14 @@
 #include <limits.h>
 #include <string.h>
 
-#define CLAMP_TO_POSITIVE_INT(sz) sz > INT_MAX ? INT_MAX - 1 : (int)(sz)
+#define CLAMP_TO_POSITIVE_INT(sz) (sz > INT_MAX ? INT_MAX - 1 : (int)(sz))
 
 /**
  * simply get the time formetted following RFC822 regulation on GMT time
  *
- * @return a static thread local strig containing the date
+ * @return a static thread local StringView containing the date, as such this should never be freed, and stored by the user if needed to e
  */
-StringRef getUTC();
+StringView getUTC();
 
 /**
  * Decode url character (e.g. %20 => " ") to ascii character, shamelessly copied from stackoverflow

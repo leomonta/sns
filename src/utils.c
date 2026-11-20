@@ -14,7 +14,7 @@
 static thread_local char buffer[80];
 static thread_local char digits_str_buffer[41]; // enough to represent 2^128, null terminator and then some
 
-StringRef getUTC() {
+StringView getUTC() {
 
 	// Get the date in UTC/GMT
 	time_t    unixtime;
@@ -27,7 +27,7 @@ StringRef getUTC() {
 	// format based on rfc822 revision rfc1123
 	auto len = strftime(buffer, 80, "%a, %d %b %Y %H:%M:%S GMT", &UTC);
 
-	return (StringRef){buffer, len};
+	return (StringView){buffer, len};
 }
 
 ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus) {
