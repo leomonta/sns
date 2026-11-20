@@ -4,41 +4,41 @@
 #include <strings.h>
 
 bool equal_StringOwn(const StringOwn *lhs, const StringOwn *rhs) {
-	StringView lhs_v = {lhs->str, lhs->len};
-	StringView rhs_v = {rhs->str, rhs->len};
-	return equal_StringView(&lhs_v, &rhs_v);
+	return equal_sized_strings(lhs->str, lhs->len, rhs->str, rhs->len);
 }
 
 bool equal_StringRef(const StringRef *lhs, const StringRef *rhs) {
-	StringView lhs_v = {lhs->str, lhs->len};
-	StringView rhs_v = {rhs->str, rhs->len};
-	return equal_StringView(&lhs_v, &rhs_v);
+	return equal_sized_strings(lhs->str, lhs->len, rhs->str, rhs->len);
 }
 
 bool equal_StringView(const StringView *lhs, const StringView *rhs) {
-	if (lhs->len != rhs->len) {
+	return equal_sized_strings(lhs->str, lhs->len, rhs->str, rhs->len);
+}
+
+bool equal_sized_strings(const char *lhs, const size_t lhs_s, const char *rhs, const size_t rhs_s) {
+	if (lhs_s != rhs_s) {
 		return false;
 	}
 
-	return strncmp(lhs->str, rhs->str, lhs->len) == 0;
+	return strncmp(lhs, rhs, lhs_s) == 0;
 }
 
 bool equal_case_StringOwn(const StringOwn *lhs, const StringOwn *rhs) {
-	StringView lhs_v = {lhs->str, lhs->len};
-	StringView rhs_v = {rhs->str, rhs->len};
-	return equal_case_StringView(&lhs_v, &rhs_v);
+	return equal_case_sized_strings(lhs->str, lhs->len, rhs->str, rhs->len);
 }
 
 bool equal_case_StringRef(const StringRef *lhs, const StringRef *rhs) {
-	StringView lhs_v = {lhs->str, lhs->len};
-	StringView rhs_v = {rhs->str, rhs->len};
-	return equal_case_StringView(&lhs_v, &rhs_v);
+	return equal_case_sized_strings(lhs->str, lhs->len, rhs->str, rhs->len);
 }
 
 bool equal_case_StringView(const StringView *lhs, const StringView *rhs) {
-	if (lhs->len != rhs->len) {
+	return equal_case_sized_strings(lhs->str, lhs->len, rhs->str, rhs->len);
+}
+
+bool equal_case_sized_strings(const char *lhs, const size_t lhs_s, const char *rhs, const size_t rhs_s) {
+	if (lhs_s != rhs_s) {
 		return false;
 	}
 
-	return strncasecmp(lhs->str, rhs->str, lhs->len) == 0;
+	return strncasecmp(lhs, rhs, lhs_s) == 0;
 }

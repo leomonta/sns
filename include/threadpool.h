@@ -1,7 +1,7 @@
 #pragma once
 
-#include "RingBuffer_ResolverData.h"
 
+#include "RingBuffer_ResolverData.h"
 #include <pthread.h>
 #include <semaphore.h>
 #include <sslConn.h>

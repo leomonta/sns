@@ -22,69 +22,64 @@ void SIGPIPE_handler(int os) {
 	llog(LOG_INFO, "[SIGPIPE] Received a sigpipe. (%d) Probably just a client disconnect\n", os);
 }
 
-MessageProcessor findProcessor(const StringRef *url, const MiniMap_StringRef_MessageProcessor *mapped_function) {
+MessageProcessor findProcessor(const StringView *url, const SNSRoutes *routes_info) {
 
-#define INTERNAL_BUFF_SIZE 255
+	regex_t empty_reg = {};
 
-	// static / simple route case
-	MessageProcessor vv;
-	auto             res = MiniMap_StringRef_MessageProcessor_get(mapped_function, url, &vv);
+	// plain routes
 
-	if (res) {
-		return vv;
+	for (size_t i = 0; i < routes_info->names.count; ++i) {
+		regex_t regex = {};
+		auto    ign   = MiniVector_regex_t_get(&routes_info->regexes, i, &regex);
+
+		// if the route is regex, skip this
+		if (memcmp(&regex, &empty_reg, sizeof(regex_t)) != 0) {
+			continue;
+		}
+		StringView name = {};
+		ign             = MiniVector_StringView_get(&routes_info->names, i, &name);
+
+		// just return the first that is found
+		if (equal_StringView(url, &name)) {
+			MessageProcessor proc = {};
+			ign                   = MiniVector_MessageProcessor_get(&routes_info->processors, i, &proc);
+			return proc;
+		}
 	}
 
-	char buff[INTERNAL_BUFF_SIZE + 1] = {0};
+	// regexes
 
-	auto sz = mapped_function->keys.count;
+	for (size_t i = 0; i < routes_info->names.count; ++i) {
+		regex_t regex = {};
+		auto    ign   = MiniVector_regex_t_get(&routes_info->regexes, i, &regex);
 
-	for (size_t i = 0; i < sz; ++i) {
-		// take a key value pair
-		StringRef kk;
-		auto      err = MiniMap_StringRef_MessageProcessor_get_by_index(mapped_function, i, &kk, &vv);
-		if (err > NO_OP) {
+		// if the route is not regex, skip this
+		if (memcmp(&regex, &empty_reg, sizeof(regex_t)) == 0) {
 			continue;
 		}
 
-		// regcomp wants a null terminated string
-		// But I don't want to allocate an arbitrary str.len + 1 array to ensure that the key is null terminated
-		// so I'll limit the length to 255 and use the aforedeclarated `buff`
-		size_t safe_size = kk.len > INTERNAL_BUFF_SIZE ? INTERNAL_BUFF_SIZE : kk.len;
-		memcpy(buff, kk.str, safe_size);
-		buff[safe_size] = '\0'; // since safe_size is always at max the size of the buff, this is always safe
+		regmatch_t match_conf = {
+		    .rm_so = 0,
+		    .rm_eo = CLAMP_TO_POSITIVE_INT(url->len), // technically truncating the legnth here but if someone is going to send me a request with a url 2^32 char long (4GB) we have other problems
+		};
+		auto code = regexec(&regex, url->str, 0, &match_conf, REG_STARTEND);
 
-		// build the regex
-		regex_t regex;
-		auto    code = regcomp(&regex, buff, REG_EXTENDED | REG_NOSUB);
-		if (code != 0) {
-			regerror(code, &regex, buff, INTERNAL_BUFF_SIZE + 1);
-			llog(LOG_WARNING, "[FINDING RESOLVER] Regex compilation failed for pattern '%.*s' failed with error: %s\n", CLAMP_TO_POSITIVE_INT(kk.len), kk.str, buff);
-		}
-
-		code = regexec(&regex, url->str, 0, nullptr, 0);
-
-		// I actually care only about if there was a match of not
-		regfree(&regex);
 		if (code != REG_NOMATCH) {
-			return vv;
+			MessageProcessor proc = {};
+			ign                   = MiniVector_MessageProcessor_get(&routes_info->processors, i, &proc);
+			return proc;
 		}
 	}
 
-	llog(LOG_WARNING, "[FINDING RESOLVER] Could not find any matching processor '%.*s'\n", CLAMP_TO_POSITIVE_INT(url->len), url->str);
-
-	res = MiniMap_StringRef_MessageProcessor_get(mapped_function, url, &vv);
-	if (res != NO_ERROR) {
-		llog(LOG_WARNING, "[FINDING RESOLVER] Going for the default MessageProcessor\n");
-		return vv;
-	}
-	return nullptr;
+	llog(LOG_WARNING, "[FINDING RESOLVER] Could not find any matching processor for url '%.*s', using the default one\n", CLAMP_TO_POSITIVE_INT(url->len), url->str);
+	return routes_info->default_processor;
 }
 
 /**
  * Will receive the data from the connection, parse the request and give it to the message processor
  *
  */
-void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_StringRef_MessageProcessor *mapped_function) {
+void resolve_request(SSL *ssl_connection, const Socket client_socket, const SNSRoutes *routes_info) {
 
 	// ---------------------------------------------------------------------- RECEIVE
 	char *request        = nullptr;
@@ -126,7 +121,8 @@ void resolve_request(SSL *ssl_connection, const Socket client_socket, MiniMap_St
 
 	outbound_mex.version = HTTP_VER_11;
 
-	MessageProcessor processor = findProcessor(&inbound_mex.url, mapped_function);
+	StringView       url_v     = {inbound_mex.url.str, inbound_mex.url.len};
+	MessageProcessor processor = findProcessor(&url_v, routes_info);
 	if (processor != nullptr) { // TODO: check after message processor re-work
 		processor(&inbound_mex, &outbound_mex);
 
@@ -172,7 +168,7 @@ SNS_NO_RETURN void *proxy_res_req(void *ptr) {
 			continue;
 		}
 
-		resolve_request(data.ssl, data.client_socket, data.mapped_function);
+		resolve_request(data.ssl, data.client_socket, data.routes_info);
 	}
 
 	SNS_THREAD_RETURN;
@@ -223,7 +219,7 @@ void accept_requests(SNSServer *server) {
 
 		llog(LOG_DEBUG, "[SERVER] Queued new request for socket %d\n", client);
 
-		ResolverData t_data = {ssl_connection, client, &server->mapped_functions};
+		ResolverData t_data = {ssl_connection, client, &server->routes};
 
 #ifdef NO_THREADING
 		proxy_res_req((void *)&t_data);
@@ -348,7 +344,146 @@ ERRFUNC SNSstop(SNSServer *server) {
 	return NO_ERROR;
 }
 
-ERRFUNC register_route(const StringRef *route_name, const MessageProcessor *fun, SNSServer *server) {
-	// TODO: still very broken
-	return MiniMap_StringRef_MessageProcessor_set(&server->mapped_functions, route_name, fun);
+ERRFUNC create_SNSServer(SNSServer *server) {
+
+	*server = (SNSServer){};
+
+	// there is no need yet for comparing regex
+	auto err = MiniVector_regex_t_make(10, &server->routes.regexes);
+	SNS_RET_IF_ERR(err)
+	err = MiniVector_StringView_make(10, &server->routes.names);
+	if (err > NO_OP) {
+		auto err2 = MiniVector_regex_t_destroy(&server->routes.regexes);
+		SNS_RET_IF_ERR(err2) // Destroy does not return an error yet
+		return err;
+	}
+	err = MiniVector_MessageProcessor_make(10, &server->routes.processors);
+	if (err > NO_OP) {
+		auto err2 = MiniVector_regex_t_destroy(&server->routes.regexes);
+		SNS_RET_IF_ERR(err2) // Destroy does not return an error yet
+		err2 = MiniVector_StringView_destroy(&server->routes.names);
+		SNS_RET_IF_ERR(err2) // Destroy does not return an error yet
+		return err;
+	}
+
+	return NO_ERROR;
+}
+
+ERRFUNC destroy_SNSServer(SNSServer *server) {
+
+	regex_t empty = {};
+
+	for (size_t i = 0; i < server->routes.regexes.count; ++i) {
+		regex_t regex = {};
+		auto    err   = MiniVector_regex_t_get(&server->routes.regexes, i, &regex);
+		SNS_RET_IF_ERR(err) // get can'r return anything now since `i` is bounded
+		if (memcmp(&empty, &regex, sizeof(regex_t)) != 0) {
+			regfree(&regex);
+		}
+	}
+	auto err = MiniVector_regex_t_destroy(&server->routes.regexes);
+	SNS_RET_IF_ERR(err) // MiniMap destroy does not return an error yet
+	err = MiniVector_StringView_destroy(&server->routes.names);
+	SNS_RET_IF_ERR(err) // MiniMap destroy does not return an error yet
+	err = MiniVector_MessageProcessor_destroy(&server->routes.processors);
+	SNS_RET_IF_ERR(err) // MiniMap destroy does not return an error yet
+
+	return NO_ERROR;
+}
+
+ERRFUNC register_route(const StringView *route_name, const MessageProcessor proc, const bool regex, SNSServer *server) {
+
+#define INTERNAL_BUFF_SIZE 255
+
+	if (proc == nullptr) {
+		return INVALID_ARGUMENT;
+	}
+
+	if (route_name == nullptr) {
+		server->routes.default_processor = proc;
+		return NO_ERROR;
+	}
+
+	char    buff[INTERNAL_BUFF_SIZE + 1];
+	regex_t reg = {};
+
+	if (regex) {
+		// regcomp wants a null terminated string
+		// But I don't want to allocate an arbitrary str.len + 1 array to ensure that the key is null terminated
+		// so I'll limit the length to 255 and use the aforedeclarated `buff`
+		size_t safe_size = route_name->len > INTERNAL_BUFF_SIZE ? INTERNAL_BUFF_SIZE : route_name->len;
+		memcpy(buff, route_name->str, safe_size);
+		buff[safe_size] = '\0'; // since safe_size is always at max the size of the buff, this is always safe
+
+		auto code = regcomp(&reg, buff, REG_EXTENDED | REG_NOSUB);
+		if (code != 0) {
+			regerror(code, &reg, buff, INTERNAL_BUFF_SIZE + 1);
+			llog(LOG_WARNING, "[ROUTING] Regex compilation failed for pattern '%.*s' failed with error: %s\n", CLAMP_TO_POSITIVE_INT(route_name->len), route_name->str, buff);
+			return INVALID_REGEX;
+		}
+		auto err = MiniVector_regex_t_append(&server->routes.regexes, &reg);
+		if (err > NO_OP) {
+			regfree(&reg);
+			return err;
+		} // only FAILED_ALLOCATION
+	} else {
+		regex_t empty = {}; // this is a bit of an hack, It's impossible for a valid regex to be all 0 and that's probably never gonna change
+		                    // else I'd have to create a bitfield
+		auto    err   = MiniVector_regex_t_append(&server->routes.regexes, &empty);
+		SNS_RET_IF_ERR(err);
+	}
+
+	auto err = MiniVector_StringView_append(&server->routes.names, route_name);
+	if (err > NO_OP) {
+		if (regex) {
+			regfree(&reg);
+		}
+		auto err2 = MiniVector_regex_t_remove(&server->routes.regexes, server->routes.regexes.count - 1);
+		SNS_RET_IF_ERR(err2)
+		return err;
+	}
+
+	err = MiniVector_MessageProcessor_append(&server->routes.processors, &proc);
+	if (err > NO_OP) {
+		if (regex) {
+			regfree(&reg);
+		}
+		auto err2 = MiniVector_regex_t_remove(&server->routes.regexes, server->routes.regexes.count - 1);
+		SNS_RET_IF_ERR(err2)
+		err2 = MiniVector_StringView_remove(&server->routes.names, server->routes.names.count - 1);
+		SNS_RET_IF_ERR(err2)
+		return err;
+	}
+
+	return NO_ERROR;
+}
+
+ERRFUNC unregister_route(const StringView *route_name, SNSServer *server) {
+	if (route_name == nullptr) {
+		server->routes.default_processor = nullptr;
+		return NO_ERROR;
+	}
+
+	for (size_t i = 0; i < server->routes.names.count; ++i) {
+		StringView name = {};
+		// this can't fail because the index is bounded
+		auto ign        = MiniVector_StringView_get(&server->routes.names, i, &name);
+		if (equal_sized_strings(route_name->str, route_name->len, name.str, name.len)) {
+
+			regex_t regex = {};
+			regex_t empty = {};
+			// these can't fail because the index is bounded
+			ign           = MiniVector_regex_t_get(&server->routes.regexes, i, &regex);
+			if (memcmp(&regex, &empty, sizeof(regex_t)) != 0) {
+				regfree(&regex);
+			}
+			ign = MiniVector_regex_t_remove(&server->routes.regexes, i);
+			ign = MiniVector_StringView_remove(&server->routes.names, i);
+			ign = MiniVector_MessageProcessor_remove(&server->routes.processors, i);
+
+			return NO_ERROR;
+		}
+	}
+
+	return NO_OP;
 }

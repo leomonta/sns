@@ -10,6 +10,7 @@ typedef enum : uint8_t {
 	NO_OP    = 1,                               // There is no data to give back, whataver the value set in the out parameter should be ignored
 	FAILED_ALLOCATION,                          // malloc / realloc failed
 	INVALID_ARGUMENT,                           // the argument given breach the contract of the function
+	INVALID_REGEX,                              // the regex for the routing could not be compiled
 	PARSING__NULL_CHUNK_SEPARATOR,              // malformed or unknown separator to decode (e.g. '\r\n' in header options)
 	PARSING__MALFORMED_MULTIPART_FORMDATA,      // the body of a mltipart form-data request does not comply with the specs
 	PARSING_HEADER__FAILED,                     // the parsing of the header was interrupted halfway
@@ -30,11 +31,11 @@ typedef enum : uint8_t {
 #define ERRFUNC [[nodiscard]] ErrCode
 
 #define SNS_RET_IF_ERR(code) \
-	if (code > NO_OP) {       \
-		return code;          \
+	if (code > NO_OP) {      \
+		return code;         \
 	}
 
-#define SNS_TEST_ALLOC(ptr)                                                                        \
+#define SNS_TEST_ALLOC(ptr)                                                                         \
 	if (ptr == NULL) {                                                                              \
 		llog(LOG_FATAL, "[ALLOCATION] Allocation returned NULL: %d, %s\n", errno, strerror(errno)); \
 		return FAILED_ALLOCATION;                                                                   \

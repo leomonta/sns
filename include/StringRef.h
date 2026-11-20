@@ -52,8 +52,12 @@ bool equal_StringRef(const StringRef *lhs, const StringRef *rhs);
 
 bool equal_StringView(const StringView *lhs, const StringView *rhs);
 
+bool equal_sized_strings(const char *lhs, const size_t lhs_s, const char *rhs, const size_t rhs_s);
+
 bool equal_case_StringOwn(const StringOwn *lhs, const StringOwn *rhs);
 
 bool equal_case_StringRef(const StringRef *lhs, const StringRef *rhs);
 
 bool equal_case_StringView(const StringView *lhs, const StringView *rhs);
+
+bool equal_case_sized_strings(const char *lhs, const size_t lhs_s, const char *rhs, const size_t rhs_s);
