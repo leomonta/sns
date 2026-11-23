@@ -21,8 +21,8 @@ static struct sigaction old_sigaction = {};
 
 //                                                                111 1 1111112222222222 3 33333333344444444445555555555666666 6 666777777777777777 7 7
 //                                                      0123456789012 3 4567890123456789 0 12345678901234567890123456789012345 6 789012345678901234 5 6
-static char RESPONSE_GENERIC_INTERNAL_SERVER_ERROR[] = "HTTP/1.1 xxx \r\nServer: sns/5.0\r\nDate: Thu, 1 Jan 1997 00:00:00 GMT\r\nContent-Length: 0\r\n\r\n";
-static size_t RESPONSE_GENERIC_INTERNAL_SERVER_ERROR_LEN = 87;
+static char   RESPONSE_GENERIC_INTERNAL_SERVER_ERROR[]   = "HTTP/1.1 xxx \r\nServer: sns/5.0\r\nDate: Thu, 01 Jan 1997 00:00:00 GMT\r\nContent-Length: 0\r\n\r\n";
+static size_t RESPONSE_GENERIC_INTERNAL_SERVER_ERROR_LEN = sizeof(RESPONSE_GENERIC_INTERNAL_SERVER_ERROR) - 1;
 
 static void SIGPIPE_handler(int os) {
 	llog(LOG_INFO, "[SIGPIPE] Received a sigpipe. (%d) Probably just a client disconnect\n", os);
@@ -39,7 +39,7 @@ static MessageProcessor find_processor(const StringView *url, const SNSRoutes *r
 		auto    ign   = MiniVector_regex_t_get(&routes_info->regexes, i, &regex);
 
 		// if the route is regex, skip this
-		if (memcmp(&regex, &empty_reg, 28 /*skip the \n getUTC placas*/) != 0) {
+		if (memcmp(&regex, &empty_reg, sizeof(regex_t)) != 0) {
 			continue;
 		}
 		StringView name = {};
@@ -66,7 +66,7 @@ static MessageProcessor find_processor(const StringView *url, const SNSRoutes *r
 
 		regmatch_t match_conf = {
 		    .rm_so = 0,
-		    .rm_eo = CLAMP_TO_POSITIVE_INT(url->len), // technically truncating the legnth here but if someone is going to send me a request with a url 2^32 char long (4GB) we have other problems
+		    .rm_eo = clamp_to_positive_int(url->len), // technically truncating the legnth here but if someone is going to send me a request with a url 2^32 char long (4GiB) we have other problems
 		};
 		auto code = regexec(&regex, url->str, 0, &match_conf, REG_STARTEND);
 
@@ -77,16 +77,16 @@ static MessageProcessor find_processor(const StringView *url, const SNSRoutes *r
 		}
 	}
 
-	llog(LOG_WARNING, "[FINDING RESOLVER] Could not find any matching processor for url '%.*s', using the default one\n", CLAMP_TO_POSITIVE_INT(url->len), url->str);
+	llog(LOG_WARNING, "[FINDING RESOLVER] Could not find any matching processor for url '%.*s', using the default one\n", clamp_to_positive_int(url->len), url->str);
 	return routes_info->default_processor;
 }
 
 static void send500(SSL *ssl_connection) {
 
 	auto res = RESPONSE_GENERIC_INTERNAL_SERVER_ERROR;
-	res[9] = '5';
-	res[10] = '0';
-	res[11] = '0';
+	res[9]   = '5';
+	res[10]  = '0';
+	res[11]  = '0';
 
 	auto utc = getUTC();
 
@@ -102,17 +102,17 @@ static void send500(SSL *ssl_connection) {
 static void resolve_request(SSL *ssl_connection, const Socket client_socket, const SNSRoutes *routes_info) {
 
 	// ---------------------------------------------------------------------- RECEIVE
-	char            *request        = nullptr;
-	auto             bytes_received = SSL_receive_record(ssl_connection, &request);
-	MessageProcessor processor      = nullptr; // this is kept here to so an erlier error can set it to a default known value (like 400 Bad Request)
-	InboundHttpMessage inbound_mex = {};
+	char              *request        = nullptr;
+	auto               bytes_received = SSL_receive_record(ssl_connection, &request);
+	MessageProcessor   processor      = nullptr; // this is kept here to so an erlier error can set it to a default known value (like 400 Bad Request)
+	InboundHttpMessage inbound_mex    = {};
 	// received some bytes
 	if (bytes_received <= 0) {
 		free(request);
 		goto cleanup; // https://thephd.dev/assets/img/2025/06/raw%20goto.jpg
 	}
 
-	auto               err = create_InboundHttpMessage(request, &inbound_mex);
+	auto err = create_InboundHttpMessage(request, &inbound_mex);
 	if (err > NO_OP) {
 
 		if (err == FAILED_ALLOCATION) {
@@ -127,7 +127,7 @@ static void resolve_request(SSL *ssl_connection, const Socket client_socket, con
 
 	if (processor == nullptr) { // nothing else did set a responder already
 		const StringView met = methods_str[inbound_mex.method];
-		llog(LOG_INFO, "[SERVER] Received request <%.*s> from %d\n", CLAMP_TO_POSITIVE_INT(met.len), met.str, client_socket);
+		llog(LOG_INFO, "[SERVER] Received request <%.*s> from %d\n", clamp_to_positive_int(met.len), met.str, client_socket);
 
 		StringView url_v = {inbound_mex.url.str, inbound_mex.url.len};
 		processor        = find_processor(&url_v, routes_info);
@@ -141,8 +141,9 @@ static void resolve_request(SSL *ssl_connection, const Socket client_socket, con
 			goto cleanup;
 		}
 
-		outbound_mex.version = HTTP_VER_11;
-		err                  = add_header_option(RP_DATE, getUTC(), &outbound_mex);
+		outbound_mex.version     = HTTP_VER_11;
+		outbound_mex.status_code = 204;
+		err                      = add_header_option(RP_DATE, getUTC(), &outbound_mex);
 
 		if (err > NO_OP) {
 			err = destroy_OutboundHttpMessage(&outbound_mex);
@@ -160,7 +161,16 @@ static void resolve_request(SSL *ssl_connection, const Socket client_socket, con
 			goto cleanup;
 		}
 
-		// if the `create_InboundHttpMessage` faile inbound_mex is not properly constructed, but this is not a problem because 
+		err = add_header_option(RP_CONTENT_LENGTH, TO_STRINGVIEW("0"), &outbound_mex);
+
+		if (err > NO_OP) {
+			err = destroy_OutboundHttpMessage(&outbound_mex);
+			// ignoring error, since it does not return one yet
+			send500(ssl_connection);
+			goto cleanup;
+		}
+
+		// if the `create_InboundHttpMessage` faile inbound_mex is not properly constructed, but this is not a problem because
 		// in that case `processor` is a known one that does not use the in mex,
 		err = processor(&inbound_mex, &outbound_mex);
 
@@ -175,7 +185,7 @@ static void resolve_request(SSL *ssl_connection, const Socket client_socket, con
 		StringOwn res = {};
 		err           = compose_message(&outbound_mex, &res);
 		if (err <= NO_OP) {
-			llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%.*s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str);
+			llog(LOG_DEBUG, "[SERVER] Message compiled -> \n%.*s\n", clamp_to_positive_int(res.len), res.str);
 
 			// ---------------------------------------------------------------------- SEND
 			// acknowledge the segment back to the sender
@@ -241,6 +251,11 @@ static void accept_requests(SNSServer *server) {
 		// infinetly wait for the socket to become usable
 		poll(&ss, 1, -1);
 
+		if (ss.revents == POLLNVAL) {
+			// we closed the server socket
+			break;
+		}
+
 		client = TCP_accept_client(server->info.server_socket);
 
 		if (client == -1) {
@@ -293,7 +308,7 @@ SNS_NO_RETURN static void *proxy_acc_req(void *ptr) {
  * - `THREADPOOL__FAILED_INIT`. The threadpool initialization failed
  *     Nothing was constructed and nothing needs to be destroyed
  */
-ERRFUNC static setup(SNSServer *server) {
+[[nodiscard]] static ErrCode setup(SNSServer *server) {
 
 	errno = 0;
 
@@ -312,7 +327,7 @@ ERRFUNC static setup(SNSServer *server) {
 		exit(1);
 	}
 
-	llog(LOG_INFO, "[SERVER] Listening on %.*s:%d\n", CLAMP_TO_POSITIVE_INT(server->settings.base_dir.len), server->settings.base_dir.str, server->settings.tcp_port);
+	llog(LOG_INFO, "[SERVER] Listening on %.*s:%d\n", clamp_to_positive_int(server->settings.base_dir.len), server->settings.base_dir.str, server->settings.tcp_port);
 
 	// initializing the ssl connection data
 	SSL_initialize();
@@ -321,7 +336,7 @@ ERRFUNC static setup(SNSServer *server) {
 
 	if (server->info.ssl_context == nullptr) {
 		SSL_terminate();
-		exit(1);
+		return SSL_INIT_FAILED;
 	}
 
 	llog(LOG_INFO, "[SSL] Context created\n");
@@ -375,14 +390,17 @@ ERRFUNC SNSstop(SNSServer *server) {
 	TCP_terminate(server->info.server_socket);
 
 #ifndef NO_THREADING
-	// tpool stop
-	auto err = destroy_threadpool(&server->info.thread_pool);
-	SNS_RET_IF_ERR(err) // Does not return an error (yet)
-	llog(LOG_INFO, "[SERVER] Sent stop signal to all threads\n");
+
+	server->info.thread_pool.stop = true;
 
 	// thread stop
 	pthread_join(server->info.request_acceptor, NULL);
 	llog(LOG_INFO, "[SERVER] Request acceptor stopped\n");
+
+	// tpool stop
+	auto err = destroy_threadpool(&server->info.thread_pool);
+	SNS_RET_IF_ERR(err) // Does not return an error (yet)
+	llog(LOG_INFO, "[SERVER] Sent stop signal to all threads\n");
 #endif
 
 	SSL_destroy_context(server->info.ssl_context);
@@ -447,8 +465,6 @@ ERRFUNC destroy_SNSServer(SNSServer *server) {
 
 ERRFUNC register_route(const StringView *route_name, const MessageProcessor proc, const bool regex, SNSServer *server) {
 
-#define INTERNAL_BUFF_SIZE 255
-
 	if (proc == nullptr) {
 		return INVALID_ARGUMENT;
 	}
@@ -458,23 +474,23 @@ ERRFUNC register_route(const StringView *route_name, const MessageProcessor proc
 		return NO_ERROR;
 	}
 
-	char    buff[INTERNAL_BUFF_SIZE + 1];
 	regex_t reg = {};
 
 	if (regex) {
+		char    *buff = malloc(route_name->len + 1);
+		SNS_TEST_ALLOC(buff);
 		// regcomp wants a null terminated string
-		// But I don't want to allocate an arbitrary str.len + 1 array to ensure that the key is null terminated
-		// so I'll limit the length to 255 and use the aforedeclarated `buff`
-		size_t safe_size = route_name->len > INTERNAL_BUFF_SIZE ? INTERNAL_BUFF_SIZE : route_name->len;
-		memcpy(buff, route_name->str, safe_size);
-		buff[safe_size] = '\0'; // since safe_size is always at max the size of the buff, this is always safe
+		memcpy(buff, route_name->str, route_name->len);
+		buff[route_name->len] = '\0';
 
 		auto code = regcomp(&reg, buff, REG_EXTENDED | REG_NOSUB);
 		if (code != 0) {
-			regerror(code, &reg, buff, INTERNAL_BUFF_SIZE + 1);
-			llog(LOG_WARNING, "[ROUTING] Regex compilation failed for pattern '%.*s' failed with error: %s\n", CLAMP_TO_POSITIVE_INT(route_name->len), route_name->str, buff);
+			regerror(code, &reg, buff, route_name->len + 1);
+			llog(LOG_WARNING, "[ROUTING] Regex compilation failed for pattern '%.*s' failed with error: %s\n", clamp_to_positive_int(route_name->len), route_name->str, buff);
+			free(buff);
 			return INVALID_REGEX;
 		}
+		free(buff);
 		auto err = MiniVector_regex_t_append(&server->routes.regexes, &reg);
 		if (err > NO_OP) {
 			regfree(&reg);

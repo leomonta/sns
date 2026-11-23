@@ -11,6 +11,7 @@ typedef enum : uint8_t {
 	FAILED_ALLOCATION,                          // malloc / realloc failed
 	INVALID_ARGUMENT,                           // the argument given breach the contract of the function
 	INVALID_REGEX,                              // the regex for the routing could not be compiled
+	SSL_INIT_FAILED,                            // an error occuured in the intialization of the ssl layer
 	PARSING__NULL_CHUNK_SEPARATOR,              // malformed or unknown separator to decode (e.g. '\r\n' in header options)
 	PARSING__MALFORMED_MULTIPART_FORMDATA,      // the body of a mltipart form-data request does not comply with the specs
 	PARSING_HEADER__FAILED,                     // the parsing of the header was interrupted halfway

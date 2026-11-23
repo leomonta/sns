@@ -7,7 +7,12 @@
 #include <limits.h>
 #include <string.h>
 
-#define CLAMP_TO_POSITIVE_INT(sz) (sz > INT_MAX ? INT_MAX - 1 : (int)(sz))
+/**
+ * returns the given size_t clmaped from -
+ */
+static inline int clamp_to_positive_int(size_t sz) {
+	return (sz > INT_MAX ? INT_MAX : (int)(sz));
+}
 
 /**
  * simply get the time formetted following RFC822 regulation on GMT time

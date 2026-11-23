@@ -89,7 +89,7 @@ ERRFUNC add_to_header_options(StringRef *key, StringRef *val, InboundHttpMessage
 		val = &empty;
 	}
 	if (index >= RQ_ENUM_LEN) {
-		llog(LOG_WARNING, "[HEADER] Could not recognize parameter '%.*s = %.*s'\n", CLAMP_TO_POSITIVE_INT(key->len), key->str, CLAMP_TO_POSITIVE_INT(val->len), val->str);
+		llog(LOG_WARNING, "[HEADER] Could not recognize parameter '%.*s = %.*s'\n", clamp_to_positive_int(key->len), key->str, clamp_to_positive_int(val->len), val->str);
 		return NO_ERROR; // it's fine for now
 		                 // return PARSING_HEADER__UKNOWN_HEADER;
 	}
@@ -144,14 +144,14 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 
 	const char *first_space = strnchr(request_line.str, ' ', request_line.len);
 	if (first_space == nullptr) {
-		llog(LOG_ERROR, "[HEADER] Missing space in the request line (%.*s)\n", CLAMP_TO_POSITIVE_INT(request_line.len), request_line.str);
+		llog(LOG_ERROR, "[HEADER] Missing space in the request line (%.*s)\n", clamp_to_positive_int(request_line.len), request_line.str);
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
 	const StringView after_first_space = {first_space + 1, request_line.len - (size_t)(first_space - request_line.str) - 1}; // move after the first space, and account for that in the length
 	const char      *second_space      = strnchr(after_first_space.str, ' ', after_first_space.len);
 	if (second_space == nullptr) {
-		llog(LOG_ERROR, "[HEADER] Missing space in the request line (%.*s)\n", CLAMP_TO_POSITIVE_INT(request_line.len), request_line.str);
+		llog(LOG_ERROR, "[HEADER] Missing space in the request line (%.*s)\n", clamp_to_positive_int(request_line.len), request_line.str);
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
@@ -163,13 +163,13 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	// actually storing the values in the object
 	msg->method = get_method_code(&method_ref);
 	if (msg->method == HTTP_INVALID_METHOD) {
-		llog(LOG_ERROR, "[HEADER] Invalid Http Method (%.*s)\n", CLAMP_TO_POSITIVE_INT(method_ref.len), method_ref.str);
+		llog(LOG_ERROR, "[HEADER] Invalid Http Method (%.*s)\n", clamp_to_positive_int(method_ref.len), method_ref.str);
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 
 	msg->version = get_version_code(&version_ref);
 	if (msg->version == HTTP_VER_UNKN) {
-		llog(LOG_ERROR, "[HEADER] Invalid Http Version (%.*s)\n", CLAMP_TO_POSITIVE_INT(version_ref.len), version_ref.str);
+		llog(LOG_ERROR, "[HEADER] Invalid Http Version (%.*s)\n", clamp_to_positive_int(version_ref.len), version_ref.str);
 		return PARSING_HEADER__MALFORMED_REQUEST_LINE;
 	}
 	// the url is 1 char after the method, and long the distance between the two spaces - 1
@@ -191,7 +191,7 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg) {
 	}
 
 	if (msg->url.len == 0) {
-		llog(LOG_ERROR, "[HEADER] Url null (%.*s)\n", CLAMP_TO_POSITIVE_INT(request_line.len), request_line.str);
+		llog(LOG_ERROR, "[HEADER] Url null (%.*s)\n", clamp_to_positive_int(request_line.len), request_line.str);
 		return PARSING_HEADER__INVALID_URL;
 	}
 
@@ -378,7 +378,7 @@ HTTPRequestOption get_header_options_code(const StringView *option) {
 ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, const char *chunk_sep, const char item_sep, InboundHttpMessage *ctx) {
 
 	if (chunk_sep == nullptr) {
-		llog(LOG_ERROR, "[PARSING] Refusing to parse chunks with a null chunk separator (%.*s)\n", CLAMP_TO_POSITIVE_INT(segment->len), segment->str);
+		llog(LOG_ERROR, "[PARSING] Refusing to parse chunks with a null chunk separator (%.*s)\n", clamp_to_positive_int(segment->len), segment->str);
 		return PARSING__NULL_CHUNK_SEPARATOR;
 	}
 
@@ -387,7 +387,7 @@ ERRFUNC parse_options(const StringRef *segment, const OptionsProcessor fun, cons
 	auto        chunk_sep_len = strlen(chunk_sep);
 
 	if (chunk_sep_len <= 0) {
-		llog(LOG_ERROR, "[PARSING] Refusing to parse chunks with a null chunk separator (%.*s)\n", CLAMP_TO_POSITIVE_INT(segment->len), segment->str);
+		llog(LOG_ERROR, "[PARSING] Refusing to parse chunks with a null chunk separator (%.*s)\n", clamp_to_positive_int(segment->len), segment->str);
 		return PARSING__NULL_CHUNK_SEPARATOR;
 	}
 

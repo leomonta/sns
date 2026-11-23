@@ -13,6 +13,7 @@
 // these are thread local to prevent an allocation, if the values need to persist past a print, or similar, they need to be stored somewhere else
 static thread_local char buffer[80];
 static thread_local char digits_str_buffer[41]; // enough to represent 2^128, null terminator and then some
+						//
 
 StringView getUTC() {
 
@@ -44,7 +45,7 @@ ERRFUNC url_decode(StringRef *dst, const StringView *src, bool do_plus) {
 			// I have to dereference here instead of using a variable because before the if I don't know if I might be dereferencing outside of the buffer
 			if (read_index + 2 >= src->len || (!isxdigit((unsigned char)src->str[read_index + 1]) || !isxdigit((unsigned char)src->str[read_index + 2]))) {
 				// specifying a percent encoding without the two x digits is malformed
-				llog(LOG_ERROR, "[PARSING] Incomplete or invalid percent encoding (%.*s)\n", CLAMP_TO_POSITIVE_INT(src->len - read_index), src->str + read_index);
+				llog(LOG_ERROR, "[PARSING] Incomplete or invalid percent encoding (%.*s)\n", clamp_to_positive_int(src->len - read_index), src->str + read_index);
 				return PARSING_HEADER__MALFORMED_PERCENT_ENCODING;
 			}
 			a = src->str[read_index + 1];

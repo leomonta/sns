@@ -27,13 +27,13 @@ bool test_trim(const char* to_be_trimmed, const char* trimmed) {
 	auto res = trim_StringRef(&to_be);
 
 	bool b = equal_StringRef(&res, &is);
-	llog(LOG_DEBUG, "%.*s == %s, %s\n", CLAMP_TO_POSITIVE_INT(res.len), res.str, trimmed, b ? "Success" : "Failure");
+	llog(LOG_DEBUG, "%.*s == %s, %s\n", clamp_to_positive_int(res.len), res.str, trimmed, b ? "Success" : "Failure");
 
 	return b;
 }
 
 void do_nothing(StringRef a, StringRef b, InboundHttpMessage *c) {
-	llog(LOG_DEBUG, "%.*s = %.*s\n", CLAMP_TO_POSITIVE_INT(a.len), a.str, CLAMP_TO_POSITIVE_INT(b.len), b.str);
+	llog(LOG_DEBUG, "%.*s = %.*s\n", clamp_to_positive_int(a.len), a.str, clamp_to_positive_int(b.len), b.str);
 }
 
 bool test_urldecode( char * encoded, const char * ref) {

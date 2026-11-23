@@ -66,7 +66,7 @@ ERRFUNC MiniMap_#K#_#V#_replace(MiniMap *map, const K *key, const V *value);
 ERRFUNC MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result);
 
 /**
- * Get the value corresponding to the giving key
+ * Get the value corresponding to the giving index
  *
  * @param[in] `map` the map to get the value from
  * @param[in] `index` the index of the entry to return
@@ -79,7 +79,7 @@ ERRFUNC MiniMap_#K#_#V#_get(const MiniMap *map, const K *key, V *result);
  *
  * - `INVALID_ARGUMENT`: the index given exceeds the amount of elements available in the structure or the given element is `nullptr`. No data was added
  */
-ERRFUNC MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V *result);
+ERRFUNC MiniMap_#K#_#V#_get_by_index(const MiniMap *map, const size_t index, K *key, V *value);
 
 /**
  * Insert a value into the map through its relative key
