@@ -19,6 +19,11 @@
 
 static struct sigaction old_sigaction = {};
 
+//                                                                111 1 1111112222222222 3 33333333344444444445555555555666666 6 666777777777777777 7 7
+//                                                      0123456789012 3 4567890123456789 0 12345678901234567890123456789012345 6 789012345678901234 5 6
+static char RESPONSE_GENERIC_INTERNAL_SERVER_ERROR[] = "HTTP/1.1 xxx \r\nServer: sns/5.0\r\nDate: Thu, 1 Jan 1997 00:00:00 GMT\r\nContent-Length: 0\r\n\r\n";
+static size_t RESPONSE_GENERIC_INTERNAL_SERVER_ERROR_LEN = 87;
+
 static void SIGPIPE_handler(int os) {
 	llog(LOG_INFO, "[SIGPIPE] Received a sigpipe. (%d) Probably just a client disconnect\n", os);
 }
@@ -34,7 +39,7 @@ static MessageProcessor find_processor(const StringView *url, const SNSRoutes *r
 		auto    ign   = MiniVector_regex_t_get(&routes_info->regexes, i, &regex);
 
 		// if the route is regex, skip this
-		if (memcmp(&regex, &empty_reg, sizeof(regex_t)) != 0) {
+		if (memcmp(&regex, &empty_reg, 28 /*skip the \n getUTC placas*/) != 0) {
 			continue;
 		}
 		StringView name = {};
@@ -76,6 +81,20 @@ static MessageProcessor find_processor(const StringView *url, const SNSRoutes *r
 	return routes_info->default_processor;
 }
 
+static void send500(SSL *ssl_connection) {
+
+	auto res = RESPONSE_GENERIC_INTERNAL_SERVER_ERROR;
+	res[9] = '5';
+	res[10] = '0';
+	res[11] = '0';
+
+	auto utc = getUTC();
+
+	memcpy(&res[38], utc.str, utc.len);
+
+	SSL_send_record(ssl_connection, res, RESPONSE_GENERIC_INTERNAL_SERVER_ERROR_LEN);
+}
+
 /**
  * Will receive the data from the connection, parse the request and give it to the message processor
  *
@@ -83,27 +102,26 @@ static MessageProcessor find_processor(const StringView *url, const SNSRoutes *r
 static void resolve_request(SSL *ssl_connection, const Socket client_socket, const SNSRoutes *routes_info) {
 
 	// ---------------------------------------------------------------------- RECEIVE
-	char *request        = nullptr;
-	auto  bytes_received = SSL_receive_record(ssl_connection, &request);
-	MessageProcessor processor = nullptr; // this is kept here to so an erlier error can set it to a default known value (like 400 Bad Request)
+	char            *request        = nullptr;
+	auto             bytes_received = SSL_receive_record(ssl_connection, &request);
+	MessageProcessor processor      = nullptr; // this is kept here to so an erlier error can set it to a default known value (like 400 Bad Request)
+	InboundHttpMessage inbound_mex = {};
 	// received some bytes
 	if (bytes_received <= 0) {
 		free(request);
 		goto cleanup; // https://thephd.dev/assets/img/2025/06/raw%20goto.jpg
 	}
 
-	InboundHttpMessage inbound_mex;
-	auto               err = create_InboundMessage(request, &inbound_mex);
+	auto               err = create_InboundHttpMessage(request, &inbound_mex);
 	if (err > NO_OP) {
-		llog(LOG_ERROR, "[SERVER] Discarding invalid request from client %d\n", client_socket);
-		if (err == PARSING_HEADER__MALFORMED_REQUEST || err == FAILED_ALLOCATION) {
-			free(request);
-		} else {
-			err = destroy_InboundHttpMessage(&inbound_mex);
-			if (err > NO_OP) {
-				llog(LOG_ERROR, "[SERVER] Destroying the inbound message failed, potentially leaking memory (client %d)\n", client_socket);
-			}
+
+		if (err == FAILED_ALLOCATION) {
+			send500(ssl_connection);
+			goto cleanup;
 		}
+
+		llog(LOG_WARNING, "[SERVER] Client made an invalid request, responding with <400 Bad Request> \n");
+
 		processor = BadRequest400;
 	}
 
@@ -111,16 +129,15 @@ static void resolve_request(SSL *ssl_connection, const Socket client_socket, con
 		const StringView met = methods_str[inbound_mex.method];
 		llog(LOG_INFO, "[SERVER] Received request <%.*s> from %d\n", CLAMP_TO_POSITIVE_INT(met.len), met.str, client_socket);
 
-		StringView       url_v     = {inbound_mex.url.str, inbound_mex.url.len};
-		processor = find_processor(&url_v, routes_info);
+		StringView url_v = {inbound_mex.url.str, inbound_mex.url.len};
+		processor        = find_processor(&url_v, routes_info);
 	}
 	if (processor != nullptr) { // TODO: check after message processor re-work
 
 		OutboundHttpMessage outbound_mex = {};
 		err                              = create_OutboundHttpMessage(&outbound_mex);
 		if (err > NO_OP) {
-			err = destroy_InboundHttpMessage(&inbound_mex);
-			// ignoring error, since it does not return one yet
+			send500(ssl_connection);
 			goto cleanup;
 		}
 
@@ -128,25 +145,29 @@ static void resolve_request(SSL *ssl_connection, const Socket client_socket, con
 		err                  = add_header_option(RP_DATE, getUTC(), &outbound_mex);
 
 		if (err > NO_OP) {
-			err = destroy_InboundHttpMessage(&inbound_mex);
+			err = destroy_OutboundHttpMessage(&outbound_mex);
 			// ignoring error, since it does not return one yet
+			send500(ssl_connection);
 			goto cleanup;
 		}
 
 		err = add_header_option(RP_SERVER, TO_STRINGVIEW(SNS_VERSION_STRING), &outbound_mex);
 
 		if (err > NO_OP) {
-			err = destroy_InboundHttpMessage(&inbound_mex);
+			err = destroy_OutboundHttpMessage(&outbound_mex);
 			// ignoring error, since it does not return one yet
+			send500(ssl_connection);
 			goto cleanup;
 		}
 
+		// if the `create_InboundHttpMessage` faile inbound_mex is not properly constructed, but this is not a problem because 
+		// in that case `processor` is a known one that does not use the in mex,
 		err = processor(&inbound_mex, &outbound_mex);
 
 		if (err > NO_OP) {
-			err = destroy_InboundHttpMessage(&inbound_mex);
 			err = destroy_OutboundHttpMessage(&outbound_mex);
 			// ignoring error, since it does not return one yet
+			send500(ssl_connection);
 			goto cleanup;
 		}
 
@@ -160,15 +181,16 @@ static void resolve_request(SSL *ssl_connection, const Socket client_socket, con
 			// acknowledge the segment back to the sender
 			SSL_send_record(ssl_connection, res.str, res.len);
 			free(res.str);
+		} else {
+			send500(ssl_connection);
 		}
 
 		err = destroy_OutboundHttpMessage(&outbound_mex);
 		// ignoring error, since it does not return one yet
-
 	}
+cleanup:
 	err = destroy_InboundHttpMessage(&inbound_mex);
 	// ignoring error, since it does not return one yet
-cleanup:
 	SSL_destroy_connection(ssl_connection);
 	TCP_shutdown_socket(client_socket);
 	TCP_close_socket(client_socket);

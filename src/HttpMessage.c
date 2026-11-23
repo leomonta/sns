@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-ERRFUNC create_InboundMessage(char *str, InboundHttpMessage *mex) {
+ERRFUNC create_InboundHttpMessage(char *str, InboundHttpMessage *mex) {
 
 	*mex = (InboundHttpMessage){};
 
@@ -37,14 +37,10 @@ ERRFUNC create_InboundMessage(char *str, InboundHttpMessage *mex) {
 	SNS_RET_IF_ERR(err)
 
 	err = decompose_header(&header, mex);
-	if (err > NO_OP) {
-		return PARSING_HEADER__FAILED;
-	}
+	SNS_RET_IF_ERR(err)
 
 	err = decompose_message(mex);
-	if (err > NO_OP) {
-		return PARSING_BODY__FAILED;
-	}
+	SNS_RET_IF_ERR(err)
 
 	return NO_ERROR;
 }

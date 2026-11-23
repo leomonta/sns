@@ -40,28 +40,43 @@ typedef ErrCode (*OptionsProcessor)(StringRef *a, StringRef *b, InboundHttpMessa
 /**
  * Reads the given HTTP message `str` ands construct `mex` with the data found
  *
- * @param[in] `str` the null terminated string containing the entire message,
+ * \param[in] `str` the null terminated string containing the entire message,
  *     the inbound mmessage will take ownership of this and free it in `destroy_InboundHttpMessage`.
- *     depending on which error was returned, it may need to be freed by the caller
- * @param[out] `mex` the InboundHttpMessage to construct
+ * \param[out] `mex` the InboundHttpMessage to construct
  *
  * @return an error code describing if and which error occurred
  *
- * - `PARSING_HEADER__MALFORMED_REQUEST`: The request is missing the \r\n\r\n separator.
- *   The InboundHttpMessage structure was not constructed and should not be used nor destroyed
+ * - `PARSING_HEADER__MALFORMED_REQUEST`: The request is missing the `\r\n\r\n` separator.
+ *     The InboundHttpMessage structure was partly constructed and __should not__ be used, but it __should__ be destroyed
  * - `FAILED_ALLOCATION`: the internal parameter map could not be allocated.
- *     The InboundHttpMessage structure was not constructed and should not be used nor destroyed
- * - `PARSING_HEADER__FAILED`: the request header could not be properly parsed.
- *     The InboundHttpMessage structure was partly constructed and should not be used but *should* be destroyed
- * - `PARSING_BODY__FAILED`: the request body could not be properly parsed.
- *     The InboundHttpMessage structure was partly constructed and should not be used but *should* be destroyed
+ *     The InboundHttpMessage structure was partly constructed and __should not__ be used, but it __should__ be destroyed
+ * - `PARSING_HEADER__MALFORMED_REQUEST_LINE`: the request line does not follow the standard.
+ *     Nothing was parsed nor stored.
+ *     The InboundHttpMessage structure was partly constructed and __should not__ be used, but it __should__ be destroyed
+ * - `FAILED_ALLOCATION`:
+ *     The query parameters are partly parsed, but the url and the body are still not validated.
+ *     The InboundHttpMessage structure was partly constructed and __should not__ be used, but it __should__ be destroyed
+ * - `PARSING_HEADER__MALFORMED_PERCENT_ENCODING`: there were wrong percent encodings in the header options and we refuse to continue.
+ *     The query parameters are partly parsed, but the url and the body are still not validated.
+ *     The InboundHttpMessage structure was partly constructed and __should not__ be used, but it __should__ be destroyed
+ * - `PARSING_HEADER__INVALID_URL`: the url is either blank or does not follow the specifications.
+ *     All the query parameters have been parsed, but the url and body are still not validated.
+ *     The InboundHttpMessage structure was partly constructed and __should not__ be used, but it __should__ be destroyed
+ * - `FAILED_ALLOCATION`: could not store the parameter in the internal structure.
+ *     Body parsing halted midway, the values stored are correct but some options might be missing.
+ *     The InboundHttpMessage structure was partly constructed and __should not__ be used, but it __should__ be destroyed
+ * - `PARSING_HEADER__MALFORMED_PERCENT_ENCODING`: invaild percent encoding found.
+ *     Body parsing halted midway, the values stored are correct but some options might be missing.
+ *     The InboundHttpMessage structure was partly constructed and __should not__ be used, but it __should__ be destroyed
  */
-ERRFUNC create_InboundMessage(char *str, InboundHttpMessage *mex);
+ERRFUNC create_InboundHttpMessage(char *str, InboundHttpMessage *mex);
 
 /**
  * Frees all the associated resources and zeroes all the fields
  *
- * @param[in] `mex` the InboundHTTPMessage to destroy, this will also free the string passed to `create_InboundMessage`
+ * Destroying a null `InbundHttpMessage` is a NO-OP
+ *
+ * @param[in] `mex` the InboundHttpMessage to destroy, this will also free the string passed to `create_InboundHttpMessage`
  *
  * @return an error code describing if and which error occurred
  */
@@ -70,16 +85,21 @@ ERRFUNC destroy_InboundHttpMessage(InboundHttpMessage *mex);
 /**
  * Sets up the internal structure of an empty `OutboundHttpMessage` to initialize
  *
- * @param[in] `mex` the OutboundHTTPMessage to create, this will also free the string passed to `create_InboundMessage`
+ * \param[in] `mex` the OutboundHttpMessage to create.
  *
  * @return an error code describing if and which error occurred
+ *
+ * - `FAILED_ALLOCATION`: could not allocate the internal header option map
+ *     The OutboundHttpMessage structure was partly constructed and __should not__ be used
  */
 ERRFUNC create_OutboundHttpMessage(OutboundHttpMessage *mex);
 
 /**
  * Frees all the associated resources and zeroes all field.
  *
- * @param[in] `mex` the OutboundHTTPMessage to destroy
+ * Destroying a null `OutbundHttpMessage` is a NO-OP
+ *
+ * @param[in] `mex` the OutboundHttpMessage to destroy
  *
  * @return an error code describing if and which error occurred
  */
@@ -94,7 +114,8 @@ ERRFUNC destroy_OutboundHttpMessage(OutboundHttpMessage *mex);
  *
  * @return an error code describing if and which error occurred
  *
- * - PARSING_HEADER__MALFORMED_REQUEST_LINE: the request line does not follow the standard. Nothing was parsed nor stored
+ * - `PARSING_HEADER__MALFORMED_REQUEST_LINE`: the request line does not follow the standard.
+ *     Nothing was parsed nor stored
  * - `FAILED_ALLOCATION`:
  *     The query parameters are partly parsed, but the url and the body are still not validated.
  * - `PARSING_HEADER__MALFORMED_PERCENT_ENCODING`: the were wrong percent encodings in the header options and we refuse to continue.
@@ -111,8 +132,10 @@ ERRFUNC decompose_header(const StringRef *raw_header, InboundHttpMessage *msg);
  *
  * @return an error code describing if and which error occurred
  *
- * - `FAILED_ALLOCATION`: could not store the parameter in the internal structure. Parsing halted midway, the values stored are correct but some options might be missing
- * - `PARSING_HEADER__MALFORMED_PERCENT_ENCODING`: invaild percent encoding found. Parsing halted midway, the values stored are correct but some options might be missing
+ * - `FAILED_ALLOCATION`: could not store the parameter in the internal structure.
+ *     Parsing halted midway, the values stored are correct but some options might be missing
+ * - `PARSING_HEADER__MALFORMED_PERCENT_ENCODING`: invaild percent encoding found.
+ *     Parsing halted midway, the values stored are correct but some options might be missing
  */
 ERRFUNC decompose_message(InboundHttpMessage *msg);
 

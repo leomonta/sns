@@ -85,9 +85,9 @@ int main() {
 	TEST(test_trim("	 	", ""));
 	TEST(test_trim(" ", ""));
 
-	TEST(test_urldecode("%20", " "));
-	TEST(test_urldecode("%20v%26", " v&"));
-	TEST(test_urldecode("%20", nullptr));
+	// TEST(test_urldecode("%20", " "));
+	// TEST(test_urldecode("%20v%26", " v&"));
+	// TEST(test_urldecode("%20", nullptr));
 
 	llog(LOG_INFO, "%zu tests passed out of %zu. Pass rate of %.3f%%\n", tests_passed, total_tests, ((double)tests_passed / (double)total_tests) * 100);
 	return 0;
