@@ -1,33 +1,36 @@
 #!/bin/bash
 
-printf "miniVector.h stringRef\n"
+rm -r include/generated/*
+rm -r src/generated/*
+
+printf "MiniVector.h stringRef\n"
 templetizer -i template/include/MiniVector.h -o include/generated/MiniVector_StringRef.h -t StringRef '#include "StringRef.h"'
-printf "miniVector.c stringRef\n"
+printf "MiniVector.c stringRef\n"
 templetizer -i template/src/MiniVector.c -o src/generated/MiniVector_StringRef.c -t StringRef
 
-printf "miniVector.h stringView\n"
+printf "MiniVector.h stringView\n"
 templetizer -i template/include/MiniVector.h -o include/generated/MiniVector_StringView.h -t StringView '#include "StringRef.h"'
-printf "miniVector.c stringView\n"
+printf "MiniVector.c stringView\n"
 templetizer -i template/src/MiniVector.c -o src/generated/MiniVector_StringView.c -t StringView
 
-printf "miniMap.h stringRef\n"
+printf "MiniMap.h stringRef\n"
 templetizer -i template/include/MiniMap.h -o include/generated/MiniMap_StringRef_StringRef.h -t StringRef StringRef '#include "StringRef.h"'
-printf "miniMap.c stringRef\n"
+printf "MiniMap.c stringRef\n"
 templetizer -i template/src/MiniMap.c -o src/generated/MiniMap_StringRef_StringRef.c -t StringRef StringRef
 
-printf "miniVector.h StringOwn\n"
+printf "MiniVector.h StringOwn\n"
 templetizer -i template/include/MiniVector.h -o include/generated/MiniVector_StringOwn.h -t StringOwn '#include "StringRef.h"'
-printf "miniVector.c StringOwn\n"
+printf "MiniVector.c StringOwn\n"
 templetizer -i template/src/MiniVector.c -o src/generated/MiniVector_StringOwn.c -t StringOwn
 
-printf "miniVector.h HTTPResponseOption\n"
+printf "MiniVector.h HTTPResponseOption\n"
 templetizer -i template/include/MiniVector.h -o include/generated/MiniVector_HTTPResponseOption.h -t HTTPResponseOption '#include "constants.h"'
-printf "miniVector.c HTTPResponseOption\n"
+printf "MiniVector.c HTTPResponseOption\n"
 templetizer -i template/src/MiniVector.c -o src/generated/MiniVector_HTTPResponseOption.c -t HTTPResponseOption
 
-printf "miniMap.h HTTPResponseOption StringOwn\n"
+printf "MiniMap.h HTTPResponseOption StringOwn\n"
 templetizer -i template/include/MiniMap.h -o include/generated/MiniMap_HTTPResponseOption_StringOwn.h -t HTTPResponseOption StringOwn '#include "constants.h"'
-printf "miniMap.c HTTPResponseOption StringOwn\n"
+printf "MiniMap.c HTTPResponseOption StringOwn\n"
 templetizer -i template/src/MiniMap.c -o src/generated/MiniMap_HTTPResponseOption_StringOwn.c -t HTTPResponseOption StringOwn
 
 printf "RingBuffer.h ResolverData\n"
@@ -40,17 +43,7 @@ templetizer -i template/include/MiniVector.h -o include/generated/MiniVector_Mes
 printf "MiniVector.c MessageProcessor\n"
 templetizer -i template/src/MiniVector.c -o src/generated/MiniVector_MessageProcessor.c -t MessageProcessor
 
-printf "miniMap.h StringRef MessageProcessor\n"
-templetizer -i template/include/MiniMap.h -o include/generated/MiniMap_StringRef_MessageProcessor.h -t StringRef MessageProcessor ''
-printf "miniMap.c StringRef MessageProcessor\n"
-templetizer -i template/src/MiniMap.c -o src/generated/MiniMap_StringRef_MessageProcessor.c -t StringRef MessageProcessor
-
-printf "miniVector.h regex_t\n"
+printf "MiniVector.h regex_t\n"
 templetizer -i template/include/MiniVector.h -o include/generated/MiniVector_regex_t.h -t regex_t '#include "regex.h"'
-printf "miniVector.c regex_t\n"
+printf "MiniVector.c regex_t\n"
 templetizer -i template/src/MiniVector.c -o src/generated/MiniVector_regex_t.c -t regex_t
-
-printf "miniMap.h regex_t MessageProcessor\n"
-templetizer -i template/include/MiniMap.h -o include/generated/MiniMap_regex_t_MessageProcessor.h -t regex_t MessageProcessor ''
-printf "miniMap.c regex_t MessageProcessor\n"
-templetizer -i template/src/MiniMap.c -o src/generated/MiniMap_regex_t_MessageProcessor.c -t regex_t MessageProcessor

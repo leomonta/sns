@@ -66,7 +66,7 @@ ERRFUNC MiniMap_StringRef_StringRef_replace(MiniMap *map, const StringRef *key, 
 ERRFUNC MiniMap_StringRef_StringRef_get(const MiniMap *map, const StringRef *key, StringRef *result);
 
 /**
- * Get the value corresponding to the giving key
+ * Get the value corresponding to the giving index
  *
  * @param[in] `map` the map to get the value from
  * @param[in] `index` the index of the entry to return
@@ -79,7 +79,7 @@ ERRFUNC MiniMap_StringRef_StringRef_get(const MiniMap *map, const StringRef *key
  *
  * - `INVALID_ARGUMENT`: the index given exceeds the amount of elements available in the structure or the given element is `nullptr`. No data was added
  */
-ERRFUNC MiniMap_StringRef_StringRef_get_by_index(const MiniMap *map, const size_t index, StringRef *key, StringRef *result);
+ERRFUNC MiniMap_StringRef_StringRef_get_by_index(const MiniMap *map, const size_t index, StringRef *key, StringRef *value);
 
 /**
  * Insert a value into the map through its relative key

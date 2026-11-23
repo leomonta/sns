@@ -79,7 +79,7 @@ ERRFUNC MiniMap_StringRef_StringRef_get(const MiniMap *map, const StringRef *key
 
 ERRFUNC MiniMap_StringRef_StringRef_get_by_index(const MiniMap *map, const size_t index, StringRef *key, StringRef *value) {
 
-	if (index > map->values.count) {
+	if (index >= map->values.count) {
 		llog(LOG_WARNING, "[MINIMAP] %ld >= %ld Unreachable position\n", index, map->values.count);
 		return INVALID_ARGUMENT;
 	}
@@ -88,10 +88,6 @@ ERRFUNC MiniMap_StringRef_StringRef_get_by_index(const MiniMap *map, const size_
 	SNS_RET_IF_ERR(a) // this should never return error
 	auto b = MiniVector_StringRef_get(&map->keys, index, key);
 	SNS_RET_IF_ERR(b) // and this neither
-
-	if (a == NO_OP && b == NO_OP) {
-		return NO_OP;
-	}
 
 	return NO_ERROR;
 }
@@ -120,7 +116,10 @@ ERRFUNC MiniMap_StringRef_StringRef_set(MiniMap *map, const StringRef *key, cons
 	auto err = MiniVector_StringRef_append(&map->keys, key);
 	SNS_RET_IF_ERR(err) // can't do much here, it can only fail if growing fails.
 	err = MiniVector_StringRef_append(&map->values, value);
-	SNS_RET_IF_ERR(err)
+	if (err > NO_OP)  {
+		auto err2 = MiniVector_StringRef_remove(&map->keys, map->keys.count - 1);
+		return err;
+	}
 
 	return NO_ERROR;
 }
